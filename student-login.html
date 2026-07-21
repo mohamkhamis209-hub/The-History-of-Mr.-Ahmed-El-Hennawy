@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>دخول الطالب</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="login-container">
+        <img src="assets/logo.jpg" alt="Logo" class="logo">
+        <h2>دخول الطالب</h2>
+        <input type="text" id="studentCode" placeholder="أدخل الكود الخاص بك">
+        <button onclick="studentLogin()">دخول</button>
+        <p id="student-error" style="color:red; margin-top:10px;"></p>
+    </div>
+    <script src="js/firebase-config.js" type="module"></script>
+    <script type="module">
+        import { db, collection, query, where, getDocs, addDoc, updateDoc } from './js/firebase-config.js';
+        import { getDeviceId } from './js/device.js';
+
+        window.studentLogin = async function() {
+            const code = document.getElementById('studentCode').value.trim();
+            if (!code) return alert('أدخل الكود');
+
+            const q = query(collection(db, 'students'), where('code', '==', code));
+            const snap = await getDocs(q);
+            if (snap.empty) {
+                document.getElementById('student-error').innerText = 'كود غير صحيح';
+                return;
+            }
+
+            const docRef = snap.docs[0];
+            const data = docRef.data();
+
+            if (data.status === 'suspended') {
+                alert(`⛔ حسابك معلق: ${data.suspendMessage}`);
+                return;
+            }
+
+            const currentDevice = getDeviceId();
+            const deviceIds = data.deviceIds || [];
+
+            if (!deviceIds.includes(currentDevice)) {
+                const pendingQuery = query(
+                    collection(db, 'pendingDevices'),
+                    where('studentCode', '==', code),
+                    where('deviceId', '==', currentDevice),
+                    where('status', '==', 'pending')
+                );
+                const pendingSnap = await getDocs(pendingQuery);
+                if (!pendingSnap.empty) {
+                    alert('⏳ يوجد طلب معلق لهذا الجهاز بالفعل، انتظر موافقة المشرف.');
+                    return;
+                }
+
+                await addDoc(collection(db, 'pendingDevices'), {
+                    studentCode: code,
+                    deviceId: currentDevice,
+                    status: 'pending',
+                    requestedAt: new Date(),
+                    grade: data.grade || 'all'
+                });
+                alert('📱 تم إرسال طلب جهاز جديد للمشرف، انتظر الموافقة');
+                return;
+            }
+
+            const updates = { lastLogin: new Date() };
+            if (!data.firstLogin) {
+                updates.firstLogin = new Date();
+                updates.status = 'active';
+            } else if (data.status === 'inactive') {
+                updates.status = 'active';
+            }
+            await updateDoc(docRef.ref, updates);
+
+            localStorage.setItem('studentCode', code);
+            localStorage.setItem('studentGrade', data.grade || 'all');
+            localStorage.setItem('studentName', data.name || '');
+            
+            window.location.href = 'student-panel.html';
+        };
+    </script>
+</body>
+</html>

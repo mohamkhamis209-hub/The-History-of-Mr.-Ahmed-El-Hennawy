@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة الطالب</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .header-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 30px;
+            background: white;
+            border-bottom: 2px solid #eee;
+            margin-right: 270px;
+        }
+        .header-bar h2 {
+            margin: 0;
+            color: #1e2a36;
+        }
+        @media (max-width: 768px) {
+            .header-bar {
+                margin-right: 0;
+                padding: 15px;
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+            .header-bar h2 {
+                font-size: 18px;
+            }
+        }
+        .grade-badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            background: #3498db;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <script>
+        document.addEventListener('contextmenu', e => e.preventDefault());
+        document.addEventListener('dragstart', e => e.preventDefault());
+        document.addEventListener('touchstart', (e) => {
+            if (e.target.tagName === 'IMG' || e.target.tagName === 'VIDEO') {
+                e.preventDefault();
+            }
+        }, { passive: false });
+    </script>
+
+    <div class="sidebar">
+        <img src="assets/Mohamed.jpg" alt="Admin" class="admin-img">
+        <h4>المنصة التعليمية</h4>
+        <ul>
+            <li onclick="loadSection('videos')">🎬 الفيديوهات</li>
+            <li onclick="loadSection('books')">📚 الكتب</li>
+            <li onclick="loadSection('exams')">📝 الاختبارات</li>
+            <li onclick="loadSection('notifications')">🔔 الإشعارات</li>
+        </ul>
+        <button onclick="logoutStudent()" style="margin-top:50px; background:#e74c3c; color:white; border:none; padding:10px; border-radius:8px; cursor:pointer; width:100%; font-size:16px;">🚪 خروج</button>
+    </div>
+
+    <div class="header-bar">
+        <h2>مرحباً بك في المنصة</h2>
+        <div class="bell" onclick="loadSection('notifications')">
+            🔔 <span id="notif-count">0</span>
+        </div>
+    </div>
+
+    <div class="content" id="student-content">
+        <p style="font-size:18px; color:#666;">اختر ما تريد من القائمة الجانبية</p>
+    </div>
+
+    <script src="js/firebase-config.js" type="module"></script>
+    <script type="module">
+        import { db, collection, getDocs, query, where } from './js/firebase-config.js';
+
+        window.loadSection = async function(section) {
+            const container = document.getElementById('student-content');
+            container.innerHTML = `<h2>⏳ جاري التحميل...</h2>`;
+
+            const studentGrade = localStorage.getItem('studentGrade') || 'all';
+
+            if (section === 'videos') {
+                const q = query(collection(db, 'videos'), where('grade', 'in', [studentGrade, 'all']));
+                const snap = await getDocs(q);
+                let html = `<h2>🎬 الفيديوهات</h2>`;
+                if (snap.empty) html += `<p>لا توجد فيديوهات حالياً</p>`;
+                snap.forEach(d => {
+                    const data = d.data();
+                    html += `<div style="margin:25px 0; background:white; padding:15px; border-radius:15px; box-shadow:0 2px 10px rgba(0,0,0,0.05);">
+                                <h3 style="margin-bottom:10px;">${data.title}</h3>
+                                <iframe src="${data.url}" width="100%" height="400" frameborder="0" allowfullscreen style="border-radius:10px;"></iframe>
+                            </div>`;
+                });
+                container.innerHTML = html;
+            } 
+            else if (section === 'books') {
+                const q = query(collection(db, 'books'), where('grade', 'in', [studentGrade, 'all']));
+                const snap = await getDocs(q);
+                let html = `<h2>📚 الكتب</h2>`;
+                if (snap.empty) html += `<p>لا توجد كتب حالياً</p>`;
+                snap.forEach(d => {
+                    const data = d.data();
+                    html += `<div style="margin:25px 0; background:white; padding:15px; border-radius:15px; box-shadow:0 2px 10px rgba(0,0,0,0.05);">
+                                <h3 style="margin-bottom:10px;">${data.title}</h3>
+                                <iframe src="${data.url}" width="100%" height="550" frameborder="0" style="border-radius:10px;"></iframe>
+                            </div>`;
+                });
+                container.innerHTML = html;
+            }
+            else if (section === 'exams') {
+                const q = query(collection(db, 'exams'), where('grade', 'in', [studentGrade, 'all']));
+                const snap = await getDocs(q);
+                let html = `<h2>📝 الاختبارات</h2>`;
+                if (snap.empty) html += `<p>لا توجد اختبارات حالياً</p>`;
+                snap.forEach(d => {
+                    const data = d.data();
+                    html += `<div style="border:1px solid #e0e0e0; padding:20px; margin:20px 0; border-radius:15px; background:white;">
+                                <h3>${data.title}</h3>
+                                <p><strong>النوع:</strong> ${data.type}</p>
+                                <div style="background:#f9f9f9; padding:15px; border-radius:10px; margin-top:10px;">
+                                    ${data.type === 'image' ? `<img src="${data.content}" width="100%" style="border-radius:10px;">` : 
+                                      data.type === 'video' ? `<video controls controlsList="nodownload" src="${data.content}" width="100%" style="border-radius:10px;"></video>` : 
+                                      `<p style="font-size:18px;">${data.content}</p>`}
+                                </div>
+                            </div>`;
+                });
+                container.innerHTML = html;
+            }
+            else if (section === 'notifications') {
+                const q = query(collection(db, 'notifications'), where('grade', 'in', [studentGrade, 'all']));
+                const snap = await getDocs(q);
+                let html = `<h2>🔔 الإشعارات</h2>`;
+                let count = 0;
+                const myCode = localStorage.getItem('studentCode');
+                let found = false;
+                snap.forEach(d => {
+                    const data = d.data();
+                    if (data.targetStudent === 'all' || data.targetStudent === myCode) {
+                        found = true;
+                        count++;
+                        html += `<div style="border-bottom:1px solid #eee; padding:20px; background:white; margin-bottom:15px; border-radius:12px; box-shadow:0 1px 5px rgba(0,0,0,0.03);">
+                                    <p style="font-size:17px;">${data.text}</p>`;
+                        if (data.mediaUrl) {
+                            if (data.mediaType === 'video') {
+                                html += `<video controls controlsList="nodownload" src="${data.mediaUrl}" width="100%" height="250" style="border-radius:10px; margin-top:10px;"></video>`;
+                            } else {
+                                html += `<img src="${data.mediaUrl}" width="100%" style="border-radius:10px; margin-top:10px;">`;
+                            }
+                        }
+                        html += `<small style="color:#888;">${data.sentAt?.toDate?.()?.toLocaleString() || ''}</small>
+                                </div>`;
+                    }
+                });
+                if (!found) html += `<p>لا توجد إشعارات لك حالياً</p>`;
+                document.getElementById('notif-count').innerText = count;
+                container.innerHTML = html;
+            }
+        };
+
+        window.logoutStudent = function() {
+            localStorage.removeItem('studentCode');
+            localStorage.removeItem('studentGrade');
+            localStorage.removeItem('studentName');
+            window.location.href = 'index.html';
+        };
+
+        loadSection('videos');
+    </script>
+</body>
+</html>

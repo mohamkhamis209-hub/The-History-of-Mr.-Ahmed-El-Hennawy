@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة المشرف</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .btn-sm {
+            width: auto;
+            padding: 5px 15px;
+        }
+        .filter-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 15px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            align-items: center;
+        }
+        .filter-bar select, .filter-bar input {
+            width: auto;
+            margin: 0;
+            padding: 8px 15px;
+        }
+        .search-box {
+            flex: 1;
+            min-width: 200px;
+        }
+        .grade-badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .grade-all { background: #2ecc71; color: white; }
+        .grade-1 { background: #3498db; color: white; }
+        .grade-2 { background: #f39c12; color: white; }
+        .grade-3 { background: #e74c3c; color: white; }
+        .device-item {
+            background: #f9f9f9;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .device-item button {
+            margin-right: 5px;
+            padding: 5px 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .btn-sm {
+            width: auto;
+            padding: 5px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .btn-search {
+            background: #3498db;
+            color: white;
+        }
+        .btn-search:hover {
+            background: #2980b9;
+        }
+        .btn-clear {
+            background: #e74c3c;
+            color: white;
+        }
+        .btn-clear:hover {
+            background: #c0392b;
+        }
+        .btn-add {
+            background: #2c3e50;
+            color: white;
+            padding: 8px 20px;
+        }
+        .btn-add:hover {
+            background: #1a252f;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <img src="assets/Mohamed.jpg" alt="Admin" class="admin-img">
+        <h3>مرحباً بمشرف المنصه</h3>
+        <ul>
+            <li onclick="showSection('dashboard')">📊 الرئيسية</li>
+            <li onclick="showSection('students')">👨‍🎓 الطلاب</li>
+            <li onclick="showSection('videos')">🎬 الفيديوهات</li>
+            <li onclick="showSection('books')">📚 الكتب</li>
+            <li onclick="showSection('exams')">📝 الاختبارات</li>
+            <li onclick="showSection('notifications')">🔔 الإشعارات</li>
+            <li onclick="showSection('devices')">📱 طلبات الأجهزة</li>
+            <li onclick="showSection('progress')">📊 تقدم الطلاب</li>
+            <li onclick="showSection('allDevices')">📱 إدارة الأجهزة</li>
+            <li onclick="logoutAdmin()" style="color:#e74c3c;">🚪 خروج</li>
+        </ul>
+    </div>
+    <div class="content" id="content-area">
+        <h2>مرحباً في لوحة التحكم</h2>
+        <p>اختر أحد الأقسام من القائمة الجانبية</p>
+    </div>
+
+    <script src="js/firebase-config.js" type="module"></script>
+    <script src="js/device.js" type="module"></script>
+    <script type="module">
+        import { 
+            db, storage, ref, uploadBytes, getDownloadURL,
+            collection, addDoc, getDocs, deleteDoc, doc, updateDoc, query, where, getDoc 
+        } from './js/firebase-config.js';
+
+        function generateCode() {
+            return Math.random().toString(36).substring(2, 8).toUpperCase();
+        }
+
+        // تعريف الدوال كمتغيرات عامة (window)
+        window.showSection = function(section) {
+            document.getElementById('content-area').innerHTML = `<h2>جاري التحميل...</h2>`;
+            switch(section) {
+                case 'dashboard': showDashboard(); break;
+                case 'students': showStudents(); break;
+                case 'videos': showVideos(); break;
+                case 'books': showBooks(); break;
+                case 'exams': showExams(); break;
+                case 'notifications': showNotifications(); break;
+                case 'devices': showPendingDevices(); break;
+                case 'progress': showAllProgress(); break;
+                case 'allDevices': showAllDevices(); break;
+                default: showDashboard();
+            }
+        };
+
+        function showDashboard() {
+            document.getElementById('content-area').innerHTML = `
+                <h2>📊 لوحة التحكم</h2>
+                <p style="font-size:18px;">أهلاً بك يا مشرف، يمكنك إدارة كل شيء من هنا.</p>
+                <p style="color:#888;">عدد الطلاب: <span id="studentCount">0</span></p>
+            `;
+            getDocs(collection(db, 'students')).then(snap => {
+                document.getElementById('studentCount').innerText = snap.size;
+            });
+        }
+
+        // ============================================
+        // 1. قسم الطلاب
+        // ============================================
+        window.addStudent = async function() {
+            const name = document.getElementById('stName').value.trim();
+            const phone = document.getElementById('stPhone').value.trim();
+            const parentPhone = document.getElementById('stParentPhone').value.trim();
+            const grade = document.getElementById('stGrade').value;
+            if (!name || !phone || !parentPhone) return alert('أدخل جميع البيانات');
+            const code = generateCode();
+            await addDoc(collection(db, 'students'), {
+                name, code, phone, parentPhone,
+                grade: grade,
+                status: 'inactive',
+                suspendMessage: '', 
+                deviceIds: [],
+                firstLogin: null,
+                lastLogin: null,
+                registeredAt: new Date()
+            });
+            alert(`✅ تم إضافة ${name} بالكود ${code}`);
+            showStudents();
+        };
+
+        window.showStudents = async function() {
+            const gradeFilter = document.getElementById('filterGrade')?.value || 'all';
+            const searchTerm = document.getElementById('searchStudent')?.value?.trim()?.toLowerCase() || '';
+
+            let q;
+            if (gradeFilter === 'all') {
+                q = collection(db, 'students');
+            } else {
+                q = query(collection(db, 'students'), where('grade', '==', gradeFilter));
+            }
+
+            const snap = await getDocs(q);
+            let students = [];
+            snap.forEach(doc => {
+                const data = doc.data();
+                students.push({ id: doc.id, ...data });
+            });
+
+            if (searchTerm) {
+                students = students.filter(s => 
+                    (s.name && s.name.toLowerCase().includes(searchTerm)) || 
+                    (s.code && s.code.toLowerCase().includes(searchTerm)) ||
+                    (s.phone && s.phone.includes(searchTerm))
+                );
+            }
+
+            let html = `<h2>👨‍🎓 إدارة الطلاب</h2>
+                        <div class="filter-bar">
+                            <input id="stName" placeholder="اسم الطالب" style="flex:1; min-width:120px;">
+                            <input id="stPhone" placeholder="رقم التليفون" style="flex:1; min-width:120px;">
+                            <input id="stParentPhone" placeholder="رقم ولي الأمر" style="flex:1; min-width:120px;">
+                            <select id="stGrade">
+                                <option value="1">الصف الأول الثانوي</option>
+                                <option value="2">الصف الثاني الثانوي</option>
+                                <option value="3">الصف الثالث الثانوي</option>
+                            </select>
+                            <button onclick="addStudent()" class="btn-sm btn-add">➕ إضافة</button>
+                        </div>
+                        <div class="filter-bar">
+                            <select id="filterGrade" onchange="showStudents()">
+                                <option value="all" ${gradeFilter === 'all' ? 'selected' : ''}>📋 جميع الطلاب</option>
+                                <option value="1" ${gradeFilter === '1' ? 'selected' : ''}>📘 الصف الأول الثانوي</option>
+                                <option value="2" ${gradeFilter === '2' ? 'selected' : ''}>📗 الصف الثاني الثانوي</option>
+                                <option value="3" ${gradeFilter === '3' ? 'selected' : ''}>📕 الصف الثالث الثانوي</option>
+                            </select>
+                            <input id="searchStudent" class="search-box" placeholder="🔍 بحث بالاسم أو الكود..." value="${searchTerm}">
+                            <button onclick="searchStudents()" class="btn-sm btn-search">🔍 بحث</button>
+                            <button onclick="clearSearch()" class="btn-sm btn-clear">✖️ إلغاء</button>
+                        </div>
+                        <div style="overflow-x:auto;">
+                        <table border="1" cellpadding="10" style="width:100%; border-collapse:collapse; background:white;">
+                            <tr>
+                                <th>الاسم</th>
+                                <th>الكود</th>
+                                <th>التليفون</th>
+                                <th>ولي الأمر</th>
+                                <th>الصف</th>
+                                <th>الحالة</th>
+                                <th>آخر دخول</th>
+                                <th>الأجهزة</th>
+                                <th>الإجراءات</th>
+                            </tr>`;
+            if (students.length === 0) html += `<tr><td colspan="9" style="text-align:center;">لا يوجد طلاب</td></tr>`;
+            students.forEach(s => {
+                const lastLogin = s.lastLogin ? new Date(s.lastLogin.toDate()).toLocaleString() : '—';
+                const deviceCount = (s.deviceIds || []).length;
+                const statusText = s.status === 'active' ? '🟢 نشط' : (s.status === 'suspended' ? '🔴 معلق' : '⚪ غير نشط');
+                const gradeText = s.grade === '1' ? 'أولى ث' : s.grade === '2' ? 'ثانية ث' : s.grade === '3' ? 'ثالثة ث' : '—';
+                html += `<tr>
+                    <td><strong>${s.name}</strong></td>
+                    <td>${s.code}</td>
+                    <td>${s.phone || '—'}</td>
+                    <td>${s.parentPhone || '—'}</td>
+                    <td><span class="grade-badge grade-${s.grade || 'all'}">${gradeText}</span></td>
+                    <td>${statusText}</td>
+                    <td>${lastLogin}</td>
+                    <td>${deviceCount}</td>
+                    <td>
+                        <button onclick="showStudentProgress('${s.code}')" class="btn-sm" style="background:#3498db; color:white;">📊</button>
+                        <button onclick="showStudentDevices('${s.code}')" class="btn-sm" style="background:#9b59b6; color:white;">📱</button>
+                        <button onclick="suspendStudent('${s.code}')" class="btn-sm" style="background:#f39c12; color:white;">⛔</button>
+                        <button onclick="deleteStudent('${s.code}')" class="btn-sm" style="background:#e74c3c; color:white;">🗑️</button>
+                    </td>
+                </tr>`;
+            });
+            html += `</table></div>`;
+            document.getElementById('content-area').innerHTML = html;
+        };
+
+        window.searchStudents = function() {
+            showStudents();
+        };
+
+        window.clearSearch = function() {
+            document.getElementById('searchStudent').value = '';
+            showStudents();
+        };
+
+        window.deleteStudent = async function(code) {
+            if (!confirm('حذف الطالب نهائياً؟')) return;
+            const q = query(collection(db, 'students'), where('code', '==', code));
+            const snap = await getDocs(q);
+            snap.forEach(async (d) => { await deleteDoc(d.ref); });
+            alert('تم الحذف');
+            showStudents();
+        };
+
+        window.suspendStudent = async function(code) {
+            const msg = prompt('اكتب سبب التعليق:');
+            if (msg === null) return;
+            const q = query(collection(db, 'students'), where('code', '==', code));
+            const snap = await getDocs(q);
+            snap.forEach(async (d) => {
+                await updateDoc(d.ref, { status: 'suspended', suspendMessage: msg });
+            });
+            alert('تم تعليق الحساب');
+            showStudents();
+        };
+
+        // ============================================
+        // 2. تقدم الطالب
+        // ============================================
+        window.showStudentProgress = async function(studentCode) {
+            const q = query(collection(db, 'students'), where('code', '==', studentCode));
+            const studentSnap = await getDocs(q);
+            if (studentSnap.empty) return alert('الطالب غير موجود');
+            const student = studentSnap.docs[0].data();
+
+            const videosSnap = await getDocs(collection(db, 'videos'));
+            const videos = {};
+            videosSnap.forEach(d => { videos[d.id] = d.data(); });
+
+            const progressQuery = query(collection(db, 'progress'), where('studentCode', '==', studentCode));
+            const progressSnap = await getDocs(progressQuery);
+            const progress = {};
+            progressSnap.forEach(d => {
+                const data = d.data();
+                progress[data.videoId] = data;
+            });
+
+            let html = `<h2>📊 تقدم الطالب: ${student.name}</h2>
+                        <table border="1" cellpadding="10" style="width:100%; border-collapse:collapse; background:white;">
+                            <tr><th>الفيديو</th><th>المشاهدة (دقائق)</th><th>المدة (دقائق)</th><th>النسبة</th><th>الحالة</th></tr>`;
+            if (Object.keys(videos).length === 0) html += `<tr><td colspan="5">لا توجد فيديوهات</td></tr>`;
+            for (const [videoId, video] of Object.entries(videos)) {
+                const p = progress[videoId];
+                const watched = p ? p.watchedSeconds : 0;
+                const total = p ? p.totalDuration : 0;
+                const percent = total > 0 ? Math.min(100, Math.round((watched / total) * 100)) : 0;
+                const completed = p && p.completed ? '✅ مكتمل' : (watched > 0 ? '⏳ قيد المشاهدة' : '❌ لم يشاهد');
+                html += `<tr>
+                            <td>${video.title}</td>
+                            <td>${Math.floor(watched/60)}</td>
+                            <td>${Math.floor(total/60)}</td>
+                            <td>${percent}%</td>
+                            <td>${completed}</td>
+                        </tr>`;
+            }
+            html += `</table><br><button onclick="showStudents()" class="btn-sm" style="background:#2c3e50; color:white;">🔙 رجوع</button>`;
+            document.getElementById('content-area').innerHTML = html;
+        };
+
+        // ============================================
+        // 3. أجهزة الطالب
+        // ============================================
+        window.showStudentDevices = async function(studentCode) {
+            const q = query(collection(db, 'students'), where('code', '==', studentCode));
+            const studentSnap = await getDocs(q);
+            if (studentSnap.empty) return alert('الطالب غير موجود');
+            const student = studentSnap.docs[0].data();
+            const docRef = studentSnap.docs[0].ref;
+            const deviceIds = student.deviceIds || [];
+
+            const allRequestsQuery = query(collection(db, 'pendingDevices'), where('studentCode', '==', studentCode));
+            const allRequestsSnap = await getDocs(allRequestsQuery);
+            const requests = {};
+            allRequestsSnap.forEach(d => {
+                const data = d.data();
+                requests[data.deviceId] = { ...data, docId: d.id };
+            });
+
+            let html = `<h2>📱 أجهزة الطالب: ${student.name}</h2>
+                        <h3>✅ الأجهزة المعتمدة</h3><div>`;
+            if (deviceIds.length === 0) html += `<p>لا توجد أجهزة معتمدة</p>`;
+            deviceIds.forEach(dId => {
+                html += `<div class="device-item">
+                            <span>${dId}</span>
+                            <div>
+                                <button onclick="removeDevice('${studentCode}','${dId}')" class="btn-sm" style="background:#e74c3c; color:white;">🗑️ حذف</button>
+                                <button onclick="suspendDevice('${studentCode}','${dId}')" class="btn-sm" style="background:#f39c12; color:white;">⛔ تعليق</button>
+                            </div>
+                        </div>`;
+            });
+            html += `</div>
+                    <h3>⏳ الطلبات المعلقة</h3><div>`;
+            let hasPending = false;
+            for (const [dId, data] of Object.entries(requests)) {
+                if (data.status === 'pending') {
+                    hasPending = true;
+                    html += `<div class="device-item">
+                                <span>${dId}</span>
+                                <div>
+                                    <button onclick="approveDevice('${data.docId}','${studentCode}','${dId}')" class="btn-sm" style="background:#2ecc71; color:white;">✅</button>
+                                    <button onclick="rejectDevice('${data.docId}')" class="btn-sm" style="background:#e74c3c; color:white;">❌</button>
+                                </div>
+                            </div>`;
+                }
+            }
+            if (!hasPending) html += `<p>لا توجد طلبات معلقة</p>`;
+            html += `</div>
+                    <h3>❌ الأجهزة المرفوضة</h3><div>`;
+            let hasRejected = false;
+            for (const [dId, data] of Object.entries(requests)) {
+                if (data.status === 'rejected') {
+                    hasRejected = true;
+                    html += `<div class="device-item">
+                                <span>${dId}</span>
+                            </div>`;
+                }
+            }
+            if (!hasRejected) html += `<p>لا توجد أجهزة مرفوضة</p>`;
+            html += `</div>
+                    <button onclick="showStudents()" class="btn-sm" style="background:#2c3e50; color:white;">🔙 رجوع</button>`;
+            document.getElementById('content-area').innerHTML = html;
+        };
+
+        window.removeDevice = async function(studentCode, deviceId) {
+            if (!confirm(`حذف الجهاز ${deviceId}؟`)) return;
+            const q = query(collection(db, 'students'), where('code', '==', studentCode));
+            const snap = await getDocs(q);
+            if (snap.empty) return alert('الطالب غير موجود');
+            const docRef = snap.docs[0].ref;
+            const data = snap.docs[0].data();
+            const devices = data.deviceIds || [];
+            const newDevices = devices.filter(d => d !== deviceId);
+            await updateDoc(docRef, { deviceIds: newDevices });
+            alert('تم حذف الجهاز');
+            showStudentDevices(studentCode);
+        };
+
+        window.suspendDevice = async function(studentCode, deviceId) {
+            if (!confirm(`تعليق الجهاز ${deviceId}؟`)) return;
+            const q = query(collection(db, 'students'), where('code', '==', studentCode));
+            const snap = await getDocs(q);
+            if (snap.empty) return alert('الطالب غير موجود');
+            const docRef = snap.docs[0].ref;
+            const data = snap.docs[0].data();
+            const devices = data.deviceIds || [];
+            const newDevices = devices.filter(d => d !== deviceId);
+            await updateDoc(docRef, { deviceIds: newDevices });
+            await addDoc(collection(db, 'pendingDevices'), {
+                studentCode,
+                deviceId,
+                status: 'suspended',
+                requestedAt: new Date(),
+                approvedAt: new Date(),
+                grade: data.grade || 'all'
+            });
+            alert('تم تعليق الجهاز');
+            showStudentDevices(studentCode);
+        };
+
+        // ============================================
+        // 4. تقدم جميع الطلاب
+        // ============================================
+        window.showAllProgress = async function() {
+            const gradeFilter = document.getElementById('filterProgressGrade')?.value || 'all';
+            
+            let studentsQ;
+            if (gradeFilter === 'all') {
+                studentsQ = collection(db, 'students');
+            } else {
+                studentsQ = query(collection(db, 'students'), where('grade', '==', gradeFilter));
+            }
+            
+            const studentsSnap = await getDocs(studentsQ);
+            let html = `<h2>📊 تقدم جميع الطلاب</h2>
+                        <div class="filter-bar">
+                            <select id="filterProgressGrade" onchange="showAllProgress()">
+                                <option value="all" ${gradeFilter === 'all' ? 'selected' : ''}>📋 جميع الصفوف</option>
+                                <option value="1" ${gradeFilter === '1' ? 'selected' : ''}>📘 الصف الأول الثانوي</option>
+                                <option value="2" ${gradeFilter === '2' ? 'selected' : ''}>📗 الصف الثاني الثانوي</option>
+                                <option value="3" ${gradeFilter === '3' ? 'selected' : ''}>📕 الصف الثالث الثانوي</option>
+                            </select>
+                        </div>
+                        <ul style="list-style:none; padding:0;">`;
+            if (studentsSnap.empty) html += `<li>لا يوجد طلاب</li>`;
+            studentsSnap.forEach(d => {
+                const data = d.data();
+                const gradeText = data.grade === '1' ? 'أولى ث' : data.grade === '2' ? 'ثانية ث' : data.grade === '3' ? 'ثالثة ث' : '—';
+                html += `<li style="margin:10px 0; display:flex; align-items:center; gap:15px;">
+                            ${data.name} (${data.code}) <span class="grade-badge grade-${data.grade}">${gradeText}</span>
+                            <button onclick="showStudentProgress('${data.code}')" class="btn-sm" style="background:#3498db; color:white;">عرض التقدم</button>
+                        </li>`;
+            });
+            html += `</ul>`;
+            document.getElementById('content-area').innerHTML = html;
+        };
+
+        // ============================================
+        // 5. إدارة جميع الأجهزة
+        // ============================================
+        window.showAllDevices = async function() {
+            const gradeFilter = document.getElementById('filterDevicesGrade')?.value || 'all';
+            
+            let studentsQ;
+            if (gradeFilter === 'all') {
+                studentsQ = collection(db, 'students');
+            } else {
+                studentsQ = query(collection(db, 'students'), where('grade', '==', gradeFilter));
+            }
+            
+            const studentsSnap = await getDocs(studentsQ);
+            let html = `<h2>📱 إدارة الأجهزة لجميع الطلاب</h2>
+                        <div class="filter-bar">
+                            <select id="filterDevicesGrade" onchange="showAllDevices()">
+                                <option value="all" ${gradeFilter === 'all' ? 'selected' : ''}>📋 جميع الصفوف</option>
+                                <option value="1" ${gradeFilter === '1' ? 'selected' : ''}>📘 الصف الأول الثانوي</option>
+                                <option value="2" ${gradeFilter === '2' ? 'selected' : ''}>📗 الصف الثاني الثانوي</option>
+                                <option value="3" ${gradeFilter === '3' ? 'selected' : ''}>📕 الصف الثالث الثانوي</option>
+                            </select>
+                        </div>`;
+            if (studentsSnap.empty) html += `<p>لا يوجد طلاب</p>`;
+            studentsSnap.forEach(d => {
+                const data = d.data();
+                const gradeText = data.grade === '1' ? 'أولى ث' : data.grade === '2' ? 'ثانية ث' : data.grade === '3' ? 'ثالثة ث' : '—';
+                html += `<div style="margin:15px 0; border-bottom:1px solid #ddd; padding-bottom:10px;">
+                            <strong>${data.name}</strong> (${data.code}) <span class="grade-badge grade-${data.grade}">${gradeText}</span> - الأجهزة: ${(data.deviceIds||[]).length}
+                            <button onclick="showStudentDevices('${data.code}')" class="btn-sm" style="background:#9b59b6; color:white;">إدارة الأجهزة</button>
+                        </div>`;
+            });
+            document.getElementById('content-area').innerHTML = html;
+        };
+
+        // ============================================
+        // 6. الفيديوهات
+        // ============================================
+        window.addVideo = async function() {
+            const title = document.getElementById('vidTitle').value.trim();
+            const url = document.getElementById('vidUrl').value.trim();
+            const grade = document.getElementById('vidGrade').value;
+            if (!title || !url) return alert('املأ البيانات');
+            await addDoc(collection(db, 'videos'), { 
+                title, url, grade, addedAt: new Date() 
+            });
+            alert('✅ تمت الإضافة');
+            showVideos();
+        };
+
+        window.searchVideos = function() {
+            showVideos();
+        };
+
+        window.clearVideoSearch = function() {
+            document.getElementById('searchVideo').value = '';
+            showVideos();
+        };
+
+        window.showVideos = async function() {
+            const gradeFilter = document.getElementById('filterVidGrade')?.value || 'all';
+            const searchTerm = document.getElementById('searchVideo')?.value?.trim()?.toLowerCase() || '';
+
+            let q;
+            if (gradeFilter === 'all') {
+                q = collection(db, 'videos');
+            } else {
+                q = query(collection(db, 'videos'), where('grade', '==', gradeFilter));
+            }
+            const snap = await getDocs(q);
+            
+            let videos = [];
+            snap.forEach(d => {
+                const data = d.data();
+                videos.push({ id: d.id, ...data });
+            });
+
+            if (searchTerm) {
+                videos = videos.filter(v => 
+                    v.title && v.title.toLowerCase().includes(searchTerm)
+                );
+            }
+
+            let html = `<h2>🎬 الفيديوهات</h2>
+                        <div class="filter-bar">
+                            <input id="vidTitle" placeholder="عنوان الفيديو">
+                            <input id="vidUrl" placeholder="رابط يوتيوب (embed)" style="flex:2; min-width:200px;">
+                            <select id="vidGrade">
+                                <option value="all">🌐 للجميع</option>
+                                <option value="1">📘 أولى ثانوي</option>
+                                <option value="2">📗 ثانية ثانوي</option>
+                                <option value="3">📕 ثالثة ثانوي</option>
+                            </select>
+                            <button onclick="addVideo()" class="btn-sm btn-add">➕ إضافة</button>
+                        </div>
+                        <div class="filter-bar">
+                            <select id="filterVidGrade" onchange="showVideos()">
+                                <option value="all" ${gradeFilter === 'all' ? 'selected' : ''}>📋 جميع الفيديوهات</option>
+                                <option value="1" ${gradeFilter === '1' ? 'selected' : ''}>📘 أولى ثانوي</option>
+                                <option value="2" ${gradeFilter === '2' ? 'selected' : ''}>📗 ثانية ثانوي</option>
+                                <option value="3" ${gradeFilter === '3' ? 'selected' : ''}>📕 ثالثة ثانوي</option>
+                            </select>
+                            <input id="searchVideo" class="search-box" placeholder="🔍 بحث بالعنوان..." value="${searchTerm}">
+                            <button onclick="searchVideos()" class="btn-sm btn-search">🔍 بحث</button>
+                            <button onclick="clearVideoSearch()" class="btn-sm btn-clear">✖️ إلغاء</button>
+                        </div>`;
+            if (videos.length === 0) html += `<p>لا يوجد فيديوهات</p>`;
+            videos.forEach(v => {
+                const gradeText = v.grade === 'all' ? 'للجميع' : v.grade === '1' ? 'أولى ث' : v.grade === '2' ? 'ثانية ث' : 'ثالثة ث';
+                html += `<div style="border:1px solid #ddd; padding:15px; margin:15px 0; border-radius:10px; background:white;">
+                            <h4>${v.title} <span class="grade-badge grade-${v.grade}">${gradeText}</span></h4>
+                            <iframe src="${v.url}" width="100%" height="400" frameborder="0" allowfullscreen style="border-radius:10px;"></iframe>
+                            <button onclick="deleteItem('videos','${v.id}')" class="btn-sm" style="background:#e74c3c; color:white; margin-top:10px;">🗑️ حذف</button>
+                        </div>`;
+            });
+            document.getElementById('content-area').innerHTML = html;
+        };
+
+        // ============================================
+        // 7. الكتب
+        // ============================================
+        window.addBook = async function() {
+            const title = document.getElementById('bookTitle').value.trim();
+            const url = document.getElementById('bookUrl').value.trim();
+            const grade = document.getElementById('bookGrade').value;
+            if (!title || !url) return alert('املأ البيانات');
+            await addDoc(collection(db, 'books'), { title, url, grade, addedAt: new Date() });
+            alert('✅ تمت الإضافة');
+            showBooks();
+        };
+
+        window.searchBooks = function() {
+            showBooks();
+        };
+
+        window.clearBookSearch = function() {
+            document.getElementById('searchBook').value = '';
+            showBooks();
+        };
+
+        window.showBooks = async function() {
+            const gradeFilter = document.getElementById('filterBookGrade')?.value || 'all';
+            const searchTerm = document.getElementById('searchBook')?.value?.trim()?.toLowerCase() || '';
+
+            let q;
+            if (gradeFilter === 'all') {
+                q = collection(db, 'books');
+            } else {
+                q = query(collection(db, 'books'), where('grade', '==', gradeFilter));
+            }
+            const snap = await getDocs(q);
+            
+            let books = [];
+            snap.forEach(d => {
+                const data = d.data();
+                books.push({ id: d.id, ...data });
+            });
+
+            if (searchTerm) {
+                books = books.filter(b => 
+                    b.title && b.title.toLowerCase().includes(searchTerm)
+                );
+            }
+
+            let html = `<h2>📚 الكتب</h2>
+                        <div class="filter-bar">
+                            <input id="bookTitle" placeholder="عنوان الكتاب">
+                            <input id="bookUrl" placeholder="رابط جوجل درايف (preview)" style="flex:2; min-width:200px;">
+                            <select id="bookGrade">
+                                <option value="all">🌐 للجميع</option>
+                                <option value="1">📘 أولى ثانوي</option>
+                                <option value="2">📗 ثانية ثانوي</option>
+                                <option value="3">📕 ثالثة ثانوي</option>
+                            </select>
+                            <button onclick="addBook()" class="btn-sm btn-add">➕ إضافة</button>
+                        </div>
+                        <div class="filter-bar">
+                            <select id="filterBookGrade" onchange="showBooks()">
+                                <option value="all" ${gradeFilter === 'all' ? 'selected' : ''}>📋 جميع الكتب</option>
+                                <option value="1" ${gradeFilter === '1' ? 'selected' : ''}>📘 أولى ثانوي</option>
+                                <option value="2" ${gradeFilter === '2' ? 'selected' : ''}>📗 ثانية ثانوي</option>
+                                <option value="3" ${gradeFilter === '3' ? 'selected' : ''}>📕 ثالثة ثانوي</option>
+                            </select>
+                            <input id="searchBook" class="search-box" placeholder="🔍 بحث بالعنوان..." value="${searchTerm}">
+                            <button onclick="searchBooks()" class="btn-sm btn-search">🔍 بحث</button>
+                            <button onclick="clearBookSearch()" class="btn-sm btn-clear">✖️ إلغاء</button>
+                        </div>`;
+            if (books.length === 0) html += `<p>لا يوجد كتب</p>`;
+            books.forEach(b => {
+                const gradeText = b.grade === 'all' ? 'للجميع' : b.grade === '1' ? 'أولى ث' : b.grade === '2' ? 'ثانية ث' : 'ثالثة ث';
+                html += `<div style="border:1px solid #ddd; padding:15px; margin:15px 0; border-radius:10px; background:white;">
+                            <h4>${b.title} <span class="grade-badge grade-${b.grade}">${gradeText}</span></h4>
+                            <iframe src="${b.url}" width="100%" height="500" frameborder="0"></iframe>
+                            <button onclick="deleteItem('books','${b.id}')" class="btn-sm" style="background:#e74c3c; color:white; margin-top:10px;">🗑️ حذف</button>
+                        </div>`;
+            });
+            document.getElementById('content-area').innerHTML = html;
+        };
+
+        // ============================================
+        // 8. الاختبارات
+        // ============================================
+        window.addExam = async function() {
+            const title = document.getElementById('exTitle').value.trim();
+            const type = document.getElementById('exType').value;
+            const content = document.getElementById('exContent').value.trim();
+            const grade = document.getElementById('exGrade').value;
+            if (!title || !content) return alert('املأ البيانات');
+            await addDoc(collection(db, 'exams'), { title, type, content, grade, addedAt: new Date() });
+            alert('✅ تمت الإضافة');
+            showExams();
+        };
+
+        window.searchExams = function() {
+            showExams();
+        };
+
+        window.clearExamSearch = function() {
+            document.getElementById('searchExam').value = '';
+            showExams();
+        };
+
+        window.showExams = async function() {
+            const gradeFilter = document.getElementById('filterExamGrade')?.value || 'all';
+            const searchTerm = document.getElementById('searchExam')?.value?.trim()?.toLowerCase() || '';
+
+            let q;
+            if (gradeFilter === 'all') {
+                q = collection(db, 'exams');
+            } else {
+                q = query(collection(db, 'exams'), where('grade', '==', gradeFilter));
+            }
+            const snap = await getDocs(q);
+            
+            let exams = [];
+            snap.forEach(d => {
+                const data = d.data();
+                exams.push({ id: d.id, ...data });
+            });
+
+            if (searchTerm) {
+                exams = exams.filter(e => 
+                    e.title && e.title.toLowerCase().includes(searchTerm)
+                );
+            }
+
+            let html = `<h2>📝 الاختبارات</h2>
+                        <div class="filter-bar">
+                            <input id="exTitle" placeholder="عنوان الاختبار">
+                            <select id="exType"><option value="text">نص</option><option value="image">صورة</option><option value="video">فيديو</option></select>
+                            <input id="exContent" placeholder="نص السؤال أو الرابط" style="flex:2; min-width:200px;">
+                            <select id="exGrade">
+                                <option value="all">🌐 للجميع</option>
+                                <option value="1">📘 أولى ثانوي</option>
+                                <option value="2">📗 ثانية ثانوي</option>
+                                <option value="3">📕 ثالثة ثانوي</option>
+                            </select>
+                            <button onclick="addExam()" class="btn-sm btn-add">➕ إضافة</button>
+                        </div>
+                        <div class="filter-bar">
+                            <select id="filterExamGrade" onchange="showExams()">
+                                <option value="all" ${gradeFilter === 'all' ? 'selected' : ''}>📋 جميع الاختبارات</option>
+                                <option value="1" ${gradeFilter === '1' ? 'selected' : ''}>📘 أولى ثانوي</option>
+                                <option value="2" ${gradeFilter === '2' ? 'selected' : ''}>📗 ثانية ثانوي</option>
+                                <option value="3" ${gradeFilter === '3' ? 'selected' : ''}>📕 ثالثة ثانوي</option>
+                            </select>
+                            <input id="searchExam" class="search-box" placeholder="🔍 بحث بالعنوان..." value="${searchTerm}">
+                            <button onclick="searchExams()" class="btn-sm btn-search">🔍 بحث</button>
+                            <button onclick="clearExamSearch()" class="btn-sm btn-clear">✖️ إلغاء</button>
+                        </div>`;
+            if (exams.length === 0) html += `<p>لا يوجد اختبارات</p>`;
+            exams.forEach(e => {
+                const gradeText = e.grade === 'all' ? 'للجميع' : e.grade === '1' ? 'أولى ث' : e.grade === '2' ? 'ثانية ث' : 'ثالثة ث';
+                html += `<div style="border:1px solid #ddd; padding:15px; margin:15px 0; border-radius:10px; background:white;">
+                            <h4>${e.title} <span class="grade-badge grade-${e.grade}">${gradeText}</span></h4>
+                            <p><strong>النوع:</strong> ${e.type}</p>
+                            <p><strong>المحتوى:</strong> ${e.content}</p>
+                            <button onclick="deleteItem('exams','${e.id}')" class="btn-sm" style="background:#e74c3c; color:white;">🗑️ حذف</button>
+                        </div>`;
+            });
+            document.getElementById('content-area').innerHTML = html;
+        };
+
+        // ============================================
+        // 9. الإشعارات
+        // ============================================
+        window.sendNotif = async function() {
+            const text = document.getElementById('notifText').value.trim();
+            const fileInput = document.getElementById('notifFile');
+            const target = document.getElementById('notifTarget').value.trim() || 'all';
+            const grade = document.getElementById('notifGrade').value;
+            if (!text) return alert('أدخل نص الإشعار');
+
+            let mediaUrl = null, mediaType = null;
+            if (fileInput.files.length > 0) {
+                const file = fileInput.files[0];
+                mediaType = file.type.startsWith('video/') ? 'video' : 'image';
+                const storageRef = ref(storage, `notifications/${Date.now()}_${file.name}`);
+                await uploadBytes(storageRef, file);
+                mediaUrl = await getDownloadURL(storageRef);
+            }
+
+            await addDoc(collection(db, 'notifications'), {
+                text, mediaUrl, mediaType, targetStudent: target, grade, isRead: false, sentAt: new Date()
+            });
+            alert('✅ تم إرسال الإشعار');
+            showNotifications();
+        };
+
+        window.searchNotifications = function() {
+            showNotifications();
+        };
+
+        window.clearNotifSearch = function() {
+            document.getElementById('searchNotif').value = '';
+            showNotifications();
+        };
+
+        window.showNotifications = async function() {
+            const gradeFilter = document.getElementById('filterNotifGrade')?.value || 'all';
+            const searchTerm = document.getElementById('searchNotif')?.value?.trim()?.toLowerCase() || '';
+
+            let q;
+            if (gradeFilter === 'all') {
+                q = collection(db, 'notifications');
+            } else {
+                q = query(collection(db, 'notifications'), where('grade', '==', gradeFilter));
+            }
+            const snap = await getDocs(q);
+            
+            let notifs = [];
+            snap.forEach(d => {
+                const data = d.data();
+                notifs.push({ id: d.id, ...data });
+            });
+
+            if (searchTerm) {
+                notifs = notifs.filter(n => 
+                    n.text && n.text.toLowerCase().includes(searchTerm)
+                );
+            }
+
+            let html = `<h2>🔔 الإشعارات</h2>
+                        <div class="filter-bar">
+                            <input id="notifText" placeholder="نص الإشعار" style="flex:2;">
+                            <input type="file" id="notifFile" accept="image/*,video/*">
+                            <input id="notifTarget" placeholder="كود طالب معين أو 'all'" style="flex:1;">
+                            <select id="notifGrade">
+                                <option value="all">🌐 للجميع</option>
+                                <option value="1">📘 أولى ثانوي</option>
+                                <option value="2">📗 ثانية ثانوي</option>
+                                <option value="3">📕 ثالثة ثانوي</option>
+                            </select>
+                            <button onclick="sendNotif()" class="btn-sm btn-add">📨 إرسال</button>
+                        </div>
+                        <div class="filter-bar">
+                            <select id="filterNotifGrade" onchange="showNotifications()">
+                                <option value="all" ${gradeFilter === 'all' ? 'selected' : ''}>📋 جميع الإشعارات</option>
+                                <option value="1" ${gradeFilter === '1' ? 'selected' : ''}>📘 أولى ثانوي</option>
+                                <option value="2" ${gradeFilter === '2' ? 'selected' : ''}>📗 ثانية ثانوي</option>
+                                <option value="3" ${gradeFilter === '3' ? 'selected' : ''}>📕 ثالثة ثانوي</option>
+                            </select>
+                            <input id="searchNotif" class="search-box" placeholder="🔍 بحث بالنص..." value="${searchTerm}">
+                            <button onclick="searchNotifications()" class="btn-sm btn-search">🔍 بحث</button>
+                            <button onclick="clearNotifSearch()" class="btn-sm btn-clear">✖️ إلغاء</button>
+                        </div>`;
+            if (notifs.length === 0) html += `<p>لا يوجد إشعارات</p>`;
+            notifs.forEach(n => {
+                const gradeText = n.grade === 'all' ? 'للجميع' : n.grade === '1' ? 'أولى ث' : n.grade === '2' ? 'ثانية ث' : 'ثالثة ث';
+                html += `<div style="border-bottom:1px solid #eee; padding:15px; background:white; margin-bottom:10px; border-radius:8px;">
+                            <p style="font-size:16px;">${n.text} <span class="grade-badge grade-${n.grade}">${gradeText}</span></p>`;
+                if (n.mediaUrl) {
+                    if (n.mediaType === 'video') {
+                        html += `<video controls controlsList="nodownload" src="${n.mediaUrl}" width="100%" height="250" style="border-radius:8px; margin:10px 0;"></video>`;
+                    } else {
+                        html += `<img src="${n.mediaUrl}" width="100%" style="border-radius:8px; margin:10px 0;">`;
+                    }
+                }
+                html += `<small style="color:#888;">${n.sentAt?.toDate?.()?.toLocaleString() || ''} | المستهدف: ${n.targetStudent}</small>
+                            <br><button onclick="deleteItem('notifications','${n.id}')" class="btn-sm" style="background:#e74c3c; color:white; margin-top:10px;">🗑️ حذف</button>
+                        </div>`;
+            });
+            document.getElementById('content-area').innerHTML = html;
+        };
+
+        // ============================================
+        // 10. طلبات الأجهزة
+        // ============================================
+        window.searchDevices = function() {
+            showPendingDevices();
+        };
+
+        window.clearDeviceSearch = function() {
+            document.getElementById('searchDevice').value = '';
+            showPendingDevices();
+        };
+
+        window.showPendingDevices = async function() {
+            const gradeFilter = document.getElementById('filterDeviceGrade')?.value || 'all';
+            const searchTerm = document.getElementById('searchDevice')?.value?.trim()?.toLowerCase() || '';
+            
+            let q;
+            if (gradeFilter === 'all') {
+                q = query(collection(db, 'pendingDevices'), where('status', '==', 'pending'));
+            } else {
+                q = query(collection(db, 'pendingDevices'), where('status', '==', 'pending'), where('grade', '==', gradeFilter));
+            }
+            
+            const snap = await getDocs(q);
+            
+            let devices = [];
+            snap.forEach(d => {
+                const data = d.data();
+                devices.push({ id: d.id, ...data });
+            });
+
+            if (searchTerm) {
+                devices = devices.filter(d => 
+                    (d.studentCode && d.studentCode.toLowerCase().includes(searchTerm)) ||
+                    (d.deviceId && d.deviceId.toLowerCase().includes(searchTerm))
+                );
+            }
+
+            let html = `<h2>📱 طلبات الأجهزة الجديدة</h2>
+                        <div class="filter-bar">
+                            <select id="filterDeviceGrade" onchange="showPendingDevices()">
+                                <option value="all" ${gradeFilter === 'all' ? 'selected' : ''}>📋 جميع الطلبات</option>
+                                <option value="1" ${gradeFilter === '1' ? 'selected' : ''}>📘 أولى ثانوي</option>
+                                <option value="2" ${gradeFilter === '2' ? 'selected' : ''}>📗 ثانية ثانوي</option>
+                                <option value="3" ${gradeFilter === '3' ? 'selected' : ''}>📕 ثالثة ثانوي</option>
+                            </select>
+                            <input id="searchDevice" class="search-box" placeholder="🔍 بحث بكود الطالب أو الجهاز..." value="${searchTerm}">
+                            <button onclick="searchDevices()" class="btn-sm btn-search">🔍 بحث</button>
+                            <button onclick="clearDeviceSearch()" class="btn-sm btn-clear">✖️ إلغاء</button>
+                        </div>`;
+            if (devices.length === 0) {
+                html += `<p>لا توجد طلبات معلقة</p>`;
+            } else {
+                devices.forEach(d => {
+                    const gradeText = d.grade === '1' ? 'أولى ث' : d.grade === '2' ? 'ثانية ث' : d.grade === '3' ? 'ثالثة ث' : '—';
+                    html += `<div style="border:1px solid #ddd; padding:15px; margin:15px 0; border-radius:10px; background:white;">
+                                <p><strong>الطالب كود:</strong> ${d.studentCode}</p>
+                                <p><strong>الجهاز:</strong> ${d.deviceId}</p>
+                                <p><strong>الصف:</strong> <span class="grade-badge grade-${d.grade}">${gradeText}</span></p>
+                                <button onclick="approveDevice('${d.id}', '${d.studentCode}', '${d.deviceId}')" class="btn-sm" style="background:#2ecc71; color:white;">✅ موافقة</button>
+                                <button onclick="rejectDevice('${d.id}')" class="btn-sm" style="background:#e74c3c; color:white;">❌ رفض</button>
+                            </div>`;
+                });
+            }
+            document.getElementById('content-area').innerHTML = html;
+        };
+
+        window.approveDevice = async function(docId, studentCode, deviceId) {
+            await updateDoc(doc(db, 'pendingDevices', docId), { status: 'approved', approvedAt: new Date() });
+
+            const q = query(collection(db, 'students'), where('code', '==', studentCode));
+            const studentSnap = await getDocs(q);
+            if (studentSnap.empty) {
+                alert('❌ لم يتم العثور على الطالب');
+                showPendingDevices();
+                return;
+            }
+
+            const studentRef = studentSnap.docs[0].ref;
+            const data = studentSnap.docs[0].data();
+            const devices = data.deviceIds || [];
+
+            if (!devices.includes(deviceId)) {
+                devices.push(deviceId);
+                const updates = { deviceIds: devices };
+                if (data.status === 'inactive' || !data.status) {
+                    updates.status = 'active';
+                    if (!data.firstLogin) {
+                        updates.firstLogin = new Date();
+                    }
+                }
+                await updateDoc(studentRef, updates);
+                alert('✅ تمت الموافقة على الجهاز وتفعيل الحساب');
+            } else {
+                alert('⚠️ هذا الجهاز معتمد بالفعل');
+            }
+            showPendingDevices();
+        };
+
+        window.rejectDevice = async function(docId) {
+            await updateDoc(doc(db, 'pendingDevices', docId), { status: 'rejected' });
+            alert('❌ تم رفض الجهاز');
+            showPendingDevices();
+        };
+
+        // ============================================
+        // 11. دالة الحذف العامة
+        // ============================================
+        window.deleteItem = async function(collectionName, docId) {
+            if (!confirm('هل أنت متأكد من الحذف؟')) return;
+            await deleteDoc(doc(db, collectionName, docId));
+            alert('🗑️ تم الحذف بنجاح');
+            showSection(collectionName);
+        };
+
+        // ============================================
+        // 12. تسجيل الخروج
+        // ============================================
+        window.logoutAdmin = function() {
+            localStorage.removeItem('adminLoggedIn');
+            window.location.href = 'index.html';
+        };
+
+        // بداية تحميل الصفحة
+        showSection('dashboard');
+    </script>
+</body>
+</html>
