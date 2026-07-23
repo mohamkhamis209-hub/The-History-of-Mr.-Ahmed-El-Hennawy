@@ -958,13 +958,30 @@
         window.searchStudents = function() { showStudents(); };
         window.clearSearch = function() { document.getElementById('searchStudent').value = ''; showStudents(); };
 
+        // ============================================
+        // DELETE STUDENT (مع تحديث المتصدرين)
+        // ============================================
         window.deleteStudent = async function(code) {
             if (!confirm('حذف الطالب نهائياً؟')) return;
-            const q = query(collection(db, 'students'), where('code', '==', code));
-            const snap = await getDocs(q);
-            snap.forEach(async (d) => { await deleteDoc(d.ref); });
-            alert('تم الحذف');
-            showStudents();
+            try {
+                // 1. حذف الطالب
+                const q = query(collection(db, 'students'), where('code', '==', code));
+                const snap = await getDocs(q);
+                snap.forEach(async (d) => { await deleteDoc(d.ref); });
+                
+                // 2. حذف سجل الطالب من المتصدرين
+                const leaderboardRef = doc(db, 'leaderboard', code);
+                await deleteDoc(leaderboardRef);
+                
+                // 3. إعادة ترتيب المتصدرين
+                await updateLeaderboardManual();
+                
+                alert('تم الحذف وإعادة ترتيب المتصدرين');
+                showStudents();
+            } catch (error) {
+                console.error('خطأ في الحذف:', error);
+                alert('❌ حدث خطأ: ' + error.message);
+            }
         };
 
         window.suspendStudent = async function(code) {
@@ -2186,7 +2203,7 @@
         };
 
         // ============================================
-        // DANGER ZONE
+        // DANGER ZONE (مع زر حذف المتصدرين)
         // ============================================
         window.showDangerZone = function() {
             let html = `
@@ -2202,6 +2219,7 @@
                         <button onclick="deleteAllNotifications()" class="btn-sm btn-danger" style="padding:12px 30px;">🔔 محو جميع الإشعارات</button>
                         <button onclick="deleteAllProgress()" class="btn-sm btn-danger" style="padding:12px 30px;">📊 محو جميع التقدم</button>
                         <button onclick="deleteAllAttendance()" class="btn-sm btn-danger" style="padding:12px 30px;">📅 محو جميع الحضور</button>
+                        <button onclick="deleteAllLeaderboard()" class="btn-sm btn-danger" style="padding:12px 30px;">🏆 حذف المتصدرين</button>
                     </div>
                 </div>
                 <div style="margin-top:20px; padding:20px; background:#fff8e7; border-radius:15px; border:1px solid #f39c12;">
@@ -2209,6 +2227,26 @@
                 </div>
             `;
             document.getElementById('content-area').innerHTML = html;
+        };
+
+        // ============================================
+        // DELETE ALL LEADERBOARD
+        // ============================================
+        window.deleteAllLeaderboard = async function() {
+            if (!confirm('⚠️ تحذير: أنت على وشك حذف جميع بيانات المتصدرين نهائياً! هل أنت متأكد؟')) return;
+            if (!confirm('تأكيد نهائي: هل تريد حذف جميع بيانات المتصدرين؟ سيتم إعادة ترتيبهم تلقائياً عند إضافة طلاب جدد.')) return;
+            try {
+                const snap = await getDocs(collection(db, 'leaderboard'));
+                let count = 0;
+                for (const doc of snap.docs) {
+                    await deleteDoc(doc.ref);
+                    count++;
+                }
+                alert(`✅ تم حذف ${count} سجل متصدرين بنجاح`);
+                showDangerZone();
+            } catch (error) {
+                alert('❌ حدث خطأ: ' + error.message);
+            }
         };
 
         // ============================================
