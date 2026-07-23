@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
 import { 
     getFirestore, collection, addDoc, getDocs, deleteDoc, 
-    doc, updateDoc, query, where, getDoc 
+    doc, updateDoc, query, where, getDoc, setDoc 
 } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 import { 
     getStorage, ref, uploadBytes, getDownloadURL 
@@ -23,5 +23,5 @@ const storage = getStorage(app);
 
 export { 
     db, storage, ref, uploadBytes, getDownloadURL,
-    collection, addDoc, getDocs, deleteDoc, doc, updateDoc, query, where, getDoc
+    collection, addDoc, getDocs, deleteDoc, doc, updateDoc, query, where, getDoc, setDoc
 };
