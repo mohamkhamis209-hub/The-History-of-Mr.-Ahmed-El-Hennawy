@@ -7,6 +7,7 @@
 body {
     background: #f0f4f8;
     direction: rtl;
+    transition: background 0.3s, color 0.3s;
 }
 .login-container {
     max-width: 420px;
@@ -16,6 +17,7 @@ body {
     border-radius: 25px;
     box-shadow: 0 15px 50px rgba(0,0,0,0.1);
     text-align: center;
+    transition: background 0.3s, color 0.3s;
 }
 .logo {
     width: 120px;
@@ -33,6 +35,8 @@ input, select {
     border-radius: 12px;
     font-size: 16px;
     transition: 0.3s;
+    background: white;
+    color: #333;
 }
 input:focus {
     border-color: #3498db;
@@ -59,6 +63,27 @@ button:hover {
     transform: translateY(-2px);
     box-shadow: 0 5px 15px rgba(0,0,0,0.15);
 }
+.btn-danger {
+    background: #e74c3c;
+    color: white;
+}
+.btn-danger:hover {
+    background: #c0392b;
+}
+.btn-warning {
+    background: #f39c12;
+    color: white;
+}
+.btn-warning:hover {
+    background: #d68910;
+}
+.btn-success {
+    background: #27ae60;
+    color: white;
+}
+.btn-success:hover {
+    background: #1e8449;
+}
 
 /* ---------- الشريط الجانبي ---------- */
 .sidebar {
@@ -73,6 +98,7 @@ button:hover {
     top: 0;
     z-index: 100;
     box-shadow: -4px 0 15px rgba(0,0,0,0.1);
+    transition: background 0.3s;
 }
 .sidebar .admin-img {
     width: 90px;
@@ -106,12 +132,20 @@ button:hover {
     background: #2c3e50;
     transform: translateX(-5px);
 }
+.sidebar ul li.danger {
+    color: #e74c3c;
+}
+.sidebar ul li.danger:hover {
+    background: #e74c3c;
+    color: white;
+}
 
 /* ---------- المحتوى ---------- */
 .content {
     margin-right: 270px;
     padding: 30px;
     min-height: 100vh;
+    transition: background 0.3s;
 }
 .content h2 {
     color: #1e2a36;
@@ -119,6 +153,7 @@ button:hover {
     border-bottom: 3px solid #3498db;
     padding-bottom: 10px;
     display: inline-block;
+    transition: color 0.3s;
 }
 
 /* ---------- جرس الإشعارات ---------- */
@@ -152,6 +187,7 @@ table {
     border-radius: 12px;
     overflow: hidden;
     box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    transition: background 0.3s;
 }
 th, td {
     padding: 15px;
@@ -163,6 +199,189 @@ th {
 }
 tr:nth-child(even) {
     background: #f8f9fa;
+}
+
+/* ---------- المكافآت والشارات ---------- */
+.badge-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin: 20px 0;
+    justify-content: center;
+}
+.badge-item {
+    background: white;
+    padding: 20px;
+    border-radius: 15px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    text-align: center;
+    min-width: 120px;
+    transition: 0.3s;
+    border: 2px solid #eee;
+}
+.badge-item:hover {
+    transform: scale(1.05);
+}
+.badge-item .icon {
+    font-size: 40px;
+}
+.badge-item .name {
+    font-size: 14px;
+    font-weight: bold;
+    margin-top: 5px;
+}
+.badge-item .desc {
+    font-size: 12px;
+    color: #888;
+}
+.badge-item.locked {
+    opacity: 0.4;
+    filter: grayscale(1);
+}
+.badge-item.unlocked {
+    border-color: #f39c12;
+    background: #fff8e7;
+}
+.badge-item.gold {
+    border-color: #f1c40f;
+    background: #fffde7;
+}
+.badge-item.silver {
+    border-color: #bdc3c7;
+    background: #f8f9fa;
+}
+.badge-item.bronze {
+    border-color: #cd7f32;
+    background: #fdf2e9;
+}
+
+/* ---------- وضع ليلي (Dark Mode) ---------- */
+body.dark-mode {
+    background: #1a1a2e;
+    color: #e0e0e0;
+}
+body.dark-mode .login-container {
+    background: #2d2d44;
+    color: #e0e0e0;
+    box-shadow: 0 15px 50px rgba(0,0,0,0.5);
+}
+body.dark-mode input, body.dark-mode select {
+    background: #3d3d5c;
+    color: #e0e0e0;
+    border-color: #555;
+}
+body.dark-mode input:focus {
+    border-color: #3498db;
+    box-shadow: 0 0 0 3px rgba(52,152,219,0.3);
+}
+body.dark-mode .sidebar {
+    background: #16213e;
+}
+body.dark-mode .sidebar ul li:hover {
+    background: #1a2a4a;
+}
+body.dark-mode .content {
+    background: #1a1a2e;
+}
+body.dark-mode .content h2 {
+    color: #e0e0e0;
+    border-bottom-color: #3498db;
+}
+body.dark-mode table {
+    background: #2d2d44;
+    color: #e0e0e0;
+}
+body.dark-mode tr:nth-child(even) {
+    background: #3d3d5c;
+}
+body.dark-mode tr:nth-child(odd) {
+    background: #2d2d44;
+}
+body.dark-mode th {
+    background: #0f3460;
+}
+body.dark-mode .badge-item {
+    background: #2d2d44;
+    border-color: #444;
+    color: #e0e0e0;
+}
+body.dark-mode .badge-item.unlocked {
+    background: #3d3d1c;
+    border-color: #f39c12;
+}
+body.dark-mode .badge-item.gold {
+    background: #3d3d1c;
+    border-color: #f1c40f;
+}
+body.dark-mode .badge-item.silver {
+    background: #2d2d44;
+    border-color: #bdc3c7;
+}
+body.dark-mode .badge-item.bronze {
+    background: #3d2d1c;
+    border-color: #cd7f32;
+}
+body.dark-mode .device-item {
+    background: #2d2d44;
+    color: #e0e0e0;
+}
+body.dark-mode .filter-bar {
+    background: #2d2d44;
+}
+body.dark-mode .filter-bar select, body.dark-mode .filter-bar input {
+    background: #3d3d5c;
+    color: #e0e0e0;
+    border-color: #555;
+}
+body.dark-mode .bell {
+    background: #e74c3c;
+}
+body.dark-mode .header-bar {
+    background: #2d2d44;
+    border-bottom-color: #444;
+}
+body.dark-mode .header-bar h2 {
+    color: #e0e0e0;
+}
+body.dark-mode .grade-badge {
+    color: white;
+}
+body.dark-mode .video-wrapper, body.dark-mode .video-container {
+    background: #2d2d44;
+}
+body.dark-mode .video-wrapper h3 {
+    color: #e0e0e0;
+}
+body.dark-mode .progress-info {
+    color: #aaa;
+}
+
+/* ---------- زر تبديل الوضع الليلي ---------- */
+.theme-toggle {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    z-index: 999;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: #2c3e50;
+    color: white;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    transition: 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.theme-toggle:hover {
+    transform: scale(1.1);
+}
+body.dark-mode .theme-toggle {
+    background: #f1c40f;
+    color: #1a1a2e;
 }
 
 /* ---------- التوافق مع الموبايل ---------- */
@@ -195,5 +414,22 @@ tr:nth-child(even) {
     .bell {
         padding: 8px 15px;
         font-size: 14px;
+    }
+    .theme-toggle {
+        bottom: 10px;
+        left: 10px;
+        width: 40px;
+        height: 40px;
+        font-size: 18px;
+    }
+    .badge-container {
+        gap: 8px;
+    }
+    .badge-item {
+        min-width: 80px;
+        padding: 12px;
+    }
+    .badge-item .icon {
+        font-size: 28px;
     }
 }
