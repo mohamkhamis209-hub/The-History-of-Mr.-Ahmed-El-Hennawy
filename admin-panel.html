@@ -1676,7 +1676,7 @@
         };
 
         // ============================================
-        // REPORTS (مع التعديلات الجديدة)
+        // REPORTS
         // ============================================
         window.showReports = function() {
             let html = `<h2>📊 التقارير</h2>
@@ -1698,7 +1698,7 @@
                             <div style="background:white; padding:25px; border-radius:15px; box-shadow:0 2px 10px rgba(0,0,0,0.05); text-align:center;">
                                 <p style="font-size:40px;">🔑</p>
                                 <h3>تقرير أكواد الطلاب</h3>
-                                <p style="color:#888; margin:10px 0;">الاسم، الصف، الكود (مرتب حسب الصف - 3 أعمدة في الصفحة)</p>
+                                <p style="color:#888; margin:10px 0;">الاسم، الصف، الكود (6 أعمدة - A4 أفقي)</p>
                                 <button onclick="exportStudentCodes()" class="btn-sm" style="background:#9b59b6; color:white; padding:12px 30px; border:none; border-radius:10px; cursor:pointer;">📥 تحميل Excel</button>
                                 <button onclick="exportStudentCodesPDF()" class="btn-sm" style="background:#e74c3c; color:white; padding:12px 30px; border:none; border-radius:10px; cursor:pointer; margin-top:10px;">📄 تحميل PDF</button>
                             </div>
@@ -1707,48 +1707,9 @@
         };
 
         // ============================================
-        // EXPORT STUDENT CODES (نسخة Excel)
+        // EXPORT STUDENT CODES (نسخة Excel - 6 أعمدة - A4 أفقي)
         // ============================================
         window.exportStudentCodes = async function() {
-            try {
-                const snap = await getDocs(collection(db, 'students'));
-                let students = [];
-                snap.forEach(doc => {
-                    const data = doc.data();
-                    students.push({
-                        'الاسم': data.name || '',
-                        'الصف': data.grade === '1' ? 'أولى ثانوي' : data.grade === '2' ? 'ثانية ثانوي' : data.grade === '3' ? 'ثالثة ثانوي' : '—',
-                        'الكود': data.code || ''
-                    });
-                });
-
-                const gradeOrder = { 'أولى ثانوي': 1, 'ثانية ثانوي': 2, 'ثالثة ثانوي': 3 };
-                students.sort((a, b) => (gradeOrder[a['الصف']] || 99) - (gradeOrder[b['الصف']] || 99));
-
-                if (students.length === 0) {
-                    alert('لا يوجد طلاب لتصديرهم');
-                    return;
-                }
-
-                await loadXLSX();
-                const XLSX = window.XLSX;
-                const wb = XLSX.utils.book_new();
-                const ws = XLSX.utils.json_to_sheet(students);
-                XLSX.utils.book_append_sheet(wb, ws, 'أكواد الطلاب');
-                ws['!cols'] = [{ wch: 25 }, { wch: 20 }, { wch: 15 }];
-                const fileName = `تقرير_أكواد_الطلاب_${new Date().toLocaleDateString()}.xlsx`;
-                XLSX.writeFile(wb, fileName);
-                alert('✅ تم تحميل التقرير بنجاح');
-            } catch (error) {
-                console.error(error);
-                alert('❌ حدث خطأ في تصدير التقرير');
-            }
-        };
-
-        // ============================================
-        // EXPORT STUDENT CODES PDF (نسخة PDF - 3 أعمدة)
-        // ============================================
-        window.exportStudentCodesPDF = async function() {
             try {
                 const snap = await getDocs(collection(db, 'students'));
                 let students = [];
@@ -1766,6 +1727,84 @@
                 students.sort((a, b) => (gradeOrder[a.grade] || 99) - (gradeOrder[b.grade] || 99));
 
                 if (students.length === 0) {
+                    alert('لا يوجد طلاب لتصديرهم');
+                    return;
+                }
+
+                await loadXLSX();
+                const XLSX = window.XLSX;
+                
+                // ✅ تحويل البيانات إلى 6 أعمدة (مجموعتين)
+                const rows = [];
+                const groupsPerRow = 2;
+                
+                for (let i = 0; i < students.length; i += groupsPerRow) {
+                    const rowStudents = students.slice(i, i + groupsPerRow);
+                    const row = [];
+                    
+                    for (let j = 0; j < rowStudents.length; j++) {
+                        const s = rowStudents[j];
+                        row.push(s.name);
+                        row.push(s.code);
+                        row.push(s.grade);
+                    }
+                    
+                    while (row.length < 6) {
+                        row.push('');
+                    }
+                    
+                    rows.push(row);
+                }
+
+                const wb = XLSX.utils.book_new();
+                const ws = XLSX.utils.aoa_to_sheet([
+                    ['الاسم', 'الكود', 'الصف', 'الاسم', 'الكود', 'الصف'],
+                    ...rows
+                ]);
+                
+                ws['!cols'] = [
+                    { wch: 25 }, { wch: 15 }, { wch: 18 },
+                    { wch: 25 }, { wch: 15 }, { wch: 18 }
+                ];
+                
+                // ✅ ضبط إعدادات الطباعة (A4 أفقي)
+                ws['!print'] = {
+                    orientation: 'Landscape',
+                    fitToPage: true,
+                    fitToWidth: 1,
+                    fitToHeight: 1
+                };
+                
+                XLSX.utils.book_append_sheet(wb, ws, 'أكواد الطلاب');
+                const fileName = `تقرير_أكواد_الطلاب_${new Date().toLocaleDateString('ar-EG')}.xlsx`;
+                XLSX.writeFile(wb, fileName);
+                alert('✅ تم تحميل التقرير بنجاح');
+            } catch (error) {
+                console.error(error);
+                alert('❌ حدث خطأ في تصدير التقرير');
+            }
+        };
+
+        // ============================================
+        // EXPORT STUDENT CODES PDF (نسخة 3 أعمدة - A4 أفقي)
+        // ============================================
+        window.exportStudentCodesPDF = async function() {
+            try {
+                const snap = await getDocs(collection(db, 'students'));
+                let students = [];
+                snap.forEach(doc => {
+                    const data = doc.data();
+                    students.push({
+                        name: data.name || '',
+                        grade: data.grade === '1' ? 'أولى ثانوي' : data.grade === '2' ? 'ثانية ثانوي' : data.grade === '3' ? 'ثالثة ثانوي' : '—',
+                        code: data.code || ''
+                    });
+                });
+
+                const gradeOrder = { 'أولى ثانوي': 1, 'ثانية ثانوي': 2, 'ثالثة ثانوي': 3 };
+                students.sort((a, b) => (gradeOrder[a.grade] || 99) - (gradeOrder[b.grade] || 99));
+
+                if (students.length === 0) {
                     alert('لا يوجد طلاب');
                     return;
                 }
@@ -1773,47 +1812,72 @@
                 await loadPDF();
                 const { jsPDF } = window.jspdf;
                 
-                // ✅ ورق A4 عمودي (Portrait)
-                const doc = new jsPDF('portrait', 'mm', 'a4');
+                const doc = new jsPDF('landscape', 'mm', 'a4');
                 const pageWidth = doc.internal.pageSize.getWidth();
                 const pageHeight = doc.internal.pageSize.getHeight();
                 
-                // ✅ عنوان التقرير
                 doc.setFont('helvetica', 'bold');
-                doc.setFontSize(14);
+                doc.setFontSize(16);
                 doc.text('تقرير أكواد الطلاب', pageWidth / 2, 15, { align: 'center' });
                 doc.setFontSize(10);
-                doc.text(`تاريخ التقرير: ${new Date().toLocaleString()}`, pageWidth / 2, 22, { align: 'center' });
+                doc.text(`تاريخ التقرير: ${new Date().toLocaleString('ar-EG')}`, pageWidth / 2, 22, { align: 'center' });
                 
-                // ✅ إعدادات الأعمدة (3 أعمدة في الصف)
-                const cols = 3;
                 const margin = 10;
                 const gap = 4;
-                const colWidth = (pageWidth - (margin * 2) - (gap * (cols - 1))) / cols;
-                const rowHeight = 28;
+                const colWidth = (pageWidth - (margin * 2) - (gap * 2)) / 3;
+                const rowHeight = 30;
                 const startY = 30;
                 
-                // ✅ رسم البطاقات
+                const groupedStudents = {
+                    'أولى ثانوي': [],
+                    'ثانية ثانوي': [],
+                    'ثالثة ثانوي': []
+                };
+                
+                students.forEach(s => {
+                    if (groupedStudents[s.grade]) {
+                        groupedStudents[s.grade].push(s);
+                    }
+                });
+                
                 let currentY = startY;
                 
-                for (let i = 0; i < students.length; i += cols) {
-                    const rowStudents = students.slice(i, i + cols);
+                for (const [gradeName, gradeStudents] of Object.entries(groupedStudents)) {
+                    if (gradeStudents.length === 0) continue;
                     
-                    if (currentY + rowHeight > pageHeight - 15) {
+                    if (currentY + rowHeight + 10 > pageHeight - 15) {
                         doc.addPage();
                         currentY = startY;
                     }
                     
-                    for (let j = 0; j < rowStudents.length; j++) {
-                        const x = margin + (j * (colWidth + gap));
-                        const y = currentY;
-                        drawStudentCardV2(doc, rowStudents[j], x, y, colWidth, rowHeight);
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(12);
+                    doc.text(`📘 ${gradeName}`, margin, currentY + 5);
+                    currentY += 10;
+                    doc.setFont('helvetica', 'normal');
+                    doc.setFontSize(9);
+                    
+                    for (let i = 0; i < gradeStudents.length; i += 3) {
+                        const rowStudents = gradeStudents.slice(i, i + 3);
+                        
+                        if (currentY + rowHeight > pageHeight - 15) {
+                            doc.addPage();
+                            currentY = startY;
+                        }
+                        
+                        for (let j = 0; j < rowStudents.length; j++) {
+                            const x = margin + (j * (colWidth + gap));
+                            const y = currentY;
+                            drawStudentCardV3(doc, rowStudents[j], x, y, colWidth, rowHeight);
+                        }
+                        
+                        currentY += rowHeight + 3;
                     }
                     
-                    currentY += rowHeight + 2;
+                    currentY += 8;
                 }
                 
-                doc.save(`تقرير_أكواد_الطلاب_${new Date().toLocaleDateString()}.pdf`);
+                doc.save(`تقرير_أكواد_الطلاب_${new Date().toLocaleDateString('ar-EG')}.pdf`);
                 alert('✅ تم تحميل التقرير بنجاح');
                 
             } catch (error) {
@@ -1822,25 +1886,22 @@
             }
         };
 
-        // ✅ دالة مساعدة لرسم بطاقة الطالب (نسخة 3 أعمدة)
-        function drawStudentCardV2(doc, student, x, y, width, height) {
-            // ✅ رسم الإطار
+        // ✅ دالة مساعدة لرسم بطاقة الطالب (PDF)
+        function drawStudentCardV3(doc, student, x, y, width, height) {
             doc.setDrawColor(180, 180, 180);
-            doc.setLineWidth(0.5);
+            doc.setLineWidth(0.3);
             doc.rect(x, y, width, height);
             
-            // ✅ ضبط الخط
             doc.setFont('helvetica', 'normal');
-            doc.setFontSize(8);
+            doc.setFontSize(9);
             
-            const padding = 3;
+            const padding = 4;
             const textX = x + padding;
             const centerY = y + (height / 2);
             
-            // ✅ عرض البيانات (الاسم، الصف، الكود)
-            doc.text(`الاسم: ${student.name}`, textX, centerY - 7);
-            doc.text(`الصف: ${student.grade}`, textX, centerY + 1);
-            doc.text(`الكود: ${student.code}`, textX, centerY + 9);
+            doc.text(`الاسم: ${student.name}`, textX, centerY - 8);
+            doc.text(`الكود: ${student.code}`, textX, centerY + 1);
+            doc.text(`الصف: ${student.grade}`, textX, centerY + 10);
         }
 
         // ============================================
@@ -1917,7 +1978,7 @@
                 doc.setFontSize(14);
                 doc.text('تقرير جميع الطلاب', 14, 30);
                 doc.setFontSize(10);
-                doc.text(`تاريخ التقرير: ${new Date().toLocaleString()}`, 14, 50);
+                doc.text(`تاريخ التقرير: ${new Date().toLocaleString('ar-EG')}`, 14, 50);
                 
                 const tableData = students.map(s => [
                     s.name, s.code, s.grade, s.phone, s.parentPhone, s.status, s.lastLogin, s.devices.toString()
@@ -1927,10 +1988,7 @@
                     body: tableData,
                     startY: 60,
                     styles: { font: 'helvetica', fontSize: 8 },
-                    headStyles: { fillColor: [44, 62, 80] },
-                    didDrawPage: function(data) {
-                        // دعم اللغة العربية
-                    }
+                    headStyles: { fillColor: [44, 62, 80] }
                 });
                 doc.save(`تقرير_الطلاب_${new Date().toLocaleDateString()}.pdf`);
                 alert('✅ تم تحميل التقرير بنجاح');
@@ -2063,7 +2121,7 @@
                 doc.setFontSize(14);
                 doc.text('تقرير تقدم الطلاب', 14, 30);
                 doc.setFontSize(10);
-                doc.text(`تاريخ التقرير: ${new Date().toLocaleString()}`, 14, 50);
+                doc.text(`تاريخ التقرير: ${new Date().toLocaleString('ar-EG')}`, 14, 50);
                 
                 const tableData = report.map(s => [
                     s.name, s.code, s.grade, s.devices.toString(), s.progress
