@@ -3,18 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تاريخ مستر احمد الحناوي</title>
+    <title> تاريخ مستر احمد الحناوي </title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+    <!-- زر تبديل الوضع الليلي -->
+    <button class="theme-toggle" onclick="toggleTheme()" title="تبديل الوضع الليلي">
+        🌙
+    </button>
+
     <div class="login-container">
         <img src="assets/logo.jpg" alt="Logo" class="logo">
-        <h1>منصة مستر احمد الحناوي</h1>
-        <p style="margin-bottom:30px; color:#666; font-size:18px;">للحجز والاستفسار تواصل علي الارقام  التالية 
-            01558812897 - 01275001442
-        </p>
+        <h1> منصة مستر احمد الحناوي </h1>
+        <p style="margin-bottom:30px; color:#666; font-size:18px;"> للحجز والاستفسار تواصل علي الارقام  التالية 
+            01558812897 - 01275001442 </p>
         <a href="admin-login.html" class="btn-primary" style="display:block; text-decoration:none; margin-bottom:15px;">🔐 دخول المشرف</a>
         <a href="student-login.html" class="btn-secondary" style="display:block; text-decoration:none;">🎓 دخول الطالب</a>
     </div>
+
+    <script>
+        // تبديل الوضع الليلي
+        function toggleTheme() {
+            document.body.classList.toggle('dark-mode');
+            const isDark = document.body.classList.contains('dark-mode');
+            localStorage.setItem('darkMode', isDark);
+            document.querySelector('.theme-toggle').textContent = isDark ? '☀️' : '🌙';
+        }
+
+        // استعادة الوضع الليلي من localStorage
+        if (localStorage.getItem('darkMode') === 'true') {
+            document.body.classList.add('dark-mode');
+            document.querySelector('.theme-toggle').textContent = '☀️';
+        }
+    </script>
 </body>
 </html>
