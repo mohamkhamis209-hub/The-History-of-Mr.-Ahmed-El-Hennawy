@@ -236,17 +236,6 @@
             width: 0%;
             transition: width 0.3s;
         }
-        /* ✅ منع زر التحميل من الظهور على الكتب */
-        .book-iframe {
-            pointer-events: none;
-        }
-        .book-iframe iframe {
-            pointer-events: none;
-        }
-        /* ✅ إخفاء زر التحميل من Google Drive */
-        .book-iframe iframe {
-            pointer-events: none;
-        }
         body.dark-mode .video-player-wrapper {
             background: #2d2d44;
         }
@@ -732,7 +721,7 @@
         }
 
         // ============================================
-        // تحديث واجهة التقدم (مع الدقائق والثواني)
+        // تحديث واجهة التقدم
         // ============================================
         function updateProgressUI(videoId, watched, total) {
             const fill = document.getElementById(`progress-fill-${videoId}`);
@@ -752,7 +741,7 @@
         }
 
         // ============================================
-        // حساب عدد الشارات
+        // حساب عدد الشارات (مصلح)
         // ============================================
         async function getBadgesCount(code) {
             try {
@@ -767,18 +756,25 @@
                 if (watchedCount >= 10) count++;
                 if (watchedCount >= 5) count++;
                 
+                // ✅ شارة الدخول (first_login)
                 try {
                     const studentDoc = await getDoc(doc(db, 'students', code));
                     if (studentDoc.exists() && studentDoc.data().firstLogin) {
                         count++;
+                        console.log('✅ شارة الدخول مفتوحة للطالب:', code);
+                    } else {
+                        console.log('⚠️ الطالب لم يسجل الدخول بعد:', code);
                     }
-                } catch(e) {}
+                } catch(e) {
+                    console.error('خطأ في جلب بيانات الطالب:', e);
+                }
                 
                 const booksSnap = await getDocs(collection(db, 'books'));
                 if (booksSnap.size >= 3) count++;
                 
                 return count;
             } catch (error) {
+                console.error('خطأ في حساب الشارات:', error);
                 return 0;
             }
         }
@@ -950,7 +946,7 @@
             }
             
             // ============================================
-            // الكتب (منع التحميل تماماً)
+            // الكتب (مع منع التحميل والسماح بالتمرير)
             // ============================================
             else if (section === 'books') {
                 try {
@@ -963,7 +959,7 @@
                         snap.forEach(d => {
                             const data = d.data();
                             let url = data.url;
-                            // تحويل رابط Google Drive إلى Preview مع منع التحميل
+                            // تحويل رابط Google Drive إلى Preview
                             if (url.includes('drive.google.com/file/d/')) {
                                 const match = url.match(/\/d\/([^\/]+)/);
                                 if (match) {
@@ -985,16 +981,14 @@
                             html += `
                                 <div style="margin:25px 0; background:white; padding:15px; border-radius:15px; box-shadow:0 2px 10px rgba(0,0,0,0.05);">
                                     <h3 style="margin-bottom:10px;">${data.title}</h3>
-                                    <div class="book-iframe">
-                                        <iframe src="${url}" 
-                                                width="100%" 
-                                                height="550" 
-                                                frameborder="0" 
-                                                style="border-radius:10px;" 
-                                                allowfullscreen>
-                                        </iframe>
-                                    </div>
-                                    <p style="color:#888; font-size:12px; margin-top:5px;">📖 للقراءة فقط - التحميل والطباعة غير مسموحين</p>
+                                    <iframe src="${url}" 
+                                            width="100%" 
+                                            height="550" 
+                                            frameborder="0" 
+                                            style="border-radius:10px;" 
+                                            allowfullscreen>
+                                    </iframe>
+                                    <p style="color:#888; font-size:12px; margin-top:5px;">📖 للقراءة فقط - التحميل غير مسموح</p>
                                 </div>
                             `;
                         });
@@ -1113,7 +1107,7 @@
             }
             
             // ============================================
-            // الشارات والمكافآت (مصلحة)
+            // الشارات والمكافآت (مصلح)
             // ============================================
             else if (section === 'badges') {
                 try {
@@ -1128,26 +1122,33 @@
                     let booksCount = booksSnap.size;
 
                     const unlockedBadges = [];
-                    if (watchedCount >= 20) unlockedBadges.push('watcher_20');
-                    if (watchedCount >= 10) unlockedBadges.push('watcher_10');
-                    if (watchedCount >= 5) unlockedBadges.push('watcher_5');
-                    if (booksCount >= 3) unlockedBadges.push('book_reader');
-                    // ✅ شارة الدخول
+                    
+                    // ✅ شارة الدخول (الأولى)
                     try {
                         const studentDoc = await getDoc(doc(db, 'students', code));
                         if (studentDoc.exists() && studentDoc.data().firstLogin) {
                             unlockedBadges.push('first_login');
                             console.log('✅ شارة الدخول مفتوحة للطالب:', code);
+                        } else {
+                            console.log('⚠️ الطالب لم يسجل الدخول بعد (firstLogin غير موجود)');
                         }
                     } catch(e) {
                         console.error('خطأ في جلب بيانات الطالب:', e);
                     }
+                    
+                    // باقي الشارات
+                    if (watchedCount >= 5) unlockedBadges.push('watcher_5');
+                    if (watchedCount >= 10) unlockedBadges.push('watcher_10');
+                    if (watchedCount >= 20) unlockedBadges.push('watcher_20');
+                    if (booksCount >= 3) unlockedBadges.push('book_reader');
 
+                    // ✅ عرض جميع الشارات مع حالتها
                     let html = `<h2>🏅 الشارات والمكافآت</h2>
                                 <p style="font-size:16px; color:#666; margin-bottom:20px;">اجمع الشارات كلما تقدمت في المنصة!</p>
                                 <div style="background:white; padding:20px; border-radius:15px; box-shadow:0 2px 10px rgba(0,0,0,0.05); margin-bottom:20px;">
                                     <h3>⭐ نقاطك: <span id="badgePoints">0</span></h3>
                                     <p style="color:#888;">كل فيديو تشاهده = 10 نقاط</p>
+                                    <p style="color:#888; font-size:14px;">الفيديوهات المشاهدة: ${watchedCount}</p>
                                 </div>
                                 <div class="badge-container">`;
                     
@@ -1222,7 +1223,7 @@
             }
             
             // ============================================
-            // تقدمي الشخصي (مصلح - عرض الدقائق)
+            // تقدمي الشخصي (مصلح)
             // ============================================
             else if (section === 'myProgress') {
                 try {
