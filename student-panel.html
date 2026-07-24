@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>لوحة الطالب</title>
     <link rel="stylesheet" href="css/style.css">
-    <!-- تحميل YouTube IFrame API -->
     <script src="https://www.youtube.com/iframe_api"></script>
     <style>
         .header-bar {
@@ -377,12 +376,27 @@
         }
 
         // ============================================
-        // نظام الحضور
+        // نظام الحضور والجلسات
         // ============================================
         async function recordLogin() {
             if (!studentCode) return;
             try {
                 const today = new Date().toISOString().split('T')[0];
+                const now = new Date();
+                
+                // 1. تسجيل الجلسة الحالية
+                await addDoc(collection(db, 'sessions'), {
+                    studentCode: studentCode,
+                    studentName: studentName,
+                    loginTime: serverTimestamp(),
+                    loginTimeString: now.toLocaleTimeString('ar-EG'),
+                    logoutTime: null,
+                    logoutTimeString: null,
+                    duration: 0,
+                    date: today
+                });
+                
+                // 2. تحديث attendance
                 const q = query(
                     collection(db, 'attendance'),
                     where('studentCode', '==', studentCode),
@@ -398,17 +412,21 @@
                         logoutTime: null,
                         duration: 0,
                         date: today,
-                        status: 'present'
+                        status: 'present',
+                        sessionsCount: 1
                     });
-                    console.log('✅ تم تسجيل الدخول');
                 } else {
                     const docRef = snap.docs[0].ref;
+                    const data = snap.docs[0].data();
+                    const sessionsCount = (data.sessionsCount || 0) + 1;
                     await updateDoc(docRef, {
                         loginTime: serverTimestamp(),
-                        logoutTime: null
+                        logoutTime: null,
+                        sessionsCount: sessionsCount
                     });
-                    console.log('✅ تم تحديث وقت الدخول');
                 }
+                
+                console.log('✅ تم تسجيل الدخول');
             } catch (error) {
                 console.error('خطأ في تسجيل الدخول:', error);
             }
@@ -418,6 +436,37 @@
             if (!studentCode) return;
             try {
                 const today = new Date().toISOString().split('T')[0];
+                const now = new Date();
+                
+                // 1. تحديث آخر جلسة
+                const sessionsQuery = query(
+                    collection(db, 'sessions'),
+                    where('studentCode', '==', studentCode),
+                    where('date', '==', today),
+                    where('logoutTime', '==', null)
+                );
+                const sessionsSnap = await getDocs(sessionsQuery);
+                
+                if (!sessionsSnap.empty) {
+                    let lastSession = null;
+                    sessionsSnap.forEach(d => {
+                        lastSession = d;
+                    });
+                    if (lastSession) {
+                        const loginTime = lastSession.data().loginTime?.toDate?.();
+                        let duration = 0;
+                        if (loginTime) {
+                            duration = Math.floor((now - loginTime) / 60000);
+                        }
+                        await updateDoc(lastSession.ref, {
+                            logoutTime: serverTimestamp(),
+                            logoutTimeString: now.toLocaleTimeString('ar-EG'),
+                            duration: duration
+                        });
+                    }
+                }
+                
+                // 2. تحديث attendance
                 const q = query(
                     collection(db, 'attendance'),
                     where('studentCode', '==', studentCode),
@@ -428,20 +477,19 @@
                 if (!snap.empty) {
                     const docRef = snap.docs[0].ref;
                     const data = snap.docs[0].data();
-                    
                     const loginTime = data.loginTime?.toDate?.();
-                    const logoutTime = new Date();
-                    let duration = 0;
+                    let totalDuration = data.duration || 0;
                     if (loginTime) {
-                        duration = Math.floor((logoutTime - loginTime) / 60000);
+                        totalDuration = Math.floor((now - loginTime) / 60000);
                     }
-                    
                     await updateDoc(docRef, {
                         logoutTime: serverTimestamp(),
-                        duration: duration
+                        logoutTimeString: now.toLocaleTimeString('ar-EG'),
+                        duration: totalDuration
                     });
-                    console.log('✅ تم تسجيل الخروج والمدة:', duration);
                 }
+                
+                console.log('✅ تم تسجيل الخروج');
             } catch (error) {
                 console.error('خطأ في تسجيل الخروج:', error);
             }
@@ -677,7 +725,7 @@
         }
 
         // ============================================
-        // تحديث واجهة التقدم
+        // تحديث واجهة التقدم (مع الدقائق والثواني)
         // ============================================
         function updateProgressUI(videoId, watched, total) {
             const fill = document.getElementById(`progress-fill-${videoId}`);
@@ -687,7 +735,13 @@
             const percent = total > 0 ? Math.min(100, Math.round((watched / total) * 100)) : 0;
             const completed = total > 0 && watched >= total;
             fill.style.width = percent + '%';
-            text.innerText = `⏱️ شاهدت ${Math.floor(watched/60)} دقيقة من ${Math.floor(total/60)} دقيقة (${percent}%) ${completed ? '✅ مكتمل' : ''}`;
+            
+            const watchedMin = Math.floor(watched / 60);
+            const watchedSec = Math.floor(watched % 60);
+            const totalMin = Math.floor(total / 60);
+            const totalSec = Math.floor(total % 60);
+            
+            text.innerText = `⏱️ شاهدت ${watchedMin}:${watchedSec.toString().padStart(2, '0')} من ${totalMin}:${totalSec.toString().padStart(2, '0')} (${percent}%) ${completed ? '✅ مكتمل' : ''}`;
         }
 
         // ============================================
@@ -706,6 +760,7 @@
                 if (watchedCount >= 10) count++;
                 if (watchedCount >= 5) count++;
                 
+                // ✅ شارة الدخول
                 try {
                     const studentDoc = await getDoc(doc(db, 'students', code));
                     if (studentDoc.exists() && studentDoc.data().firstLogin) {
@@ -752,10 +807,18 @@
                     const totalBooks = booksSnap.size;
                     const points = await getStudentPoints(code);
                     
-                    const today = new Date();
-                    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-                    const startStr = monthStart.toISOString().split('T')[0];
+                    // جلب عدد الجلسات اليوم
+                    const today = new Date().toISOString().split('T')[0];
+                    const sessionsQuery = query(
+                        collection(db, 'sessions'),
+                        where('studentCode', '==', code),
+                        where('date', '==', today)
+                    );
+                    const sessionsSnap = await getDocs(sessionsQuery);
                     
+                    // جلب الحضور هذا الشهر
+                    const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+                    const startStr = monthStart.toISOString().split('T')[0];
                     const attendanceQuery = query(
                         collection(db, 'attendance'),
                         where('studentCode', '==', code)
@@ -800,6 +863,11 @@
                                 <div class="icon">🏅</div>
                                 <div class="number">${badgeCount}</div>
                                 <div class="label">الشارات</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="icon">🔁</div>
+                                <div class="number">${sessionsSnap.size}</div>
+                                <div class="label">مرات الدخول اليوم</div>
                             </div>
                         </div>
                         
@@ -878,7 +946,7 @@
             }
             
             // ============================================
-            // الكتب (مع دعم Google Drive ومنع التحميل)
+            // الكتب
             // ============================================
             else if (section === 'books') {
                 try {
@@ -891,7 +959,6 @@
                         snap.forEach(d => {
                             const data = d.data();
                             let url = data.url;
-                            // تحويل رابط Google Drive إلى Preview
                             if (url.includes('drive.google.com/file/d/')) {
                                 const match = url.match(/\/d\/([^\/]+)/);
                                 if (match) {
@@ -904,18 +971,10 @@
                                     url = `https://drive.google.com/file/d/${match[1]}/preview`;
                                 }
                             }
-                            // منع التحميل والطباعة من Drive
                             html += `
                                 <div style="margin:25px 0; background:white; padding:15px; border-radius:15px; box-shadow:0 2px 10px rgba(0,0,0,0.05);">
                                     <h3 style="margin-bottom:10px;">${data.title}</h3>
-                                    <iframe src="${url}" 
-                                            width="100%" 
-                                            height="550" 
-                                            frameborder="0" 
-                                            style="border-radius:10px;" 
-                                            allowfullscreen
-                                            sandbox="allow-scripts allow-same-origin allow-forms">
-                                    </iframe>
+                                    <iframe src="${url}" width="100%" height="550" frameborder="0" style="border-radius:10px;" allowfullscreen></iframe>
                                     <p style="color:#888; font-size:12px; margin-top:5px;">📖 للقراءة فقط - التحميل والطباعة غير مسموحين</p>
                                 </div>
                             `;
@@ -1054,12 +1113,10 @@
                     if (watchedCount >= 10) unlockedBadges.push('watcher_10');
                     if (watchedCount >= 5) unlockedBadges.push('watcher_5');
                     if (booksCount >= 3) unlockedBadges.push('book_reader');
-                    // ✅ شارة الدخول
                     try {
                         const studentDoc = await getDoc(doc(db, 'students', code));
                         if (studentDoc.exists() && studentDoc.data().firstLogin) {
                             unlockedBadges.push('first_login');
-                            console.log('✅ شارة الدخول مفتوحة للطالب:', code);
                         }
                     } catch(e) {
                         console.error('خطأ في جلب بيانات الطالب:', e);
