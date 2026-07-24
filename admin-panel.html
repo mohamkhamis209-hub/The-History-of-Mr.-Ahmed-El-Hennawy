@@ -274,6 +274,30 @@
             color: #e0e0e0;
         }
 
+        .live-badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            background: #e74c3c;
+            color: white;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .ended-badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            background: #f39c12;
+            color: white;
+        }
+
         @media (max-width: 768px) {
             .dashboard-cards {
                 grid-template-columns: repeat(2, 1fr);
@@ -1212,37 +1236,29 @@
         };
 
         // ============================================
-        // VIDEOS (مع دعم الروابط العادية)
+        // VIDEOS (مع دعم الروابط العادية وزر إنهاء البث)
         // ============================================
         
-        // ============================================
-        // دالة استخراج معرف الفيديو من رابط يوتيوب
-        // ============================================
+        // دالة استخراج معرف الفيديو
         function extractYouTubeId(url) {
             if (!url) return null;
-            
             const watchMatch = url.match(/youtube\.com\/watch\?v=([^&]+)/);
             if (watchMatch) return watchMatch[1];
-            
             const shortMatch = url.match(/youtu\.be\/([^?&]+)/);
             if (shortMatch) return shortMatch[1];
-            
             const embedMatch = url.match(/youtube\.com\/embed\/([^?&]+)/);
             if (embedMatch) return embedMatch[1];
-            
             const shortsMatch = url.match(/youtube\.com\/shorts\/([^?&]+)/);
             if (shortsMatch) return shortsMatch[1];
-            
             return null;
         }
 
-        // ============================================
-        // ADD VIDEO (مع دعم الروابط العادية)
-        // ============================================
+        // دالة إضافة فيديو (مع دعم الروابط العادية)
         window.addVideo = async function() {
             const title = document.getElementById('vidTitle').value.trim();
             let url = document.getElementById('vidUrl').value.trim();
             const grade = document.getElementById('vidGrade').value;
+            const type = document.getElementById('vidType').value;
             
             if (!title || !url) return alert('املأ البيانات');
             
@@ -1258,10 +1274,28 @@
             }
             
             await addDoc(collection(db, 'videos'), { 
-                title, url, grade, addedAt: new Date() 
+                title, url, grade, type: type || 'normal', addedAt: new Date() 
             });
             alert('✅ تمت الإضافة');
             showVideos();
+        };
+
+        // دالة إنهاء البث المباشر
+        window.endLiveStream = async function(videoId) {
+            if (!confirm('⚠️ هل أنت متأكد من إنهاء هذا البث المباشر؟ سيتحول إلى فيديو عادي.')) return;
+            try {
+                const videoRef = doc(db, 'videos', videoId);
+                await updateDoc(videoRef, {
+                    type: 'normal',
+                    endedAt: serverTimestamp(),
+                    isLiveEnded: true
+                });
+                alert('✅ تم إنهاء البث وتحويله إلى فيديو عادي');
+                showVideos();
+            } catch (error) {
+                console.error('خطأ في إنهاء البث:', error);
+                alert('❌ حدث خطأ في إنهاء البث');
+            }
         };
 
         window.searchVideos = function() { showVideos(); };
@@ -1301,6 +1335,10 @@
                                 <option value="2">📗 ثانية ثانوي</option>
                                 <option value="3">📕 ثالثة ثانوي</option>
                             </select>
+                            <select id="vidType">
+                                <option value="normal">🎬 فيديو عادي</option>
+                                <option value="live">📡 بث مباشر</option>
+                            </select>
                             <button onclick="addVideo()" class="btn-sm btn-add">➕ إضافة</button>
                         </div>
                         <div class="filter-bar">
@@ -1314,26 +1352,68 @@
                             <button onclick="searchVideos()" class="btn-sm btn-search">🔍 بحث</button>
                             <button onclick="clearVideoSearch()" class="btn-sm btn-clear">✖️ إلغاء</button>
                         </div>`;
-            if (videos.length === 0) html += `<p>لا يوجد فيديوهات</p>`;
-            videos.forEach(v => {
-                const gradeText = v.grade === 'all' ? 'للجميع' : v.grade === '1' ? 'أولى ث' : v.grade === '2' ? 'ثانية ث' : 'ثالثة ث';
-                html += `<div style="border:1px solid #ddd; padding:15px; margin:15px 0; border-radius:10px; background:white;">
-                            <h4>${v.title} <span class="grade-badge grade-${v.grade}">${gradeText}</span></h4>
-                            <iframe src="${v.url}" width="100%" height="400" frameborder="0" allowfullscreen style="border-radius:10px;"></iframe>
-                            <button onclick="deleteItem('videos','${v.id}')" class="btn-sm" style="background:#e74c3c; color:white; margin-top:10px;">🗑️ حذف</button>
-                        </div>`;
-            });
+            
+            if (videos.length === 0) {
+                html += `<p>لا يوجد فيديوهات</p>`;
+            } else {
+                videos.forEach(v => {
+                    const gradeText = v.grade === 'all' ? 'للجميع' : v.grade === '1' ? 'أولى ث' : v.grade === '2' ? 'ثانية ث' : 'ثالثة ث';
+                    const isLive = v.type === 'live' && !v.isLiveEnded;
+                    const isEndedLive = v.type === 'live' && v.isLiveEnded;
+                    
+                    html += `<div style="border:1px solid #ddd; padding:15px; margin:15px 0; border-radius:10px; background:white;">
+                                <h4>${v.title} 
+                                    <span class="grade-badge grade-${v.grade}">${gradeText}</span>
+                                    ${isLive ? '<span class="live-badge">🔴 مباشر</span>' : ''}
+                                    ${isEndedLive ? '<span class="ended-badge">📹 بث سابق</span>' : ''}
+                                </h4>`;
+                    
+                    if (isLive) {
+                        html += `<div style="position:relative; padding-bottom:56.25%; height:0; overflow:hidden; border-radius:10px; background:#000;">
+                                    <iframe style="position:absolute; top:0; left:0; width:100%; height:100%;" 
+                                            src="${v.url}" 
+                                            frameborder="0" 
+                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                            allowfullscreen>
+                                    </iframe>
+                                </div>
+                                <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
+                                    <button onclick="endLiveStream('${v.id}')" class="btn-sm" style="background:#f39c12; color:white;">⏹️ إنهاء البث</button>
+                                    <button onclick="deleteItem('videos','${v.id}')" class="btn-sm" style="background:#e74c3c; color:white;">🗑️ حذف</button>
+                                </div>`;
+                    } else {
+                        html += `<iframe src="${v.url}" width="100%" height="400" frameborder="0" allowfullscreen style="border-radius:10px;"></iframe>
+                                <button onclick="deleteItem('videos','${v.id}')" class="btn-sm" style="background:#e74c3c; color:white; margin-top:10px;">🗑️ حذف</button>`;
+                    }
+                    html += `</div>`;
+                });
+            }
             document.getElementById('content-area').innerHTML = html;
         };
 
         // ============================================
-        // BOOKS
+        // BOOKS (مع دعم Google Drive)
         // ============================================
         window.addBook = async function() {
             const title = document.getElementById('bookTitle').value.trim();
-            const url = document.getElementById('bookUrl').value.trim();
+            let url = document.getElementById('bookUrl').value.trim();
             const grade = document.getElementById('bookGrade').value;
             if (!title || !url) return alert('املأ البيانات');
+            
+            // تحويل رابط Google Drive إلى Preview
+            if (url.includes('drive.google.com/file/d/')) {
+                const match = url.match(/\/d\/([^\/]+)/);
+                if (match) {
+                    url = `https://drive.google.com/file/d/${match[1]}/preview`;
+                }
+            }
+            if (url.includes('drive.google.com/open?id=')) {
+                const match = url.match(/id=([^&]+)/);
+                if (match) {
+                    url = `https://drive.google.com/file/d/${match[1]}/preview`;
+                }
+            }
+            
             await addDoc(collection(db, 'books'), { title, url, grade, addedAt: new Date() });
             alert('✅ تمت الإضافة');
             showBooks();
@@ -1369,7 +1449,7 @@
             let html = `<h2>📚 الكتب</h2>
                         <div class="filter-bar">
                             <input id="bookTitle" placeholder="عنوان الكتاب">
-                            <input id="bookUrl" placeholder="رابط جوجل درايف (preview)" style="flex:2; min-width:200px;">
+                            <input id="bookUrl" placeholder="رابط جوجل درايف" style="flex:2; min-width:200px;">
                             <select id="bookGrade">
                                 <option value="all">🌐 للجميع</option>
                                 <option value="1">📘 أولى ثانوي</option>
@@ -1394,7 +1474,7 @@
                 const gradeText = b.grade === 'all' ? 'للجميع' : b.grade === '1' ? 'أولى ث' : b.grade === '2' ? 'ثانية ث' : 'ثالثة ث';
                 html += `<div style="border:1px solid #ddd; padding:15px; margin:15px 0; border-radius:10px; background:white;">
                             <h4>${b.title} <span class="grade-badge grade-${b.grade}">${gradeText}</span></h4>
-                            <iframe src="${b.url}" width="100%" height="500" frameborder="0"></iframe>
+                            <iframe src="${b.url}" width="100%" height="500" frameborder="0" allowfullscreen></iframe>
                             <button onclick="deleteItem('books','${b.id}')" class="btn-sm" style="background:#e74c3c; color:white; margin-top:10px;">🗑️ حذف</button>
                         </div>`;
             });
