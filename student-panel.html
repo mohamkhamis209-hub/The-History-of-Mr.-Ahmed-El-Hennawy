@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="css/style.css">
     <script src="https://www.youtube.com/iframe_api"></script>
     <style>
+        /* كل الـ styles موجودة في الملف الأصلي */
         .header-bar {
             display: flex;
             justify-content: space-between;
@@ -756,14 +757,18 @@
                 if (watchedCount >= 10) count++;
                 if (watchedCount >= 5) count++;
                 
-                // ✅ شارة الدخول (first_login)
+                // ✅ شارة الدخول (مصلحة)
                 try {
-                    const studentDoc = await getDoc(doc(db, 'students', code));
-                    if (studentDoc.exists() && studentDoc.data().firstLogin) {
-                        count++;
-                        console.log('✅ شارة الدخول مفتوحة للطالب:', code);
-                    } else {
-                        console.log('⚠️ الطالب لم يسجل الدخول بعد:', code);
+                    const q = query(collection(db, 'students'), where('code', '==', code));
+                    const studentSnap = await getDocs(q);
+                    if (!studentSnap.empty) {
+                        const studentData = studentSnap.docs[0].data();
+                        if (studentData.firstLogin) {
+                            count++;
+                            console.log('✅ شارة الدخول مفتوحة للطالب:', code);
+                        } else {
+                            console.log('⚠️ الطالب لم يسجل الدخول بعد (firstLogin غير موجود)');
+                        }
                     }
                 } catch(e) {
                     console.error('خطأ في جلب بيانات الطالب:', e);
@@ -889,7 +894,7 @@
             }
             
             // ============================================
-            // الفيديوهات (مع YouTube API)
+            // الفيديوهات
             // ============================================
             else if (section === 'videos') {
                 try {
@@ -959,7 +964,6 @@
                         snap.forEach(d => {
                             const data = d.data();
                             let url = data.url;
-                            // تحويل رابط Google Drive إلى Preview
                             if (url.includes('drive.google.com/file/d/')) {
                                 const match = url.match(/\/d\/([^\/]+)/);
                                 if (match) {
@@ -972,7 +976,6 @@
                                     url = `https://drive.google.com/file/d/${match[1]}/preview`;
                                 }
                             }
-                            // ✅ إضافة ?rm=minimal لمنع ظهور زر التحميل
                             if (url.includes('drive.google.com')) {
                                 if (!url.includes('rm=minimal')) {
                                     url += url.includes('?') ? '&rm=minimal' : '?rm=minimal';
@@ -1123,26 +1126,28 @@
 
                     const unlockedBadges = [];
                     
-                    // ✅ شارة الدخول (الأولى)
+                    // ✅ شارة الدخول (مصلحة)
                     try {
-                        const studentDoc = await getDoc(doc(db, 'students', code));
-                        if (studentDoc.exists() && studentDoc.data().firstLogin) {
-                            unlockedBadges.push('first_login');
-                            console.log('✅ شارة الدخول مفتوحة للطالب:', code);
-                        } else {
-                            console.log('⚠️ الطالب لم يسجل الدخول بعد (firstLogin غير موجود)');
+                        const q = query(collection(db, 'students'), where('code', '==', code));
+                        const studentSnap = await getDocs(q);
+                        if (!studentSnap.empty) {
+                            const studentData = studentSnap.docs[0].data();
+                            if (studentData.firstLogin) {
+                                unlockedBadges.push('first_login');
+                                console.log('✅ شارة الدخول مفتوحة للطالب:', code);
+                            } else {
+                                console.log('⚠️ الطالب لم يسجل الدخول بعد (firstLogin غير موجود)');
+                            }
                         }
                     } catch(e) {
                         console.error('خطأ في جلب بيانات الطالب:', e);
                     }
                     
-                    // باقي الشارات
                     if (watchedCount >= 5) unlockedBadges.push('watcher_5');
                     if (watchedCount >= 10) unlockedBadges.push('watcher_10');
                     if (watchedCount >= 20) unlockedBadges.push('watcher_20');
                     if (booksCount >= 3) unlockedBadges.push('book_reader');
 
-                    // ✅ عرض جميع الشارات مع حالتها
                     let html = `<h2>🏅 الشارات والمكافآت</h2>
                                 <p style="font-size:16px; color:#666; margin-bottom:20px;">اجمع الشارات كلما تقدمت في المنصة!</p>
                                 <div style="background:white; padding:20px; border-radius:15px; box-shadow:0 2px 10px rgba(0,0,0,0.05); margin-bottom:20px;">
@@ -1223,7 +1228,7 @@
             }
             
             // ============================================
-            // تقدمي الشخصي (مصلح)
+            // تقدمي الشخصي
             // ============================================
             else if (section === 'myProgress') {
                 try {
