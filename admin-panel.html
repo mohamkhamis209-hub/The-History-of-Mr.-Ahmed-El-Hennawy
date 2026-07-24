@@ -298,6 +298,18 @@
             color: white;
         }
 
+        .session-card {
+            background: #f8f9fa;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin: 5px 0;
+            border-right: 3px solid #3498db;
+        }
+        body.dark-mode .session-card {
+            background: #2d2d44;
+            border-right-color: #3498db;
+        }
+
         @media (max-width: 768px) {
             .dashboard-cards {
                 grid-template-columns: repeat(2, 1fr);
@@ -345,6 +357,7 @@
             <li onclick="showSection('attendance')">📅 الحضور</li>
             <li onclick="showSection('leaderboard')">🏆 المتصدرين</li>
             <li onclick="showSection('advancedStats')">📈 إحصائيات متقدمة</li>
+            <li onclick="showSection('sessions')">🕐 جلسات الطلاب</li>
             <li onclick="showSection('dangerZone')" class="danger">⚠️ منطقة الخطر</li>
             <li onclick="logoutAdmin()" style="color:#e74c3c;">🚪 خروج</li>
         </ul>
@@ -439,6 +452,7 @@
                 case 'attendance': showAttendanceReport(); break;
                 case 'leaderboard': showLeaderboard(); break;
                 case 'advancedStats': showAdvancedStats(); break;
+                case 'sessions': showAllSessions(); break;
                 case 'dangerZone': showDangerZone(); break;
                 default: showDashboard();
             }
@@ -448,18 +462,19 @@
         // DASHBOARD
         // ============================================
         async function showDashboard() {
-            const [studentsSnap, videosSnap, booksSnap, examsSnap, devicesSnap, attendanceSnap] = await Promise.all([
+            const [studentsSnap, videosSnap, booksSnap, examsSnap, devicesSnap, attendanceSnap, sessionsSnap] = await Promise.all([
                 getDocs(collection(db, 'students')),
                 getDocs(collection(db, 'videos')),
                 getDocs(collection(db, 'books')),
                 getDocs(collection(db, 'exams')),
                 getDocs(query(collection(db, 'pendingDevices'), where('status', '==', 'pending'))),
-                getDocs(collection(db, 'attendance'))
+                getDocs(collection(db, 'attendance')),
+                getDocs(collection(db, 'sessions'))
             ]);
 
             let totalStudents = 0, activeStudents = 0, suspendedStudents = 0, inactiveStudents = 0;
             let grade1 = 0, grade2 = 0, grade3 = 0;
-            let todayAttendance = 0;
+            let todayAttendance = 0, todaySessions = 0;
             const today = new Date().toISOString().split('T')[0];
 
             studentsSnap.forEach(doc => {
@@ -477,6 +492,13 @@
                 const data = doc.data();
                 if (data.date === today && data.status === 'present') {
                     todayAttendance++;
+                }
+            });
+
+            sessionsSnap.forEach(doc => {
+                const data = doc.data();
+                if (data.date === today) {
+                    todaySessions++;
                 }
             });
 
@@ -498,6 +520,11 @@
                         <div class="icon">📅</div>
                         <div class="number">${todayAttendance}</div>
                         <div class="label">حضور اليوم</div>
+                    </div>
+                    <div class="dashboard-card purple">
+                        <div class="icon">🕐</div>
+                        <div class="number">${todaySessions}</div>
+                        <div class="label">جلسات اليوم</div>
                     </div>
                     <div class="dashboard-card red">
                         <div class="icon">📱</div>
@@ -582,6 +609,7 @@
                                 <th>الطالب</th>
                                 <th>الكود</th>
                                 <th>اليوم</th>
+                                <th>عدد الجلسات</th>
                                 <th>وقت الدخول</th>
                                 <th>وقت الخروج</th>
                                 <th>المدة (دقائق)</th>
@@ -612,7 +640,7 @@
                     html += `<tr>
                                 <td>${student.name || ''}</td>
                                 <td>${code}</td>
-                                <td colspan="5" style="color:#888;">لا يوجد سجل حضور</td>
+                                <td colspan="6" style="color:#888;">لا يوجد سجل حضور</td>
                             </tr>`;
                 } else {
                     attendanceSnap.forEach(a => {
@@ -621,10 +649,12 @@
                         const loginTime = data.loginTime?.toDate?.()?.toLocaleTimeString('ar-EG') || '—';
                         const logoutTime = data.logoutTime?.toDate?.()?.toLocaleTimeString('ar-EG') || '—';
                         const duration = data.duration || 0;
+                        const sessionsCount = data.sessionsCount || 0;
                         html += `<tr>
                                     <td>${student.name || ''}</td>
                                     <td>${code}</td>
                                     <td>${data.date || ''}</td>
+                                    <td>${sessionsCount}</td>
                                     <td>${loginTime}</td>
                                     <td>${logoutTime}</td>
                                     <td>${duration}</td>
@@ -635,10 +665,89 @@
             }
 
             if (!found) {
-                html += `<tr><td colspan="7" style="text-align:center;">لا توجد بيانات حضور</td></tr>`;
+                html += `<tr><td colspan="8" style="text-align:center;">لا توجد بيانات حضور</td></tr>`;
             }
 
             html += `</table></div>`;
+            document.getElementById('content-area').innerHTML = html;
+        };
+
+        // ============================================
+        // SESSIONS (جلسات الطلاب)
+        // ============================================
+        window.showAllSessions = async function() {
+            const gradeFilter = document.getElementById('filterSessionsGrade')?.value || 'all';
+            const dateFilter = document.getElementById('filterSessionsDate')?.value || '';
+
+            let studentsQ;
+            if (gradeFilter === 'all') {
+                studentsQ = collection(db, 'students');
+            } else {
+                studentsQ = query(collection(db, 'students'), where('grade', '==', gradeFilter));
+            }
+            const studentsSnap = await getDocs(studentsQ);
+
+            let html = `<h2>🕐 جلسات الطلاب</h2>
+                        <div class="filter-bar">
+                            <select id="filterSessionsGrade" onchange="showAllSessions()">
+                                <option value="all" ${gradeFilter === 'all' ? 'selected' : ''}>📋 جميع الصفوف</option>
+                                <option value="1" ${gradeFilter === '1' ? 'selected' : ''}>📘 أولى ثانوي</option>
+                                <option value="2" ${gradeFilter === '2' ? 'selected' : ''}>📗 ثانية ثانوي</option>
+                                <option value="3" ${gradeFilter === '3' ? 'selected' : ''}>📕 ثالثة ثانوي</option>
+                            </select>
+                            <input type="date" id="filterSessionsDate" value="${dateFilter}" onchange="showAllSessions()">
+                            <button onclick="document.getElementById('filterSessionsDate').value=''; showAllSessions();" class="btn-sm btn-clear">✖️ إلغاء الفلترة</button>
+                        </div>
+                        <div style="overflow-x:auto;">`;
+
+            let found = false;
+            for (const doc of studentsSnap.docs) {
+                const student = doc.data();
+                const code = student.code;
+                
+                let sessionsQuery = query(
+                    collection(db, 'sessions'),
+                    where('studentCode', '==', code)
+                );
+                
+                if (dateFilter) {
+                    sessionsQuery = query(
+                        collection(db, 'sessions'),
+                        where('studentCode', '==', code),
+                        where('date', '==', dateFilter)
+                    );
+                }
+                
+                const sessionsSnap = await getDocs(sessionsQuery);
+                
+                if (!sessionsSnap.empty) {
+                    found = true;
+                    html += `<h3 style="margin-top:20px;">${student.name} (${code})</h3>
+                            <table border="1" cellpadding="8" style="width:100%; border-collapse:collapse; background:white; margin-bottom:10px;">
+                                <tr>
+                                    <th>اليوم</th>
+                                    <th>وقت الدخول</th>
+                                    <th>وقت الخروج</th>
+                                    <th>المدة (دقائق)</th>
+                                </tr>`;
+                    sessionsSnap.forEach(s => {
+                        const data = s.data();
+                        html += `<tr>
+                                    <td>${data.date || ''}</td>
+                                    <td>${data.loginTimeString || ''}</td>
+                                    <td>${data.logoutTimeString || '—'}</td>
+                                    <td>${data.duration || 0}</td>
+                                </tr>`;
+                    });
+                    html += `</table>`;
+                }
+            }
+
+            if (!found) {
+                html += `<p style="text-align:center; padding:20px;">لا توجد جلسات مسجلة</p>`;
+            }
+
+            html += `</div>`;
             document.getElementById('content-area').innerHTML = html;
         };
 
@@ -970,6 +1079,7 @@
                     <td>
                         <button onclick="showStudentProgress('${s.code}')" class="btn-sm" style="background:#3498db; color:white;">📊</button>
                         <button onclick="showStudentDevices('${s.code}')" class="btn-sm" style="background:#9b59b6; color:white;">📱</button>
+                        <button onclick="showStudentSessions('${s.code}')" class="btn-sm" style="background:#1abc9c; color:white;">🕐</button>
                         <button onclick="suspendStudent('${s.code}')" class="btn-sm" style="background:#f39c12; color:white;">⛔</button>
                         <button onclick="deleteStudent('${s.code}')" class="btn-sm" style="background:#e74c3c; color:white;">🗑️</button>
                     </td>
@@ -981,6 +1091,51 @@
 
         window.searchStudents = function() { showStudents(); };
         window.clearSearch = function() { document.getElementById('searchStudent').value = ''; showStudents(); };
+
+        // ============================================
+        // STUDENT SESSIONS (جلسات طالب معين)
+        // ============================================
+        window.showStudentSessions = async function(studentCode) {
+            const sessionsSnap = await getDocs(query(
+                collection(db, 'sessions'),
+                where('studentCode', '==', studentCode)
+            ));
+            
+            // جلب بيانات الطالب
+            const studentSnap = await getDocs(query(collection(db, 'students'), where('code', '==', studentCode)));
+            let studentName = 'طالب';
+            if (!studentSnap.empty) {
+                studentName = studentSnap.docs[0].data().name || 'طالب';
+            }
+            
+            let html = `<h2>🕐 جلسات الطالب: ${studentName} (${studentCode})</h2>
+                        <div style="overflow-x:auto;">
+                        <table border="1" cellpadding="10" style="width:100%; border-collapse:collapse; background:white;">
+                            <tr>
+                                <th>اليوم</th>
+                                <th>وقت الدخول</th>
+                                <th>وقت الخروج</th>
+                                <th>المدة (دقائق)</th>
+                            </tr>`;
+            
+            if (sessionsSnap.empty) {
+                html += `<tr><td colspan="4" style="text-align:center;">لا توجد جلسات</td></tr>`;
+            } else {
+                sessionsSnap.forEach(d => {
+                    const data = d.data();
+                    html += `<tr>
+                                <td>${data.date || ''}</td>
+                                <td>${data.loginTimeString || ''}</td>
+                                <td>${data.logoutTimeString || '—'}</td>
+                                <td>${data.duration || 0}</td>
+                            </tr>`;
+                });
+            }
+            
+            html += `</table></div>
+                    <button onclick="showStudents()" class="btn-sm" style="background:#2c3e50; color:white; margin-top:10px;">🔙 رجوع</button>`;
+            document.getElementById('content-area').innerHTML = html;
+        };
 
         // ============================================
         // DELETE STUDENT (مع تحديث المتصدرين)
@@ -1040,7 +1195,7 @@
 
             let html = `<h2>📊 تقدم الطالب: ${student.name}</h2>
                         <table border="1" cellpadding="10" style="width:100%; border-collapse:collapse; background:white;">
-                            <tr><th>الفيديو</th><th>المشاهدة (دقائق)</th><th>المدة (دقائق)</th><th>النسبة</th><th>الحالة</th></tr>`;
+                            <tr><th>الفيديو</th><th>المشاهدة</th><th>المدة</th><th>النسبة</th><th>الحالة</th></tr>`;
             if (Object.keys(videos).length === 0) html += `<tr><td colspan="5">لا توجد فيديوهات</td></tr>`;
             for (const [videoId, video] of Object.entries(videos)) {
                 const p = progress[videoId];
@@ -1048,10 +1203,16 @@
                 const total = p ? p.totalDuration : 0;
                 const percent = total > 0 ? Math.min(100, Math.round((watched / total) * 100)) : 0;
                 const completed = p && p.completed ? '✅ مكتمل' : (watched > 0 ? '⏳ قيد المشاهدة' : '❌ لم يشاهد');
+                
+                const watchedMin = Math.floor(watched / 60);
+                const watchedSec = Math.floor(watched % 60);
+                const totalMin = Math.floor(total / 60);
+                const totalSec = Math.floor(total % 60);
+                
                 html += `<tr>
                             <td>${video.title}</td>
-                            <td>${Math.floor(watched/60)}</td>
-                            <td>${Math.floor(total/60)}</td>
+                            <td>${watchedMin}:${watchedSec.toString().padStart(2, '0')}</td>
+                            <td>${totalMin}:${totalSec.toString().padStart(2, '0')}</td>
                             <td>${percent}%</td>
                             <td>${completed}</td>
                         </tr>`;
@@ -2332,6 +2493,7 @@
                         <button onclick="deleteAllNotifications()" class="btn-sm btn-danger" style="padding:12px 30px;">🔔 محو جميع الإشعارات</button>
                         <button onclick="deleteAllProgress()" class="btn-sm btn-danger" style="padding:12px 30px;">📊 محو جميع التقدم</button>
                         <button onclick="deleteAllAttendance()" class="btn-sm btn-danger" style="padding:12px 30px;">📅 محو جميع الحضور</button>
+                        <button onclick="deleteAllSessions()" class="btn-sm btn-danger" style="padding:12px 30px;">🕐 محو جميع الجلسات</button>
                         <button onclick="deleteAllLeaderboard()" class="btn-sm btn-danger" style="padding:12px 30px;">🏆 حذف المتصدرين</button>
                     </div>
                 </div>
@@ -2340,6 +2502,26 @@
                 </div>
             `;
             document.getElementById('content-area').innerHTML = html;
+        };
+
+        // ============================================
+        // DELETE ALL SESSIONS
+        // ============================================
+        window.deleteAllSessions = async function() {
+            if (!confirm('⚠️ تحذير: أنت على وشك حذف جميع جلسات الطلاب نهائياً! هل أنت متأكد؟')) return;
+            if (!confirm('تأكيد نهائي: هل تريد حذف جميع جلسات الطلاب؟ لا يمكن التراجع عن هذا الإجراء!')) return;
+            try {
+                const snap = await getDocs(collection(db, 'sessions'));
+                let count = 0;
+                for (const doc of snap.docs) {
+                    await deleteDoc(doc.ref);
+                    count++;
+                }
+                alert(`✅ تم حذف ${count} جلسة بنجاح`);
+                showDangerZone();
+            } catch (error) {
+                alert('❌ حدث خطأ: ' + error.message);
+            }
         };
 
         // ============================================
