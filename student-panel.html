@@ -429,12 +429,11 @@
                     const docRef = snap.docs[0].ref;
                     const data = snap.docs[0].data();
                     
-                    // حساب المدة
                     const loginTime = data.loginTime?.toDate?.();
                     const logoutTime = new Date();
                     let duration = 0;
                     if (loginTime) {
-                        duration = Math.floor((logoutTime - loginTime) / 60000); // بالدقائق
+                        duration = Math.floor((logoutTime - loginTime) / 60000);
                     }
                     
                     await updateDoc(docRef, {
@@ -448,7 +447,6 @@
             }
         }
 
-        // تسجيل الخروج عند إغلاق الموقع
         window.addEventListener('beforeunload', function() {
             recordLogout();
         });
@@ -586,7 +584,6 @@
 
                     (async () => {
                         try {
-                            // جلب التقدم الحالي
                             const progressQuery = query(
                                 collection(db, 'progress'),
                                 where('studentCode', '==', studentCode),
@@ -694,6 +691,38 @@
         }
 
         // ============================================
+        // حساب عدد الشارات
+        // ============================================
+        async function getBadgesCount(code) {
+            try {
+                const progressSnap = await getDocs(query(collection(db, 'progress'), where('studentCode', '==', code)));
+                let watchedCount = 0;
+                progressSnap.forEach(d => {
+                    if (d.data().watchedSeconds > 0) watchedCount++;
+                });
+                
+                let count = 0;
+                if (watchedCount >= 20) count++;
+                if (watchedCount >= 10) count++;
+                if (watchedCount >= 5) count++;
+                
+                try {
+                    const studentDoc = await getDoc(doc(db, 'students', code));
+                    if (studentDoc.exists() && studentDoc.data().firstLogin) {
+                        count++;
+                    }
+                } catch(e) {}
+                
+                const booksSnap = await getDocs(collection(db, 'books'));
+                if (booksSnap.size >= 3) count++;
+                
+                return count;
+            } catch (error) {
+                return 0;
+            }
+        }
+
+        // ============================================
         // تحميل الأقسام
         // ============================================
         window.loadSection = async function(section) {
@@ -723,7 +752,6 @@
                     const totalBooks = booksSnap.size;
                     const points = await getStudentPoints(code);
                     
-                    // جلب الحضور هذا الشهر
                     const today = new Date();
                     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
                     const startStr = monthStart.toISOString().split('T')[0];
@@ -741,22 +769,7 @@
                         }
                     });
                     
-                    // حساب عدد الشارات
-                    let badgeCount = 0;
-                    const pSnap = await getDocs(query(collection(db, 'progress'), where('studentCode', '==', code)));
-                    let wCount = 0;
-                    pSnap.forEach(d => {
-                        if (d.data().watchedSeconds > 0) wCount++;
-                    });
-                    if (wCount >= 20) badgeCount++;
-                    if (wCount >= 10) badgeCount++;
-                    if (wCount >= 5) badgeCount++;
-                    try {
-                        const studentDoc = await getDoc(doc(db, 'students', code));
-                        if (studentDoc.exists() && studentDoc.data().firstLogin) badgeCount++;
-                    } catch(e) {}
-                    const bSnap = await getDocs(collection(db, 'books'));
-                    if (bSnap.size >= 3) badgeCount++;
+                    const badgeCount = await getBadgesCount(code);
                     
                     let html = `
                         <h2>📊 الرئيسية</h2>
@@ -844,9 +857,7 @@
                     });
                     container.innerHTML = html;
 
-                    // تهيئة مشغلات YouTube
                     if (videosData.length > 0) {
-                        // تنظيف المشغلات القديمة
                         for (let key in players) {
                             if (players[key] && players[key].destroy) {
                                 players[key].destroy();
@@ -867,7 +878,7 @@
             }
             
             // ============================================
-            // الكتب (مع دعم Google Drive)
+            // الكتب (مع دعم Google Drive ومنع التحميل)
             // ============================================
             else if (section === 'books') {
                 try {
@@ -893,10 +904,19 @@
                                     url = `https://drive.google.com/file/d/${match[1]}/preview`;
                                 }
                             }
+                            // منع التحميل والطباعة من Drive
                             html += `
                                 <div style="margin:25px 0; background:white; padding:15px; border-radius:15px; box-shadow:0 2px 10px rgba(0,0,0,0.05);">
                                     <h3 style="margin-bottom:10px;">${data.title}</h3>
-                                    <iframe src="${url}" width="100%" height="550" frameborder="0" style="border-radius:10px;" allowfullscreen></iframe>
+                                    <iframe src="${url}" 
+                                            width="100%" 
+                                            height="550" 
+                                            frameborder="0" 
+                                            style="border-radius:10px;" 
+                                            allowfullscreen
+                                            sandbox="allow-scripts allow-same-origin allow-forms">
+                                    </iframe>
+                                    <p style="color:#888; font-size:12px; margin-top:5px;">📖 للقراءة فقط - التحميل والطباعة غير مسموحين</p>
                                 </div>
                             `;
                         });
@@ -1034,12 +1054,16 @@
                     if (watchedCount >= 10) unlockedBadges.push('watcher_10');
                     if (watchedCount >= 5) unlockedBadges.push('watcher_5');
                     if (booksCount >= 3) unlockedBadges.push('book_reader');
+                    // ✅ شارة الدخول
                     try {
                         const studentDoc = await getDoc(doc(db, 'students', code));
                         if (studentDoc.exists() && studentDoc.data().firstLogin) {
                             unlockedBadges.push('first_login');
+                            console.log('✅ شارة الدخول مفتوحة للطالب:', code);
                         }
-                    } catch(e) {}
+                    } catch(e) {
+                        console.error('خطأ في جلب بيانات الطالب:', e);
+                    }
 
                     let html = `<h2>🏅 الشارات والمكافآت</h2>
                                 <p style="font-size:16px; color:#666; margin-bottom:20px;">اجمع الشارات كلما تقدمت في المنصة!</p>
@@ -1224,16 +1248,9 @@
         // ============================================
         // بداية التحميل
         // ============================================
-        // تسجيل الدخول
         recordLogin();
-        
-        // تحديث لوحة المتصدرين
         updateLeaderboard();
-        
-        // تحديث النقاط
         updatePointsDisplay(studentCode);
-
-        // تحميل القسم الافتراضي (الرئيسية)
         loadSection('dashboard');
     </script>
 </body>
