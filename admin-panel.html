@@ -551,7 +551,7 @@
         }
 
         // ============================================
-        // ATTENDANCE REPORT
+        // ATTENDANCE REPORT (مع عرض وقت الخروج والمدة)
         // ============================================
         window.showAttendanceReport = async function() {
             const gradeFilter = document.getElementById('filterAttendanceGrade')?.value || 'all';
@@ -618,8 +618,8 @@
                     attendanceSnap.forEach(a => {
                         const data = a.data();
                         found = true;
-                        const loginTime = data.loginTime?.toDate?.()?.toLocaleTimeString() || '—';
-                        const logoutTime = data.logoutTime?.toDate?.()?.toLocaleTimeString() || '—';
+                        const loginTime = data.loginTime?.toDate?.()?.toLocaleTimeString('ar-EG') || '—';
+                        const logoutTime = data.logoutTime?.toDate?.()?.toLocaleTimeString('ar-EG') || '—';
                         const duration = data.duration || 0;
                         html += `<tr>
                                     <td>${student.name || ''}</td>
@@ -988,16 +988,13 @@
         window.deleteStudent = async function(code) {
             if (!confirm('حذف الطالب نهائياً؟')) return;
             try {
-                // 1. حذف الطالب
                 const q = query(collection(db, 'students'), where('code', '==', code));
                 const snap = await getDocs(q);
                 snap.forEach(async (d) => { await deleteDoc(d.ref); });
                 
-                // 2. حذف سجل الطالب من المتصدرين
                 const leaderboardRef = doc(db, 'leaderboard', code);
                 await deleteDoc(leaderboardRef);
                 
-                // 3. إعادة ترتيب المتصدرين
                 await updateLeaderboardManual();
                 
                 alert('تم الحذف وإعادة ترتيب المتصدرين');
@@ -1021,7 +1018,7 @@
         };
 
         // ============================================
-        // PROGRESS
+        // PROGRESS (مع عرض المدة بالدقائق)
         // ============================================
         window.showStudentProgress = async function(studentCode) {
             const q = query(collection(db, 'students'), where('code', '==', studentCode));
@@ -1239,7 +1236,6 @@
         // VIDEOS (مع دعم الروابط العادية وزر إنهاء البث)
         // ============================================
         
-        // دالة استخراج معرف الفيديو
         function extractYouTubeId(url) {
             if (!url) return null;
             const watchMatch = url.match(/youtube\.com\/watch\?v=([^&]+)/);
@@ -1253,7 +1249,6 @@
             return null;
         }
 
-        // دالة إضافة فيديو (مع دعم الروابط العادية)
         window.addVideo = async function() {
             const title = document.getElementById('vidTitle').value.trim();
             let url = document.getElementById('vidUrl').value.trim();
@@ -1280,7 +1275,6 @@
             showVideos();
         };
 
-        // دالة إنهاء البث المباشر
         window.endLiveStream = async function(videoId) {
             if (!confirm('⚠️ هل أنت متأكد من إنهاء هذا البث المباشر؟ سيتحول إلى فيديو عادي.')) return;
             try {
@@ -1392,7 +1386,7 @@
         };
 
         // ============================================
-        // BOOKS (مع دعم Google Drive)
+        // BOOKS (مع دعم Google Drive وعرض للمشرف)
         // ============================================
         window.addBook = async function() {
             const title = document.getElementById('bookTitle').value.trim();
@@ -1400,7 +1394,6 @@
             const grade = document.getElementById('bookGrade').value;
             if (!title || !url) return alert('املأ البيانات');
             
-            // تحويل رابط Google Drive إلى Preview
             if (url.includes('drive.google.com/file/d/')) {
                 const match = url.match(/\/d\/([^\/]+)/);
                 if (match) {
@@ -1474,7 +1467,13 @@
                 const gradeText = b.grade === 'all' ? 'للجميع' : b.grade === '1' ? 'أولى ث' : b.grade === '2' ? 'ثانية ث' : 'ثالثة ث';
                 html += `<div style="border:1px solid #ddd; padding:15px; margin:15px 0; border-radius:10px; background:white;">
                             <h4>${b.title} <span class="grade-badge grade-${b.grade}">${gradeText}</span></h4>
-                            <iframe src="${b.url}" width="100%" height="500" frameborder="0" allowfullscreen></iframe>
+                            <iframe src="${b.url}" 
+                                    width="100%" 
+                                    height="500" 
+                                    frameborder="0" 
+                                    allowfullscreen
+                                    style="border-radius:10px;">
+                            </iframe>
                             <button onclick="deleteItem('books','${b.id}')" class="btn-sm" style="background:#e74c3c; color:white; margin-top:10px;">🗑️ حذف</button>
                         </div>`;
             });
@@ -1857,7 +1856,6 @@
                     });
                 });
 
-                // ترتيب حسب الصف
                 const gradeOrder = { 'أولى ثانوي': 1, 'ثانية ثانوي': 2, 'ثالثة ثانوي': 3 };
                 students.sort((a, b) => (gradeOrder[a.grade] || 99) - (gradeOrder[b.grade] || 99));
 
@@ -1869,7 +1867,6 @@
                 await loadXLSX();
                 const XLSX = window.XLSX;
                 
-                // ✅ تحويل البيانات إلى 6 أعمدة (مجموعتين)
                 const rows = [];
                 const groupsPerRow = 2;
                 
@@ -1902,7 +1899,6 @@
                     { wch: 25 }, { wch: 15 }, { wch: 18 }
                 ];
                 
-                // ✅ ضبط إعدادات الطباعة (A4 أفقي)
                 ws['!print'] = {
                     orientation: 'Landscape',
                     fitToPage: true,
@@ -2021,7 +2017,6 @@
             }
         };
 
-        // ✅ دالة مساعدة لرسم بطاقة الطالب (PDF)
         function drawStudentCardV3(doc, student, x, y, width, height) {
             doc.setDrawColor(180, 180, 180);
             doc.setLineWidth(0.3);
@@ -2321,7 +2316,7 @@
         };
 
         // ============================================
-        // DANGER ZONE (مع زر حذف المتصدرين)
+        // DANGER ZONE
         // ============================================
         window.showDangerZone = function() {
             let html = `
@@ -2507,7 +2502,6 @@
             window.location.href = 'index.html';
         };
 
-        // بداية تحميل الصفحة
         showSection('dashboard');
     </script>
 </body>
