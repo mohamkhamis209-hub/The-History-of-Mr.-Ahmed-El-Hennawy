@@ -1212,13 +1212,51 @@
         };
 
         // ============================================
-        // VIDEOS
+        // VIDEOS (مع دعم الروابط العادية)
+        // ============================================
+        
+        // ============================================
+        // دالة استخراج معرف الفيديو من رابط يوتيوب
+        // ============================================
+        function extractYouTubeId(url) {
+            if (!url) return null;
+            
+            const watchMatch = url.match(/youtube\.com\/watch\?v=([^&]+)/);
+            if (watchMatch) return watchMatch[1];
+            
+            const shortMatch = url.match(/youtu\.be\/([^?&]+)/);
+            if (shortMatch) return shortMatch[1];
+            
+            const embedMatch = url.match(/youtube\.com\/embed\/([^?&]+)/);
+            if (embedMatch) return embedMatch[1];
+            
+            const shortsMatch = url.match(/youtube\.com\/shorts\/([^?&]+)/);
+            if (shortsMatch) return shortsMatch[1];
+            
+            return null;
+        }
+
+        // ============================================
+        // ADD VIDEO (مع دعم الروابط العادية)
         // ============================================
         window.addVideo = async function() {
             const title = document.getElementById('vidTitle').value.trim();
-            const url = document.getElementById('vidUrl').value.trim();
+            let url = document.getElementById('vidUrl').value.trim();
             const grade = document.getElementById('vidGrade').value;
+            
             if (!title || !url) return alert('املأ البيانات');
+            
+            const videoId = extractYouTubeId(url);
+            if (videoId) {
+                url = `https://www.youtube.com/embed/${videoId}`;
+            } else {
+                if (!url.includes('youtube.com/embed/') && !url.includes('youtu.be/')) {
+                    if (!confirm('⚠️ الرابط ليس رابط يوتيوب صحيح! هل أنت متأكد من الرابط؟')) {
+                        return;
+                    }
+                }
+            }
+            
             await addDoc(collection(db, 'videos'), { 
                 title, url, grade, addedAt: new Date() 
             });
@@ -1256,7 +1294,7 @@
             let html = `<h2>🎬 الفيديوهات</h2>
                         <div class="filter-bar">
                             <input id="vidTitle" placeholder="عنوان الفيديو">
-                            <input id="vidUrl" placeholder="رابط يوتيوب (embed)" style="flex:2; min-width:200px;">
+                            <input id="vidUrl" placeholder="رابط يوتيوب (أي رابط)" style="flex:2; min-width:200px;">
                             <select id="vidGrade">
                                 <option value="all">🌐 للجميع</option>
                                 <option value="1">📘 أولى ثانوي</option>
