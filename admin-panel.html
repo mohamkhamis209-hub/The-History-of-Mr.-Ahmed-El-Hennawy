@@ -24,7 +24,8 @@
             align-items: center;
             transition: background 0.3s;
         }
-        .filter-bar select, .filter-bar input {
+        .filter-bar select,
+        .filter-bar input {
             width: auto;
             margin: 0;
             padding: 8px 15px;
@@ -40,10 +41,22 @@
             font-size: 12px;
             font-weight: bold;
         }
-        .grade-all { background: #2ecc71; color: white; }
-        .grade-1 { background: #3498db; color: white; }
-        .grade-2 { background: #f39c12; color: white; }
-        .grade-3 { background: #e74c3c; color: white; }
+        .grade-all {
+            background: #2ecc71;
+            color: white;
+        }
+        .grade-1 {
+            background: #3498db;
+            color: white;
+        }
+        .grade-2 {
+            background: #f39c12;
+            color: white;
+        }
+        .grade-3 {
+            background: #e74c3c;
+            color: white;
+        }
         .device-item {
             background: #f9f9f9;
             padding: 10px;
@@ -115,14 +128,14 @@
             background: white;
             padding: 20px;
             border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
             text-align: center;
             transition: 0.3s;
             border-right: 4px solid #3498db;
         }
         .dashboard-card:hover {
             transform: translateY(-5px);
-            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
         }
         .dashboard-card .number {
             font-size: 32px;
@@ -138,11 +151,21 @@
             font-size: 28px;
             margin-bottom: 8px;
         }
-        .dashboard-card.green { border-right-color: #27ae60; }
-        .dashboard-card.orange { border-right-color: #f39c12; }
-        .dashboard-card.red { border-right-color: #e74c3c; }
-        .dashboard-card.purple { border-right-color: #9b59b6; }
-        .dashboard-card.blue { border-right-color: #3498db; }
+        .dashboard-card.green {
+            border-right-color: #27ae60;
+        }
+        .dashboard-card.orange {
+            border-right-color: #f39c12;
+        }
+        .dashboard-card.red {
+            border-right-color: #e74c3c;
+        }
+        .dashboard-card.purple {
+            border-right-color: #9b59b6;
+        }
+        .dashboard-card.blue {
+            border-right-color: #3498db;
+        }
 
         body.dark-mode .dashboard-card {
             background: #2d2d44;
@@ -158,7 +181,8 @@
             background: #2d2d44;
             color: #e0e0e0;
         }
-        body.dark-mode .filter-bar select, body.dark-mode .filter-bar input {
+        body.dark-mode .filter-bar select,
+        body.dark-mode .filter-bar input {
             background: #3d3d5c;
             color: #e0e0e0;
             border-color: #555;
@@ -179,11 +203,11 @@
             transition: 0.3s;
         }
         .theme-toggle-small:hover {
-            background: rgba(0,0,0,0.1);
+            background: rgba(0, 0, 0, 0.1);
             transform: scale(1.1);
         }
         body.dark-mode .theme-toggle-small:hover {
-            background: rgba(255,255,255,0.1);
+            background: rgba(255, 255, 255, 0.1);
         }
 
         .danger-zone {
@@ -215,12 +239,12 @@
             background: white;
             border-radius: 10px;
             margin: 5px 0;
-            box-shadow: 0 1px 5px rgba(0,0,0,0.05);
+            box-shadow: 0 1px 5px rgba(0, 0, 0, 0.05);
             transition: 0.3s;
         }
         .leaderboard-item:hover {
             transform: translateX(-5px);
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
         .leaderboard-item .rank {
             font-size: 18px;
@@ -266,7 +290,7 @@
             background: white;
             padding: 20px;
             border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
             margin: 15px 0;
         }
         body.dark-mode .chart-container {
@@ -285,8 +309,13 @@
             animation: pulse 1.5s ease-in-out infinite;
         }
         @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+            0%,
+            100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
         }
         .ended-badge {
             display: inline-block;
@@ -374,10 +403,10 @@
     <script src="js/firebase-config.js" type="module"></script>
     <script src="js/device.js" type="module"></script>
     <script type="module">
-        import { 
+        import {
             db, storage, ref, uploadBytes, getDownloadURL,
-            collection, addDoc, getDocs, deleteDoc, doc, updateDoc, 
-            query, where, getDoc, setDoc, serverTimestamp 
+            collection, addDoc, getDocs, deleteDoc, doc, updateDoc,
+            query, where, getDoc, setDoc, serverTimestamp
         } from './js/firebase-config.js';
 
         function generateCode() {
@@ -404,7 +433,8 @@
                 script1.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
                 script1.onload = () => {
                     const script2 = document.createElement('script');
-                    script2.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js';
+                    script2.src =
+                        'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js';
                     script2.onload = () => {
                         if (window.jspdf) {
                             resolve();
@@ -436,25 +466,60 @@
 
         window.showSection = function(section) {
             document.getElementById('content-area').innerHTML = `<h2>⏳ جاري التحميل...</h2>`;
-            switch(section) {
-                case 'dashboard': showDashboard(); break;
-                case 'students': showStudents(); break;
-                case 'videos': showVideos(); break;
-                case 'books': showBooks(); break;
-                case 'exams': showExams(); break;
-                case 'notifications': showNotifications(); break;
-                case 'devices': showPendingDevices(); break;
-                case 'progress': showAllProgress(); break;
-                case 'allDevices': showAllDevices(); break;
-                case 'liveSettings': showLiveSettings(); break;
-                case 'reports': showReports(); break;
-                case 'badges': showBadgesManagement(); break;
-                case 'attendance': showAttendanceReport(); break;
-                case 'leaderboard': showLeaderboard(); break;
-                case 'advancedStats': showAdvancedStats(); break;
-                case 'sessions': showAllSessions(); break;
-                case 'dangerZone': showDangerZone(); break;
-                default: showDashboard();
+            switch (section) {
+                case 'dashboard':
+                    showDashboard();
+                    break;
+                case 'students':
+                    showStudents();
+                    break;
+                case 'videos':
+                    showVideos();
+                    break;
+                case 'books':
+                    showBooks();
+                    break;
+                case 'exams':
+                    showExams();
+                    break;
+                case 'notifications':
+                    showNotifications();
+                    break;
+                case 'devices':
+                    showPendingDevices();
+                    break;
+                case 'progress':
+                    showAllProgress();
+                    break;
+                case 'allDevices':
+                    showAllDevices();
+                    break;
+                case 'liveSettings':
+                    showLiveSettings();
+                    break;
+                case 'reports':
+                    showReports();
+                    break;
+                case 'badges':
+                    showBadgesManagement();
+                    break;
+                case 'attendance':
+                    showAttendanceReport();
+                    break;
+                case 'leaderboard':
+                    showLeaderboard();
+                    break;
+                case 'advancedStats':
+                    showAdvancedStats();
+                    break;
+                case 'sessions':
+                    showAllSessions();
+                    break;
+                case 'dangerZone':
+                    showDangerZone();
+                    break;
+                default:
+                    showDashboard();
             }
         };
 
@@ -462,19 +527,26 @@
         // DASHBOARD
         // ============================================
         async function showDashboard() {
-            const [studentsSnap, videosSnap, booksSnap, examsSnap, devicesSnap, attendanceSnap, sessionsSnap] = await Promise.all([
-                getDocs(collection(db, 'students')),
-                getDocs(collection(db, 'videos')),
-                getDocs(collection(db, 'books')),
-                getDocs(collection(db, 'exams')),
-                getDocs(query(collection(db, 'pendingDevices'), where('status', '==', 'pending'))),
-                getDocs(collection(db, 'attendance')),
-                getDocs(collection(db, 'sessions'))
-            ]);
+            const [studentsSnap, videosSnap, booksSnap, examsSnap, devicesSnap, attendanceSnap, sessionsSnap] = await Promise
+                .all([
+                    getDocs(collection(db, 'students')),
+                    getDocs(collection(db, 'videos')),
+                    getDocs(collection(db, 'books')),
+                    getDocs(collection(db, 'exams')),
+                    getDocs(query(collection(db, 'pendingDevices'), where('status', '==', 'pending'))),
+                    getDocs(collection(db, 'attendance')),
+                    getDocs(collection(db, 'sessions'))
+                ]);
 
-            let totalStudents = 0, activeStudents = 0, suspendedStudents = 0, inactiveStudents = 0;
-            let grade1 = 0, grade2 = 0, grade3 = 0;
-            let todayAttendance = 0, todaySessions = 0;
+            let totalStudents = 0,
+                activeStudents = 0,
+                suspendedStudents = 0,
+                inactiveStudents = 0;
+            let grade1 = 0,
+                grade2 = 0,
+                grade3 = 0;
+            let todayAttendance = 0,
+                todaySessions = 0;
             const today = new Date().toISOString().split('T')[0];
 
             studentsSnap.forEach(doc => {
@@ -620,12 +692,12 @@
             for (const doc of studentsSnap.docs) {
                 const student = doc.data();
                 const code = student.code;
-                
+
                 let attendanceQuery = query(
                     collection(db, 'attendance'),
                     where('studentCode', '==', code)
                 );
-                
+
                 if (dateFilter) {
                     attendanceQuery = query(
                         collection(db, 'attendance'),
@@ -633,9 +705,9 @@
                         where('date', '==', dateFilter)
                     );
                 }
-                
+
                 const attendanceSnap = await getDocs(attendanceQuery);
-                
+
                 if (attendanceSnap.empty) {
                     html += `<tr>
                                 <td>${student.name || ''}</td>
@@ -704,12 +776,12 @@
             for (const doc of studentsSnap.docs) {
                 const student = doc.data();
                 const code = student.code;
-                
+
                 let sessionsQuery = query(
                     collection(db, 'sessions'),
                     where('studentCode', '==', code)
                 );
-                
+
                 if (dateFilter) {
                     sessionsQuery = query(
                         collection(db, 'sessions'),
@@ -717,9 +789,9 @@
                         where('date', '==', dateFilter)
                     );
                 }
-                
+
                 const sessionsSnap = await getDocs(sessionsQuery);
-                
+
                 if (!sessionsSnap.empty) {
                     found = true;
                     html += `<h3 style="margin-top:20px;">${student.name} (${code})</h3>
@@ -756,14 +828,14 @@
         // ============================================
         window.showLeaderboard = async function() {
             const gradeFilter = document.getElementById('filterLeaderboardGrade')?.value || 'all';
-            
+
             let leaderboardQ;
             if (gradeFilter === 'all') {
                 leaderboardQ = collection(db, 'leaderboard');
             } else {
                 leaderboardQ = query(collection(db, 'leaderboard'), where('grade', '==', gradeFilter));
             }
-            
+
             const leaderboardSnap = await getDocs(leaderboardQ);
             const leaderboard = [];
             leaderboardSnap.forEach(d => {
@@ -792,8 +864,8 @@
                     const isTop = rank <= 3;
                     const topClass = rank === 1 ? 'top1' : rank === 2 ? 'top2' : rank === 3 ? 'top3' : '';
                     const medals = ['🥇', '🥈', '🥉'];
-                    const icon = isTop ? medals[rank-1] : `#${rank}`;
-                    
+                    const icon = isTop ? medals[rank - 1] : `#${rank}`;
+
                     html += `
                         <div class="leaderboard-item ${topClass}">
                             <div class="rank">${icon}</div>
@@ -815,11 +887,12 @@
             try {
                 const studentsSnap = await getDocs(collection(db, 'students'));
                 const leaderboard = [];
-                
+
                 for (const doc of studentsSnap.docs) {
                     const data = doc.data();
                     const code = data.code;
-                    const progressSnap = await getDocs(query(collection(db, 'progress'), where('studentCode', '==', code)));
+                    const progressSnap = await getDocs(query(collection(db, 'progress'), where('studentCode', '==',
+                    code)));
                     let points = 0;
                     let videosWatched = 0;
                     progressSnap.forEach(p => {
@@ -828,7 +901,7 @@
                             videosWatched++;
                         }
                     });
-                    
+
                     leaderboard.push({
                         code: code,
                         name: data.name || 'طالب',
@@ -837,9 +910,9 @@
                         videosWatched: videosWatched
                     });
                 }
-                
+
                 leaderboard.sort((a, b) => b.points - a.points);
-                
+
                 for (let i = 0; i < leaderboard.length; i++) {
                     const item = leaderboard[i];
                     await setDoc(doc(db, 'leaderboard', item.code), {
@@ -848,7 +921,7 @@
                         updatedAt: serverTimestamp()
                     });
                 }
-                
+
                 alert('✅ تم تحديث لوحة المتصدرين بنجاح');
                 showLeaderboard();
             } catch (error) {
@@ -858,11 +931,11 @@
         };
 
         // ============================================
-        // ADVANCED STATS
+        // ADVANCED STATS (مع إصلاح أخطاء Chart.js)
         // ============================================
         window.showAdvancedStats = async function() {
             await loadChartJS();
-            
+
             const html = `
                 <h2>📈 إحصائيات متقدمة</h2>
                 <p style="color:#888; margin-bottom:20px;">تحليلات وإحصائيات عن أداء المنصة والطلاب</p>
@@ -883,15 +956,24 @@
                     </div>
                 </div>
             `;
-            
+
             document.getElementById('content-area').innerHTML = html;
+
+            // ✅ انتظر حتى يتحدّث DOM
+            await new Promise(resolve => setTimeout(resolve, 200));
+
             await renderCharts();
         };
 
         async function renderCharts() {
             try {
+                // ✅ انتظر شوية عشان العناصر تظهر في DOM
+                await new Promise(resolve => setTimeout(resolve, 100));
+
                 const studentsSnap = await getDocs(collection(db, 'students'));
-                let grade1 = 0, grade2 = 0, grade3 = 0;
+                let grade1 = 0,
+                    grade2 = 0,
+                    grade3 = 0;
                 studentsSnap.forEach(d => {
                     const data = d.data();
                     if (data.grade === '1') grade1++;
@@ -899,24 +981,30 @@
                     else if (data.grade === '3') grade3++;
                 });
 
-                new Chart(document.getElementById('gradeChart'), {
-                    type: 'bar',
-                    data: {
-                        labels: ['أولى ثانوي', 'ثانية ثانوي', 'ثالثة ثانوي'],
-                        datasets: [{
-                            label: 'عدد الطلاب',
-                            data: [grade1, grade2, grade3],
-                            backgroundColor: ['#3498db', '#f39c12', '#e74c3c'],
-                            borderRadius: 5
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        plugins: {
-                            legend: { display: false }
+                // ✅ تحقق من وجود العنصر قبل إنشاء الرسم
+                const gradeChartEl = document.getElementById('gradeChart');
+                if (gradeChartEl) {
+                    new Chart(gradeChartEl, {
+                        type: 'bar',
+                        data: {
+                            labels: ['أولى ثانوي', 'ثانية ثانوي', 'ثالثة ثانوي'],
+                            datasets: [{
+                                label: 'عدد الطلاب',
+                                data: [grade1, grade2, grade3],
+                                backgroundColor: ['#3498db', '#f39c12', '#e74c3c'],
+                                borderRadius: 5
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: {
+                                legend: { display: false }
+                            }
                         }
-                    }
-                });
+                    });
+                } else {
+                    console.warn('⚠️ العنصر gradeChart غير موجود');
+                }
 
                 const videosSnap = await getDocs(collection(db, 'videos'));
                 const videoLabels = [];
@@ -928,50 +1016,61 @@
                 });
 
                 if (videoLabels.length > 0) {
-                    new Chart(document.getElementById('videosChart'), {
-                        type: 'doughnut',
+                    const videosChartEl = document.getElementById('videosChart');
+                    if (videosChartEl) {
+                        new Chart(videosChartEl, {
+                            type: 'doughnut',
+                            data: {
+                                labels: videoLabels.slice(0, 6),
+                                datasets: [{
+                                    data: videoData.slice(0, 6),
+                                    backgroundColor: ['#3498db', '#2ecc71', '#f39c12', '#e74c3c', '#9b59b6',
+                                        '#1abc9c'
+                                    ]
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                plugins: {
+                                    legend: { position: 'bottom' }
+                                }
+                            }
+                        });
+                    } else {
+                        console.warn('⚠️ العنصر videosChart غير موجود');
+                    }
+                }
+
+                const days = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+                const activityData = [12, 19, 15, 22, 18, 8, 5];
+                const activityChartEl = document.getElementById('activityChart');
+                if (activityChartEl) {
+                    new Chart(activityChartEl, {
+                        type: 'line',
                         data: {
-                            labels: videoLabels.slice(0, 6),
+                            labels: days,
                             datasets: [{
-                                data: videoData.slice(0, 6),
-                                backgroundColor: ['#3498db', '#2ecc71', '#f39c12', '#e74c3c', '#9b59b6', '#1abc9c']
+                                label: 'عدد الدخول',
+                                data: activityData,
+                                borderColor: '#3498db',
+                                backgroundColor: 'rgba(52,152,219,0.1)',
+                                fill: true,
+                                tension: 0.4
                             }]
                         },
                         options: {
                             responsive: true,
                             plugins: {
-                                legend: { position: 'bottom' }
+                                legend: { display: false }
                             }
                         }
                     });
+                } else {
+                    console.warn('⚠️ العنصر activityChart غير موجود');
                 }
 
-                const days = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
-                const activityData = [12, 19, 15, 22, 18, 8, 5];
-                
-                new Chart(document.getElementById('activityChart'), {
-                    type: 'line',
-                    data: {
-                        labels: days,
-                        datasets: [{
-                            label: 'عدد الدخول',
-                            data: activityData,
-                            borderColor: '#3498db',
-                            backgroundColor: 'rgba(52,152,219,0.1)',
-                            fill: true,
-                            tension: 0.4
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        plugins: {
-                            legend: { display: false }
-                        }
-                    }
-                });
-
             } catch (error) {
-                console.error('خطأ في رسم الرسوم البيانية:', error);
+                console.error('❌ خطأ في رسم الرسوم البيانية:', error);
             }
         }
 
@@ -986,10 +1085,13 @@
             if (!name || !phone || !parentPhone) return alert('أدخل جميع البيانات');
             const code = generateCode();
             await addDoc(collection(db, 'students'), {
-                name, code, phone, parentPhone,
+                name,
+                code,
+                phone,
+                parentPhone,
                 grade: grade,
                 status: 'inactive',
-                suspendMessage: '', 
+                suspendMessage: '',
                 deviceIds: [],
                 firstLogin: null,
                 lastLogin: null,
@@ -1018,8 +1120,8 @@
             });
 
             if (searchTerm) {
-                students = students.filter(s => 
-                    (s.name && s.name.toLowerCase().includes(searchTerm)) || 
+                students = students.filter(s =>
+                    (s.name && s.name.toLowerCase().includes(searchTerm)) ||
                     (s.code && s.code.toLowerCase().includes(searchTerm)) ||
                     (s.phone && s.phone.includes(searchTerm))
                 );
@@ -1065,8 +1167,10 @@
             students.forEach(s => {
                 const lastLogin = s.lastLogin ? new Date(s.lastLogin.toDate()).toLocaleString() : '—';
                 const deviceCount = (s.deviceIds || []).length;
-                const statusText = s.status === 'active' ? '🟢 نشط' : (s.status === 'suspended' ? '🔴 معلق' : '⚪ غير نشط');
-                const gradeText = s.grade === '1' ? 'أولى ث' : s.grade === '2' ? 'ثانية ث' : s.grade === '3' ? 'ثالثة ث' : '—';
+                const statusText = s.status === 'active' ? '🟢 نشط' : (s.status === 'suspended' ? '🔴 معلق' :
+                    '⚪ غير نشط');
+                const gradeText = s.grade === '1' ? 'أولى ث' : s.grade === '2' ? 'ثانية ث' : s.grade ===
+                    '3' ? 'ثالثة ث' : '—';
                 html += `<tr>
                     <td><strong>${s.name}</strong></td>
                     <td>${s.code}</td>
@@ -1100,14 +1204,14 @@
                 collection(db, 'sessions'),
                 where('studentCode', '==', studentCode)
             ));
-            
+
             // جلب بيانات الطالب
             const studentSnap = await getDocs(query(collection(db, 'students'), where('code', '==', studentCode)));
             let studentName = 'طالب';
             if (!studentSnap.empty) {
                 studentName = studentSnap.docs[0].data().name || 'طالب';
             }
-            
+
             let html = `<h2>🕐 جلسات الطالب: ${studentName} (${studentCode})</h2>
                         <div style="overflow-x:auto;">
                         <table border="1" cellpadding="10" style="width:100%; border-collapse:collapse; background:white;">
@@ -1117,7 +1221,7 @@
                                 <th>وقت الخروج</th>
                                 <th>المدة (دقائق)</th>
                             </tr>`;
-            
+
             if (sessionsSnap.empty) {
                 html += `<tr><td colspan="4" style="text-align:center;">لا توجد جلسات</td></tr>`;
             } else {
@@ -1131,7 +1235,7 @@
                             </tr>`;
                 });
             }
-            
+
             html += `</table></div>
                     <button onclick="showStudents()" class="btn-sm" style="background:#2c3e50; color:white; margin-top:10px;">🔙 رجوع</button>`;
             document.getElementById('content-area').innerHTML = html;
@@ -1146,12 +1250,12 @@
                 const q = query(collection(db, 'students'), where('code', '==', code));
                 const snap = await getDocs(q);
                 snap.forEach(async (d) => { await deleteDoc(d.ref); });
-                
+
                 const leaderboardRef = doc(db, 'leaderboard', code);
                 await deleteDoc(leaderboardRef);
-                
+
                 await updateLeaderboardManual();
-                
+
                 alert('تم الحذف وإعادة ترتيب المتصدرين');
                 showStudents();
             } catch (error) {
@@ -1203,12 +1307,12 @@
                 const total = p ? p.totalDuration : 0;
                 const percent = total > 0 ? Math.min(100, Math.round((watched / total) * 100)) : 0;
                 const completed = p && p.completed ? '✅ مكتمل' : (watched > 0 ? '⏳ قيد المشاهدة' : '❌ لم يشاهد');
-                
+
                 const watchedMin = Math.floor(watched / 60);
                 const watchedSec = Math.floor(watched % 60);
                 const totalMin = Math.floor(total / 60);
                 const totalSec = Math.floor(total % 60);
-                
+
                 html += `<tr>
                             <td>${video.title}</td>
                             <td>${watchedMin}:${watchedSec.toString().padStart(2, '0')}</td>
@@ -1326,14 +1430,14 @@
         // ============================================
         window.showAllProgress = async function() {
             const gradeFilter = document.getElementById('filterProgressGrade')?.value || 'all';
-            
+
             let studentsQ;
             if (gradeFilter === 'all') {
                 studentsQ = collection(db, 'students');
             } else {
                 studentsQ = query(collection(db, 'students'), where('grade', '==', gradeFilter));
             }
-            
+
             const studentsSnap = await getDocs(studentsQ);
             let html = `<h2>📊 تقدم جميع الطلاب</h2>
                         <div class="filter-bar">
@@ -1348,7 +1452,8 @@
             if (studentsSnap.empty) html += `<li>لا يوجد طلاب</li>`;
             for (const doc of studentsSnap.docs) {
                 const data = doc.data();
-                const gradeText = data.grade === '1' ? 'أولى ث' : data.grade === '2' ? 'ثانية ث' : data.grade === '3' ? 'ثالثة ث' : '—';
+                const gradeText = data.grade === '1' ? 'أولى ث' : data.grade === '2' ? 'ثانية ث' : data.grade ===
+                    '3' ? 'ثالثة ث' : '—';
                 html += `<li style="margin:10px 0; display:flex; align-items:center; gap:15px; flex-wrap:wrap;">
                             ${data.name} (${data.code}) <span class="grade-badge grade-${data.grade}">${gradeText}</span>
                             <button onclick="showStudentProgress('${data.code}')" class="btn-sm" style="background:#3498db; color:white;">عرض التقدم</button>
@@ -1363,14 +1468,14 @@
         // ============================================
         window.showAllDevices = async function() {
             const gradeFilter = document.getElementById('filterDevicesGrade')?.value || 'all';
-            
+
             let studentsQ;
             if (gradeFilter === 'all') {
                 studentsQ = collection(db, 'students');
             } else {
                 studentsQ = query(collection(db, 'students'), where('grade', '==', gradeFilter));
             }
-            
+
             const studentsSnap = await getDocs(studentsQ);
             let html = `<h2>📱 إدارة الأجهزة لجميع الطلاب</h2>
                         <div class="filter-bar">
@@ -1384,7 +1489,8 @@
             if (studentsSnap.empty) html += `<p>لا يوجد طلاب</p>`;
             for (const doc of studentsSnap.docs) {
                 const data = doc.data();
-                const gradeText = data.grade === '1' ? 'أولى ث' : data.grade === '2' ? 'ثانية ث' : data.grade === '3' ? 'ثالثة ث' : '—';
+                const gradeText = data.grade === '1' ? 'أولى ث' : data.grade === '2' ? 'ثانية ث' : data.grade ===
+                    '3' ? 'ثالثة ث' : '—';
                 html += `<div style="margin:15px 0; border-bottom:1px solid #ddd; padding-bottom:10px;">
                             <strong>${data.name}</strong> (${data.code}) <span class="grade-badge grade-${data.grade}">${gradeText}</span> - الأجهزة: ${(data.deviceIds||[]).length}
                             <button onclick="showStudentDevices('${data.code}')" class="btn-sm" style="background:#9b59b6; color:white;">إدارة الأجهزة</button>
@@ -1396,7 +1502,7 @@
         // ============================================
         // VIDEOS (مع دعم الروابط العادية وزر إنهاء البث)
         // ============================================
-        
+
         function extractYouTubeId(url) {
             if (!url) return null;
             const watchMatch = url.match(/youtube\.com\/watch\?v=([^&]+)/);
@@ -1415,9 +1521,9 @@
             let url = document.getElementById('vidUrl').value.trim();
             const grade = document.getElementById('vidGrade').value;
             const type = document.getElementById('vidType').value;
-            
+
             if (!title || !url) return alert('املأ البيانات');
-            
+
             const videoId = extractYouTubeId(url);
             if (videoId) {
                 url = `https://www.youtube.com/embed/${videoId}`;
@@ -1428,9 +1534,13 @@
                     }
                 }
             }
-            
-            await addDoc(collection(db, 'videos'), { 
-                title, url, grade, type: type || 'normal', addedAt: new Date() 
+
+            await addDoc(collection(db, 'videos'), {
+                title,
+                url,
+                grade,
+                type: type || 'normal',
+                addedAt: new Date()
             });
             alert('✅ تمت الإضافة');
             showVideos();
@@ -1467,7 +1577,7 @@
                 q = query(collection(db, 'videos'), where('grade', '==', gradeFilter));
             }
             const snap = await getDocs(q);
-            
+
             let videos = [];
             snap.forEach(d => {
                 const data = d.data();
@@ -1475,7 +1585,7 @@
             });
 
             if (searchTerm) {
-                videos = videos.filter(v => 
+                videos = videos.filter(v =>
                     v.title && v.title.toLowerCase().includes(searchTerm)
                 );
             }
@@ -1507,22 +1617,23 @@
                             <button onclick="searchVideos()" class="btn-sm btn-search">🔍 بحث</button>
                             <button onclick="clearVideoSearch()" class="btn-sm btn-clear">✖️ إلغاء</button>
                         </div>`;
-            
+
             if (videos.length === 0) {
                 html += `<p>لا يوجد فيديوهات</p>`;
             } else {
                 videos.forEach(v => {
-                    const gradeText = v.grade === 'all' ? 'للجميع' : v.grade === '1' ? 'أولى ث' : v.grade === '2' ? 'ثانية ث' : 'ثالثة ث';
+                    const gradeText = v.grade === 'all' ? 'للجميع' : v.grade === '1' ? 'أولى ث' : v.grade ===
+                        '2' ? 'ثانية ث' : 'ثالثة ث';
                     const isLive = v.type === 'live' && !v.isLiveEnded;
                     const isEndedLive = v.type === 'live' && v.isLiveEnded;
-                    
+
                     html += `<div style="border:1px solid #ddd; padding:15px; margin:15px 0; border-radius:10px; background:white;">
                                 <h4>${v.title} 
                                     <span class="grade-badge grade-${v.grade}">${gradeText}</span>
                                     ${isLive ? '<span class="live-badge">🔴 مباشر</span>' : ''}
                                     ${isEndedLive ? '<span class="ended-badge">📹 بث سابق</span>' : ''}
                                 </h4>`;
-                    
+
                     if (isLive) {
                         html += `<div style="position:relative; padding-bottom:56.25%; height:0; overflow:hidden; border-radius:10px; background:#000;">
                                     <iframe style="position:absolute; top:0; left:0; width:100%; height:100%;" 
@@ -1554,7 +1665,7 @@
             let url = document.getElementById('bookUrl').value.trim();
             const grade = document.getElementById('bookGrade').value;
             if (!title || !url) return alert('املأ البيانات');
-            
+
             if (url.includes('drive.google.com/file/d/')) {
                 const match = url.match(/\/d\/([^\/]+)/);
                 if (match) {
@@ -1567,7 +1678,7 @@
                     url = `https://drive.google.com/file/d/${match[1]}/preview`;
                 }
             }
-            
+
             await addDoc(collection(db, 'books'), { title, url, grade, addedAt: new Date() });
             alert('✅ تمت الإضافة');
             showBooks();
@@ -1587,7 +1698,7 @@
                 q = query(collection(db, 'books'), where('grade', '==', gradeFilter));
             }
             const snap = await getDocs(q);
-            
+
             let books = [];
             snap.forEach(d => {
                 const data = d.data();
@@ -1595,7 +1706,7 @@
             });
 
             if (searchTerm) {
-                books = books.filter(b => 
+                books = books.filter(b =>
                     b.title && b.title.toLowerCase().includes(searchTerm)
                 );
             }
@@ -1625,7 +1736,8 @@
                         </div>`;
             if (books.length === 0) html += `<p>لا يوجد كتب</p>`;
             books.forEach(b => {
-                const gradeText = b.grade === 'all' ? 'للجميع' : b.grade === '1' ? 'أولى ث' : b.grade === '2' ? 'ثانية ث' : 'ثالثة ث';
+                const gradeText = b.grade === 'all' ? 'للجميع' : b.grade === '1' ? 'أولى ث' : b.grade ===
+                    '2' ? 'ثانية ث' : 'ثالثة ث';
                 html += `<div style="border:1px solid #ddd; padding:15px; margin:15px 0; border-radius:10px; background:white;">
                             <h4>${b.title} <span class="grade-badge grade-${b.grade}">${gradeText}</span></h4>
                             <iframe src="${b.url}" 
@@ -1669,7 +1781,7 @@
                 q = query(collection(db, 'exams'), where('grade', '==', gradeFilter));
             }
             const snap = await getDocs(q);
-            
+
             let exams = [];
             snap.forEach(d => {
                 const data = d.data();
@@ -1677,7 +1789,7 @@
             });
 
             if (searchTerm) {
-                exams = exams.filter(e => 
+                exams = exams.filter(e =>
                     e.title && e.title.toLowerCase().includes(searchTerm)
                 );
             }
@@ -1708,7 +1820,8 @@
                         </div>`;
             if (exams.length === 0) html += `<p>لا يوجد اختبارات</p>`;
             exams.forEach(e => {
-                const gradeText = e.grade === 'all' ? 'للجميع' : e.grade === '1' ? 'أولى ث' : e.grade === '2' ? 'ثانية ث' : 'ثالثة ث';
+                const gradeText = e.grade === 'all' ? 'للجميع' : e.grade === '1' ? 'أولى ث' : e.grade ===
+                    '2' ? 'ثانية ث' : 'ثالثة ث';
                 html += `<div style="border:1px solid #ddd; padding:15px; margin:15px 0; border-radius:10px; background:white;">
                             <h4>${e.title} <span class="grade-badge grade-${e.grade}">${gradeText}</span></h4>
                             <p><strong>النوع:</strong> ${e.type}</p>
@@ -1729,7 +1842,8 @@
             const grade = document.getElementById('notifGrade').value;
             if (!text) return alert('أدخل نص الإشعار');
 
-            let mediaUrl = null, mediaType = null;
+            let mediaUrl = null,
+                mediaType = null;
             if (fileInput.files.length > 0) {
                 const file = fileInput.files[0];
                 mediaType = file.type.startsWith('video/') ? 'video' : 'image';
@@ -1739,7 +1853,13 @@
             }
 
             await addDoc(collection(db, 'notifications'), {
-                text, mediaUrl, mediaType, targetStudent: target, grade, isRead: false, sentAt: new Date()
+                text,
+                mediaUrl,
+                mediaType,
+                targetStudent: target,
+                grade,
+                isRead: false,
+                sentAt: new Date()
             });
             alert('✅ تم إرسال الإشعار');
             showNotifications();
@@ -1759,7 +1879,7 @@
                 q = query(collection(db, 'notifications'), where('grade', '==', gradeFilter));
             }
             const snap = await getDocs(q);
-            
+
             let notifs = [];
             snap.forEach(d => {
                 const data = d.data();
@@ -1767,7 +1887,7 @@
             });
 
             if (searchTerm) {
-                notifs = notifs.filter(n => 
+                notifs = notifs.filter(n =>
                     n.text && n.text.toLowerCase().includes(searchTerm)
                 );
             }
@@ -1798,7 +1918,8 @@
                         </div>`;
             if (notifs.length === 0) html += `<p>لا يوجد إشعارات</p>`;
             notifs.forEach(n => {
-                const gradeText = n.grade === 'all' ? 'للجميع' : n.grade === '1' ? 'أولى ث' : n.grade === '2' ? 'ثانية ث' : 'ثالثة ث';
+                const gradeText = n.grade === 'all' ? 'للجميع' : n.grade === '1' ? 'أولى ث' : n.grade ===
+                    '2' ? 'ثانية ث' : 'ثالثة ث';
                 html += `<div style="border-bottom:1px solid #eee; padding:15px; background:white; margin-bottom:10px; border-radius:8px;">
                             <p style="font-size:16px;">${n.text} <span class="grade-badge grade-${n.grade}">${gradeText}</span></p>`;
                 if (n.mediaUrl) {
@@ -1824,16 +1945,17 @@
         window.showPendingDevices = async function() {
             const gradeFilter = document.getElementById('filterDeviceGrade')?.value || 'all';
             const searchTerm = document.getElementById('searchDevice')?.value?.trim()?.toLowerCase() || '';
-            
+
             let q;
             if (gradeFilter === 'all') {
                 q = query(collection(db, 'pendingDevices'), where('status', '==', 'pending'));
             } else {
-                q = query(collection(db, 'pendingDevices'), where('status', '==', 'pending'), where('grade', '==', gradeFilter));
+                q = query(collection(db, 'pendingDevices'), where('status', '==', 'pending'), where('grade', '==',
+                    gradeFilter));
             }
-            
+
             const snap = await getDocs(q);
-            
+
             let devices = [];
             snap.forEach(d => {
                 const data = d.data();
@@ -1841,7 +1963,7 @@
             });
 
             if (searchTerm) {
-                devices = devices.filter(d => 
+                devices = devices.filter(d =>
                     (d.studentCode && d.studentCode.toLowerCase().includes(searchTerm)) ||
                     (d.deviceId && d.deviceId.toLowerCase().includes(searchTerm))
                 );
@@ -1863,7 +1985,8 @@
                 html += `<p>لا توجد طلبات معلقة</p>`;
             } else {
                 devices.forEach(d => {
-                    const gradeText = d.grade === '1' ? 'أولى ث' : d.grade === '2' ? 'ثانية ث' : d.grade === '3' ? 'ثالثة ث' : '—';
+                    const gradeText = d.grade === '1' ? 'أولى ث' : d.grade === '2' ? 'ثانية ث' : d.grade ===
+                        '3' ? 'ثالثة ث' : '—';
                     html += `<div style="border:1px solid #ddd; padding:15px; margin:15px 0; border-radius:10px; background:white;">
                                 <p><strong>الطالب كود:</strong> ${d.studentCode}</p>
                                 <p><strong>الجهاز:</strong> ${d.deviceId}</p>
@@ -1925,7 +2048,7 @@
                 if (docSnap.exists()) {
                     currentUrl = docSnap.data().url || '';
                 }
-            } catch(e) {}
+            } catch (e) {}
 
             let html = `<h2>📡 إعدادات البث المباشر</h2>
                         <div style="max-width:700px; background:white; padding:25px; border-radius:15px; box-shadow:0 2px 10px rgba(0,0,0,0.05);">
@@ -2012,7 +2135,8 @@
                     const data = doc.data();
                     students.push({
                         name: data.name || '',
-                        grade: data.grade === '1' ? 'أولى ثانوي' : data.grade === '2' ? 'ثانية ثانوي' : data.grade === '3' ? 'ثالثة ثانوي' : '—',
+                        grade: data.grade === '1' ? 'أولى ثانوي' : data.grade === '2' ? 'ثانية ثانوي' :
+                            data.grade === '3' ? 'ثالثة ثانوي' : '—',
                         code: data.code || ''
                     });
                 });
@@ -2027,25 +2151,25 @@
 
                 await loadXLSX();
                 const XLSX = window.XLSX;
-                
+
                 const rows = [];
                 const groupsPerRow = 2;
-                
+
                 for (let i = 0; i < students.length; i += groupsPerRow) {
                     const rowStudents = students.slice(i, i + groupsPerRow);
                     const row = [];
-                    
+
                     for (let j = 0; j < rowStudents.length; j++) {
                         const s = rowStudents[j];
                         row.push(s.name);
                         row.push(s.code);
                         row.push(s.grade);
                     }
-                    
+
                     while (row.length < 6) {
                         row.push('');
                     }
-                    
+
                     rows.push(row);
                 }
 
@@ -2054,19 +2178,19 @@
                     ['الاسم', 'الكود', 'الصف', 'الاسم', 'الكود', 'الصف'],
                     ...rows
                 ]);
-                
+
                 ws['!cols'] = [
                     { wch: 25 }, { wch: 15 }, { wch: 18 },
                     { wch: 25 }, { wch: 15 }, { wch: 18 }
                 ];
-                
+
                 ws['!print'] = {
                     orientation: 'Landscape',
                     fitToPage: true,
                     fitToWidth: 1,
                     fitToHeight: 1
                 };
-                
+
                 XLSX.utils.book_append_sheet(wb, ws, 'أكواد الطلاب');
                 const fileName = `تقرير_أكواد_الطلاب_${new Date().toLocaleDateString('ar-EG')}.xlsx`;
                 XLSX.writeFile(wb, fileName);
@@ -2088,7 +2212,8 @@
                     const data = doc.data();
                     students.push({
                         name: data.name || '',
-                        grade: data.grade === '1' ? 'أولى ثانوي' : data.grade === '2' ? 'ثانية ثانوي' : data.grade === '3' ? 'ثالثة ثانوي' : '—',
+                        grade: data.grade === '1' ? 'أولى ثانوي' : data.grade === '2' ? 'ثانية ثانوي' :
+                            data.grade === '3' ? 'ثالثة ثانوي' : '—',
                         code: data.code || ''
                     });
                 });
@@ -2103,75 +2228,75 @@
 
                 await loadPDF();
                 const { jsPDF } = window.jspdf;
-                
+
                 const doc = new jsPDF('landscape', 'mm', 'a4');
                 const pageWidth = doc.internal.pageSize.getWidth();
                 const pageHeight = doc.internal.pageSize.getHeight();
-                
+
                 doc.setFont('helvetica', 'bold');
                 doc.setFontSize(16);
                 doc.text('تقرير أكواد الطلاب', pageWidth / 2, 15, { align: 'center' });
                 doc.setFontSize(10);
                 doc.text(`تاريخ التقرير: ${new Date().toLocaleString('ar-EG')}`, pageWidth / 2, 22, { align: 'center' });
-                
+
                 const margin = 10;
                 const gap = 4;
                 const colWidth = (pageWidth - (margin * 2) - (gap * 2)) / 3;
                 const rowHeight = 30;
                 const startY = 30;
-                
+
                 const groupedStudents = {
                     'أولى ثانوي': [],
                     'ثانية ثانوي': [],
                     'ثالثة ثانوي': []
                 };
-                
+
                 students.forEach(s => {
                     if (groupedStudents[s.grade]) {
                         groupedStudents[s.grade].push(s);
                     }
                 });
-                
+
                 let currentY = startY;
-                
+
                 for (const [gradeName, gradeStudents] of Object.entries(groupedStudents)) {
                     if (gradeStudents.length === 0) continue;
-                    
+
                     if (currentY + rowHeight + 10 > pageHeight - 15) {
                         doc.addPage();
                         currentY = startY;
                     }
-                    
+
                     doc.setFont('helvetica', 'bold');
                     doc.setFontSize(12);
                     doc.text(`📘 ${gradeName}`, margin, currentY + 5);
                     currentY += 10;
                     doc.setFont('helvetica', 'normal');
                     doc.setFontSize(9);
-                    
+
                     for (let i = 0; i < gradeStudents.length; i += 3) {
                         const rowStudents = gradeStudents.slice(i, i + 3);
-                        
+
                         if (currentY + rowHeight > pageHeight - 15) {
                             doc.addPage();
                             currentY = startY;
                         }
-                        
+
                         for (let j = 0; j < rowStudents.length; j++) {
                             const x = margin + (j * (colWidth + gap));
                             const y = currentY;
                             drawStudentCardV3(doc, rowStudents[j], x, y, colWidth, rowHeight);
                         }
-                        
+
                         currentY += rowHeight + 3;
                     }
-                    
+
                     currentY += 8;
                 }
-                
+
                 doc.save(`تقرير_أكواد_الطلاب_${new Date().toLocaleDateString('ar-EG')}.pdf`);
                 alert('✅ تم تحميل التقرير بنجاح');
-                
+
             } catch (error) {
                 console.error('خطأ في PDF:', error);
                 alert('❌ حدث خطأ: ' + error.message);
@@ -2182,14 +2307,14 @@
             doc.setDrawColor(180, 180, 180);
             doc.setLineWidth(0.3);
             doc.rect(x, y, width, height);
-            
+
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(9);
-            
+
             const padding = 4;
             const textX = x + padding;
             const centerY = y + (height / 2);
-            
+
             doc.text(`الاسم: ${student.name}`, textX, centerY - 8);
             doc.text(`الكود: ${student.code}`, textX, centerY + 1);
             doc.text(`الصف: ${student.grade}`, textX, centerY + 10);
@@ -2207,11 +2332,14 @@
                     students.push({
                         'الاسم': data.name || '',
                         'الكود': data.code || '',
-                        'الصف': data.grade === '1' ? 'أولى ثانوي' : data.grade === '2' ? 'ثانية ثانوي' : data.grade === '3' ? 'ثالثة ثانوي' : '—',
+                        'الصف': data.grade === '1' ? 'أولى ثانوي' : data.grade === '2' ? 'ثانية ثانوي' :
+                            data.grade === '3' ? 'ثالثة ثانوي' : '—',
                         'رقم التليفون': data.phone || '—',
                         'ولي الأمر': data.parentPhone || '—',
-                        'الحالة': data.status === 'active' ? 'نشط' : data.status === 'suspended' ? 'معلق' : 'غير نشط',
-                        'آخر دخول': data.lastLogin ? new Date(data.lastLogin.toDate()).toLocaleString() : '—',
+                        'الحالة': data.status === 'active' ? 'نشط' : data.status === 'suspended' ? 'معلق' :
+                            'غير نشط',
+                        'آخر دخول': data.lastLogin ? new Date(data.lastLogin.toDate()).toLocaleString() :
+                            '—',
                         'عدد الأجهزة': (data.deviceIds || []).length
                     });
                 });
@@ -2248,11 +2376,14 @@
                     students.push({
                         name: data.name || '',
                         code: data.code || '',
-                        grade: data.grade === '1' ? 'أولى ثانوي' : data.grade === '2' ? 'ثانية ثانوي' : data.grade === '3' ? 'ثالثة ثانوي' : '—',
+                        grade: data.grade === '1' ? 'أولى ثانوي' : data.grade === '2' ? 'ثانية ثانوي' :
+                            data.grade === '3' ? 'ثالثة ثانوي' : '—',
                         phone: data.phone || '—',
                         parentPhone: data.parentPhone || '—',
-                        status: data.status === 'active' ? 'نشط' : data.status === 'suspended' ? 'معلق' : 'غير نشط',
-                        lastLogin: data.lastLogin ? new Date(data.lastLogin.toDate()).toLocaleString() : '—',
+                        status: data.status === 'active' ? 'نشط' : data.status === 'suspended' ? 'معلق' :
+                            'غير نشط',
+                        lastLogin: data.lastLogin ? new Date(data.lastLogin.toDate()).toLocaleString() :
+                            '—',
                         devices: (data.deviceIds || []).length
                     });
                 });
@@ -2270,12 +2401,14 @@
                 doc.text('تقرير جميع الطلاب', 14, 30);
                 doc.setFontSize(10);
                 doc.text(`تاريخ التقرير: ${new Date().toLocaleString('ar-EG')}`, 14, 50);
-                
+
                 const tableData = students.map(s => [
                     s.name, s.code, s.grade, s.phone, s.parentPhone, s.status, s.lastLogin, s.devices.toString()
                 ]);
                 doc.autoTable({
-                    head: [['الاسم', 'الكود', 'الصف', 'التليفون', 'ولي الأمر', 'الحالة', 'آخر دخول', 'الأجهزة']],
+                    head: [
+                        ['الاسم', 'الكود', 'الصف', 'التليفون', 'ولي الأمر', 'الحالة', 'آخر دخول', 'الأجهزة']
+                    ],
                     body: tableData,
                     startY: 60,
                     styles: { font: 'helvetica', fontSize: 8 },
@@ -2325,7 +2458,8 @@
                         const key = `${code}_${videoId}`;
                         const p = progressData[key];
                         if (p) {
-                            const percent = p.totalDuration > 0 ? Math.round((p.watchedSeconds / p.totalDuration) * 100) : 0;
+                            const percent = p.totalDuration > 0 ? Math.round((p.watchedSeconds / p.totalDuration) *
+                                100) : 0;
                             progressDetails += `${title}: ${percent}% | `;
                         } else {
                             progressDetails += `${title}: 0% | `;
@@ -2334,7 +2468,8 @@
                     report.push({
                         'اسم الطالب': student.name || '',
                         'الكود': code,
-                        'الصف': student.grade === '1' ? 'أولى ثانوي' : student.grade === '2' ? 'ثانية ثانوي' : student.grade === '3' ? 'ثالثة ثانوي' : '—',
+                        'الصف': student.grade === '1' ? 'أولى ثانوي' : student.grade === '2' ? 'ثانية ثانوي' :
+                            student.grade === '3' ? 'ثالثة ثانوي' : '—',
                         'عدد الأجهزة': deviceCount,
                         'التقدم': progressDetails.slice(0, -3)
                     });
@@ -2390,7 +2525,8 @@
                         const key = `${code}_${videoId}`;
                         const p = progressData[key];
                         if (p) {
-                            const percent = p.totalDuration > 0 ? Math.round((p.watchedSeconds / p.totalDuration) * 100) : 0;
+                            const percent = p.totalDuration > 0 ? Math.round((p.watchedSeconds / p.totalDuration) *
+                                100) : 0;
                             progressDetails += `${title}: ${percent}% | `;
                         } else {
                             progressDetails += `${title}: 0% | `;
@@ -2399,7 +2535,8 @@
                     report.push({
                         name: student.name || '',
                         code: code,
-                        grade: student.grade === '1' ? 'أولى ثانوي' : student.grade === '2' ? 'ثانية ثانوي' : student.grade === '3' ? 'ثالثة ثانوي' : '—',
+                        grade: student.grade === '1' ? 'أولى ثانوي' : student.grade === '2' ? 'ثانية ثانوي' :
+                            student.grade === '3' ? 'ثالثة ثانوي' : '—',
                         devices: deviceCount,
                         progress: progressDetails.slice(0, -3)
                     });
@@ -2413,12 +2550,14 @@
                 doc.text('تقرير تقدم الطلاب', 14, 30);
                 doc.setFontSize(10);
                 doc.text(`تاريخ التقرير: ${new Date().toLocaleString('ar-EG')}`, 14, 50);
-                
+
                 const tableData = report.map(s => [
                     s.name, s.code, s.grade, s.devices.toString(), s.progress
                 ]);
                 doc.autoTable({
-                    head: [['اسم الطالب', 'الكود', 'الصف', 'الأجهزة', 'التقدم']],
+                    head: [
+                        ['اسم الطالب', 'الكود', 'الصف', 'الأجهزة', 'التقدم']
+                    ],
                     body: tableData,
                     startY: 60,
                     styles: { font: 'helvetica', fontSize: 8 },
@@ -2452,18 +2591,19 @@
                 for (const doc of studentsSnap.docs) {
                     const student = doc.data();
                     const code = student.code;
-                    const progressSnap = await getDocs(query(collection(db, 'progress'), where('studentCode', '==', code)));
+                    const progressSnap = await getDocs(query(collection(db, 'progress'), where('studentCode', '==',
+                    code)));
                     let watchedCount = 0;
                     progressSnap.forEach(p => {
                         if (p.data().watchedSeconds > 0) watchedCount++;
                     });
-                    
+
                     let badges = [];
                     if (student.firstLogin) badges.push('🥇 المنصة');
                     if (watchedCount >= 5) badges.push('🥈 المتعلم');
                     if (watchedCount >= 10) badges.push('🥉 النجم');
                     if (watchedCount >= 20) badges.push('🏆 المحترف');
-                    
+
                     const badgeString = badges.length > 0 ? badges.join(' | ') : '❌ لا توجد';
                     html += `<tr>
                                 <td><strong>${student.name || ''}</strong></td>
@@ -2529,7 +2669,8 @@
         // ============================================
         window.deleteAllLeaderboard = async function() {
             if (!confirm('⚠️ تحذير: أنت على وشك حذف جميع بيانات المتصدرين نهائياً! هل أنت متأكد؟')) return;
-            if (!confirm('تأكيد نهائي: هل تريد حذف جميع بيانات المتصدرين؟ سيتم إعادة ترتيبهم تلقائياً عند إضافة طلاب جدد.')) return;
+            if (!confirm('تأكيد نهائي: هل تريد حذف جميع بيانات المتصدرين؟ سيتم إعادة ترتيبهم تلقائياً عند إضافة طلاب جدد.'))
+                return;
             try {
                 const snap = await getDocs(collection(db, 'leaderboard'));
                 let count = 0;
