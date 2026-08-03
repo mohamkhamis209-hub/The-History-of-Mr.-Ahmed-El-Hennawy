@@ -7,7 +7,6 @@
     <link rel="stylesheet" href="css/style.css">
     <script src="https://www.youtube.com/iframe_api"></script>
     <style>
-        /* كل الـ styles موجودة في الملف الأصلي */
         .header-bar {
             display: flex;
             justify-content: space-between;
@@ -359,6 +358,9 @@
         const studentName = localStorage.getItem('studentName') || 'طالب';
         let players = {};
         let progressIntervals = {};
+        let currentSessionId = null;
+        let entryTimestamp = null;
+        let heartbeatInterval = null;
 
         // ============================================
         // دالة استخراج معرف الفيديو من رابط يوتيوب
@@ -377,25 +379,48 @@
         }
 
         // ============================================
-        // نظام الحضور والجلسات
+        // نظام الحضور والجلسات (نسخة مستقرة مع sendBeacon)
         // ============================================
         async function recordLogin() {
             if (!studentCode) return;
             try {
                 const today = new Date().toISOString().split('T')[0];
                 const now = new Date();
+                entryTimestamp = now;
                 
-                await addDoc(collection(db, 'sessions'), {
+                // ✅ إنشاء جلسة جديدة
+                const sessionRef = await addDoc(collection(db, 'sessions'), {
                     studentCode: studentCode,
                     studentName: studentName,
                     loginTime: serverTimestamp(),
                     loginTimeString: now.toLocaleTimeString('ar-EG'),
+                    loginTimeMs: now.getTime(),
                     logoutTime: null,
                     logoutTimeString: null,
+                    logoutTimeMs: null,
                     duration: 0,
-                    date: today
+                    date: today,
+                    isActive: true,
+                    lastHeartbeat: serverTimestamp(),
+                    lastHeartbeatString: now.toLocaleTimeString('ar-EG')
                 });
+                currentSessionId = sessionRef.id;
                 
+                // ✅ بدء نبض القلب (تحديث كل 30 ثانية)
+                if (heartbeatInterval) clearInterval(heartbeatInterval);
+                heartbeatInterval = setInterval(async () => {
+                    if (currentSessionId && studentCode) {
+                        try {
+                            const now2 = new Date();
+                            await updateDoc(doc(db, 'sessions', currentSessionId), {
+                                lastHeartbeat: serverTimestamp(),
+                                lastHeartbeatString: now2.toLocaleTimeString('ar-EG')
+                            });
+                        } catch (e) {}
+                    }
+                }, 30000);
+                
+                // ✅ تحديث attendance
                 const q = query(
                     collection(db, 'attendance'),
                     where('studentCode', '==', studentCode),
@@ -408,11 +433,14 @@
                         studentCode: studentCode,
                         studentName: studentName,
                         loginTime: serverTimestamp(),
+                        loginTimeMs: now.getTime(),
                         logoutTime: null,
+                        logoutTimeMs: null,
                         duration: 0,
                         date: today,
                         status: 'present',
-                        sessionsCount: 1
+                        sessionsCount: 1,
+                        isActive: true
                     });
                 } else {
                     const docRef = snap.docs[0].ref;
@@ -420,8 +448,11 @@
                     const sessionsCount = (data.sessionsCount || 0) + 1;
                     await updateDoc(docRef, {
                         loginTime: serverTimestamp(),
+                        loginTimeMs: now.getTime(),
                         logoutTime: null,
-                        sessionsCount: sessionsCount
+                        logoutTimeMs: null,
+                        sessionsCount: sessionsCount,
+                        isActive: true
                     });
                 }
                 
@@ -431,76 +462,186 @@
             }
         }
 
+        // ============================================
+        // تسجيل الخروج (نسخة مستقرة مع sendBeacon)
+        // ============================================
         async function recordLogout() {
             if (!studentCode) return;
             try {
-                const today = new Date().toISOString().split('T')[0];
                 const now = new Date();
+                const today = new Date().toISOString().split('T')[0];
                 
-                const sessionsQuery = query(
-                    collection(db, 'sessions'),
-                    where('studentCode', '==', studentCode),
-                    where('date', '==', today),
-                    where('logoutTime', '==', null)
-                );
-                const sessionsSnap = await getDocs(sessionsQuery);
-                
-                if (!sessionsSnap.empty) {
-                    let lastSession = null;
-                    sessionsSnap.forEach(d => {
-                        lastSession = d;
-                    });
-                    if (lastSession) {
-                        const loginTime = lastSession.data().loginTime?.toDate?.();
-                        let duration = 0;
-                        if (loginTime) {
-                            duration = Math.floor((now - loginTime) / 60000);
+                // ✅ 1. تحديث الجلسة الحالية
+                if (currentSessionId) {
+                    try {
+                        const sessionRef = doc(db, 'sessions', currentSessionId);
+                        const sessionSnap = await getDoc(sessionRef);
+                        if (sessionSnap.exists() && sessionSnap.data().isActive !== false) {
+                            const data = sessionSnap.data();
+                            const loginTimeMs = data.loginTimeMs || data.loginTime?.toDate?.()?.getTime();
+                            let duration = 0;
+                            if (loginTimeMs) {
+                                duration = Math.round((now.getTime() - loginTimeMs) / 60000);
+                            }
+                            await updateDoc(sessionRef, {
+                                logoutTime: serverTimestamp(),
+                                logoutTimeString: now.toLocaleTimeString('ar-EG'),
+                                logoutTimeMs: now.getTime(),
+                                duration: duration,
+                                isActive: false
+                            });
+                            console.log('✅ تم تحديث الجلسة');
                         }
-                        await updateDoc(lastSession.ref, {
-                            logoutTime: serverTimestamp(),
-                            logoutTimeString: now.toLocaleTimeString('ar-EG'),
-                            duration: duration
-                        });
+                    } catch (e) {
+                        console.warn('خطأ في تحديث الجلسة:', e);
                     }
                 }
                 
+                // ✅ 2. تحديث attendance
                 const q = query(
                     collection(db, 'attendance'),
                     where('studentCode', '==', studentCode),
-                    where('date', '==', today)
+                    where('date', '==', today),
+                    where('isActive', '==', true)
                 );
                 const snap = await getDocs(q);
                 
                 if (!snap.empty) {
                     const docRef = snap.docs[0].ref;
                     const data = snap.docs[0].data();
-                    const loginTime = data.loginTime?.toDate?.();
+                    const loginTimeMs = data.loginTimeMs || data.loginTime?.toDate?.()?.getTime();
                     let totalDuration = data.duration || 0;
-                    if (loginTime) {
-                        totalDuration = Math.floor((now - loginTime) / 60000);
+                    if (loginTimeMs) {
+                        totalDuration = Math.round((now.getTime() - loginTimeMs) / 60000);
                     }
                     await updateDoc(docRef, {
                         logoutTime: serverTimestamp(),
                         logoutTimeString: now.toLocaleTimeString('ar-EG'),
-                        duration: totalDuration
+                        logoutTimeMs: now.getTime(),
+                        duration: totalDuration,
+                        isActive: false
                     });
+                    console.log('✅ تم تحديث attendance');
                 }
                 
-                console.log('✅ تم تسجيل الخروج');
+                // ✅ إيقاف نبض القلب
+                if (heartbeatInterval) {
+                    clearInterval(heartbeatInterval);
+                    heartbeatInterval = null;
+                }
+                
+                console.log('✅ تم تسجيل الخروج بنجاح');
             } catch (error) {
                 console.error('خطأ في تسجيل الخروج:', error);
             }
         }
 
+        // ============================================
+        // استخدام sendBeacon لضمان وصول بيانات الخروج
+        // ============================================
+        function sendExitBeacon() {
+            if (!studentCode || !currentSessionId) return;
+            
+            const now = new Date();
+            const today = new Date().toISOString().split('T')[0];
+            
+            const exitData = {
+                studentCode: studentCode,
+                sessionId: currentSessionId,
+                date: today,
+                logoutTime: now.toISOString(),
+                logoutTimeString: now.toLocaleTimeString('ar-EG'),
+                logoutTimeMs: now.getTime()
+            };
+            
+            try {
+                // استخدام sendBeacon لإرسال البيانات حتى لو الصفحة مقفلة
+                const blob = new Blob([JSON.stringify(exitData)], { type: 'application/json' });
+                const sent = navigator.sendBeacon('/api/logout', blob);
+                if (sent) {
+                    console.log('✅ تم إرسال Beacon للخروج');
+                } else {
+                    console.warn('⚠️ فشل إرسال Beacon، استخدام الطريقة التقليدية');
+                    recordLogout();
+                }
+            } catch (e) {
+                console.warn('⚠️ خطأ في sendBeacon:', e);
+                recordLogout();
+            }
+        }
+
+        // ============================================
+        // أحداث تسجيل الخروج التلقائي
+        // ============================================
+        // ✅ استخدام beforeunload مع sendBeacon
         window.addEventListener('beforeunload', function() {
+            sendExitBeacon();
+        });
+
+        // ✅ عند إخفاء التبويب أو تبديل التطبيقات
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                // نقوم بتسجيل الخروج فوراً
+                recordLogout();
+            } else {
+                // لو رجع الطالب للصفحة بعد ما كانت مخفية
+                (async () => {
+                    if (studentCode) {
+                        const today = new Date().toISOString().split('T')[0];
+                        const q = query(
+                            collection(db, 'sessions'),
+                            where('studentCode', '==', studentCode),
+                            where('date', '==', today),
+                            where('isActive', '==', true)
+                        );
+                        const snap = await getDocs(q);
+                        if (snap.empty) {
+                            console.log('🔄 العودة للصفحة - تسجيل دخول جديد');
+                            recordLogin();
+                        }
+                    }
+                })();
+            }
+        });
+
+        // ✅ عند إغلاق المتصفح بالكامل
+        window.addEventListener('pagehide', function() {
+            sendExitBeacon();
+        });
+
+        // ✅ عند تغيير الصفحة (navigation)
+        window.addEventListener('popstate', function() {
             recordLogout();
         });
 
-        document.addEventListener('visibilitychange', function() {
-            if (document.hidden) {
-                recordLogout();
+        // ✅ Backup: تسجيل الخروج كل دقيقة (للتأمين)
+        setInterval(async () => {
+            if (studentCode && currentSessionId) {
+                try {
+                    const sessionRef = doc(db, 'sessions', currentSessionId);
+                    const sessionSnap = await getDoc(sessionRef);
+                    if (sessionSnap.exists() && sessionSnap.data().isActive === true) {
+                        const now = new Date();
+                        const data = sessionSnap.data();
+                        const loginTimeMs = data.loginTimeMs || data.loginTime?.toDate?.()?.getTime();
+                        let duration = 0;
+                        if (loginTimeMs) {
+                            duration = Math.round((now.getTime() - loginTimeMs) / 60000);
+                        }
+                        await updateDoc(sessionRef, {
+                            logoutTime: serverTimestamp(),
+                            logoutTimeString: now.toLocaleTimeString('ar-EG'),
+                            logoutTimeMs: now.getTime(),
+                            duration: duration,
+                            isActive: false
+                        });
+                        console.log('🔄 حفظ احتياطي للخروج');
+                    }
+                } catch (e) {
+                    // تجاهل الأخطاء في الخلفية
+                }
             }
-        });
+        }, 60000);
 
         // ============================================
         // حفظ التقدم في Firebase
@@ -742,7 +883,7 @@
         }
 
         // ============================================
-        // حساب عدد الشارات (مصلح)
+        // حساب عدد الشارات
         // ============================================
         async function getBadgesCount(code) {
             try {
@@ -757,7 +898,6 @@
                 if (watchedCount >= 10) count++;
                 if (watchedCount >= 5) count++;
                 
-                // ✅ شارة الدخول (مصلحة)
                 try {
                     const q = query(collection(db, 'students'), where('code', '==', code));
                     const studentSnap = await getDocs(q);
@@ -765,21 +905,15 @@
                         const studentData = studentSnap.docs[0].data();
                         if (studentData.firstLogin) {
                             count++;
-                            console.log('✅ شارة الدخول مفتوحة للطالب:', code);
-                        } else {
-                            console.log('⚠️ الطالب لم يسجل الدخول بعد (firstLogin غير موجود)');
                         }
                     }
-                } catch(e) {
-                    console.error('خطأ في جلب بيانات الطالب:', e);
-                }
+                } catch(e) {}
                 
                 const booksSnap = await getDocs(collection(db, 'books'));
                 if (booksSnap.size >= 3) count++;
                 
                 return count;
             } catch (error) {
-                console.error('خطأ في حساب الشارات:', error);
                 return 0;
             }
         }
@@ -951,7 +1085,7 @@
             }
             
             // ============================================
-            // الكتب (مع منع التحميل والسماح بالتمرير)
+            // الكتب
             // ============================================
             else if (section === 'books') {
                 try {
@@ -1110,7 +1244,7 @@
             }
             
             // ============================================
-            // الشارات والمكافآت (مصلح)
+            // الشارات والمكافآت
             // ============================================
             else if (section === 'badges') {
                 try {
@@ -1126,7 +1260,6 @@
 
                     const unlockedBadges = [];
                     
-                    // ✅ شارة الدخول (مصلحة)
                     try {
                         const q = query(collection(db, 'students'), where('code', '==', code));
                         const studentSnap = await getDocs(q);
@@ -1134,14 +1267,9 @@
                             const studentData = studentSnap.docs[0].data();
                             if (studentData.firstLogin) {
                                 unlockedBadges.push('first_login');
-                                console.log('✅ شارة الدخول مفتوحة للطالب:', code);
-                            } else {
-                                console.log('⚠️ الطالب لم يسجل الدخول بعد (firstLogin غير موجود)');
                             }
                         }
-                    } catch(e) {
-                        console.error('خطأ في جلب بيانات الطالب:', e);
-                    }
+                    } catch(e) {}
                     
                     if (watchedCount >= 5) unlockedBadges.push('watcher_5');
                     if (watchedCount >= 10) unlockedBadges.push('watcher_10');
@@ -1324,7 +1452,7 @@
         };
 
         // ============================================
-        // تسجيل الخروج
+        // تسجيل الخروج (باستخدام sendBeacon)
         // ============================================
         window.logoutStudent = function() {
             recordLogout();

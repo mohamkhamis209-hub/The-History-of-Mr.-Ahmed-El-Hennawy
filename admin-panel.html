@@ -429,24 +429,15 @@
 
         function loadPDF() {
             return new Promise((resolve, reject) => {
-                const script1 = document.createElement('script');
-                script1.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-                script1.onload = () => {
-                    const script2 = document.createElement('script');
-                    script2.src =
-                        'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js';
-                    script2.onload = () => {
-                        if (window.jspdf) {
-                            resolve();
-                        } else {
-                            reject(new Error('jsPDF not loaded'));
-                        }
-                    };
-                    script2.onerror = () => reject(new Error('فشل تحميل autoTable'));
-                    document.head.appendChild(script2);
-                };
-                script1.onerror = () => reject(new Error('فشل تحميل jsPDF'));
-                document.head.appendChild(script1);
+                if (window.html2pdf) {
+                    resolve();
+                    return;
+                }
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+                script.onload = () => resolve();
+                script.onerror = () => reject(new Error('فشل تحميل مكتبة PDF'));
+                document.head.appendChild(script);
             });
         }
 
@@ -524,7 +515,7 @@
         };
 
         // ============================================
-        // DASHBOARD
+        // DASHBOARD (مع عرض جميع الطلاب وليس آخر 5 فقط)
         // ============================================
         async function showDashboard() {
             const [studentsSnap, videosSnap, booksSnap, examsSnap, devicesSnap, attendanceSnap, sessionsSnap] = await Promise
@@ -549,6 +540,8 @@
                 todaySessions = 0;
             const today = new Date().toISOString().split('T')[0];
 
+            let allLogins = [];
+
             studentsSnap.forEach(doc => {
                 const data = doc.data();
                 totalStudents++;
@@ -558,6 +551,30 @@
                 if (data.grade === '1') grade1++;
                 else if (data.grade === '2') grade2++;
                 else if (data.grade === '3') grade3++;
+
+                // جمع جميع الطلاب مع آخر دخول
+                if (data.lastLogin) {
+                    allLogins.push({
+                        name: data.name || 'طالب',
+                        code: data.code,
+                        lastLogin: data.lastLogin.toDate(),
+                        grade: data.grade
+                    });
+                } else {
+                    allLogins.push({
+                        name: data.name || 'طالب',
+                        code: data.code,
+                        lastLogin: null,
+                        grade: data.grade
+                    });
+                }
+            });
+
+            // ترتيب حسب آخر دخول (الأحدث أولاً)
+            allLogins.sort((a, b) => {
+                if (!a.lastLogin) return 1;
+                if (!b.lastLogin) return -1;
+                return b.lastLogin - a.lastLogin;
             });
 
             attendanceSnap.forEach(doc => {
@@ -573,6 +590,19 @@
                     todaySessions++;
                 }
             });
+
+            // بناء جدول جميع الطلاب
+            let studentsTableRows = allLogins.map(s => {
+                const gradeText = s.grade === '1' ? 'أولى ث' : s.grade === '2' ? 'ثانية ث' : s.grade === '3' ?
+                    'ثالثة ث' : '—';
+                const lastLoginFormatted = s.lastLogin ? new Date(s.lastLogin).toLocaleString('ar-EG') : '—';
+                return `<tr>
+                            <td style="padding:8px; border:1px solid #ddd;">${s.name}</td>
+                            <td style="padding:8px; border:1px solid #ddd;">${s.code}</td>
+                            <td style="padding:8px; border:1px solid #ddd;">${gradeText}</td>
+                            <td style="padding:8px; border:1px solid #ddd;">${lastLoginFormatted}</td>
+                        </tr>`;
+            }).join('');
 
             let html = `
                 <h2>📊 لوحة التحكم</h2>
@@ -644,13 +674,29 @@
                             </div>
                         </div>
                     </div>
+                    <div style="background:white; padding:20px; border-radius:15px; box-shadow:0 2px 10px rgba(0,0,0,0.05);">
+                        <h3 style="margin-bottom:15px;">🕐 جميع الطلاب وآخر دخول</h3>
+                        <div style="max-height:400px; overflow-y:auto; margin-top:10px;">
+                            <table style="width:100%; border-collapse:collapse; font-size:13px;">
+                                <thead>
+                                    <tr style="background:#2c3e50; color:white;">
+                                        <th style="padding:8px; border:1px solid #ddd;">الاسم</th>
+                                        <th style="padding:8px; border:1px solid #ddd;">الكود</th>
+                                        <th style="padding:8px; border:1px solid #ddd;">الصف</th>
+                                        <th style="padding:8px; border:1px solid #ddd;">آخر دخول</th>
+                                    </tr>
+                                </thead>
+                                <tbody>${studentsTableRows}</tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             `;
             document.getElementById('content-area').innerHTML = html;
         }
 
         // ============================================
-        // ATTENDANCE REPORT (مع عرض وقت الخروج والمدة)
+        // ATTENDANCE REPORT
         // ============================================
         window.showAttendanceReport = async function() {
             const gradeFilter = document.getElementById('filterAttendanceGrade')?.value || 'all';
@@ -745,7 +791,7 @@
         };
 
         // ============================================
-        // SESSIONS (جلسات الطلاب)
+        // SESSIONS (تم التعديل الكامل هنا)
         // ============================================
         window.showAllSessions = async function() {
             const gradeFilter = document.getElementById('filterSessionsGrade')?.value || 'all';
@@ -770,7 +816,7 @@
                             <input type="date" id="filterSessionsDate" value="${dateFilter}" onchange="showAllSessions()">
                             <button onclick="document.getElementById('filterSessionsDate').value=''; showAllSessions();" class="btn-sm btn-clear">✖️ إلغاء الفلترة</button>
                         </div>
-                        <div style="overflow-x:auto;">`;
+                        <div style="margin-top:20px;">`;
 
             let found = false;
             for (const doc of studentsSnap.docs) {
@@ -791,32 +837,54 @@
                 }
 
                 const sessionsSnap = await getDocs(sessionsQuery);
+                const sessionsList = [];
+                sessionsSnap.forEach(s => {
+                    sessionsList.push({ id: s.id, ...s.data() });
+                });
 
-                if (!sessionsSnap.empty) {
+                // ترتيب الجلسات من الأحدث إلى الأقدم (حسب وقت الدخول)
+                sessionsList.sort((a, b) => {
+                    const timeA = a.loginTimeMs || 0;
+                    const timeB = b.loginTimeMs || 0;
+                    return timeB - timeA;
+                });
+
+                if (sessionsList.length > 0) {
                     found = true;
-                    html += `<h3 style="margin-top:20px;">${student.name} (${code})</h3>
-                            <table border="1" cellpadding="8" style="width:100%; border-collapse:collapse; background:white; margin-bottom:10px;">
-                                <tr>
-                                    <th>اليوم</th>
-                                    <th>وقت الدخول</th>
-                                    <th>وقت الخروج</th>
-                                    <th>المدة (دقائق)</th>
-                                </tr>`;
-                    sessionsSnap.forEach(s => {
-                        const data = s.data();
-                        html += `<tr>
-                                    <td>${data.date || ''}</td>
-                                    <td>${data.loginTimeString || ''}</td>
-                                    <td>${data.logoutTimeString || '—'}</td>
-                                    <td>${data.duration || 0}</td>
-                                </tr>`;
+                    html += `
+                        <div style="background:white; padding:15px; border-radius:15px; box-shadow:0 2px 10px rgba(0,0,0,0.05); margin-bottom:20px;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
+                                <h3 style="margin:0;">${student.name || 'طالب'} (${code})</h3>
+                                <span style="background:#3498db; color:white; padding:4px 12px; border-radius:50px; font-size:14px;">🔁 عدد الجلسات: ${sessionsList.length}</span>
+                            </div>
+                            <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap:10px;">`;
+
+                    sessionsList.forEach((session, index) => {
+                        const loginTime = session.loginTimeString || (session.loginTime?.toDate?.()?.toLocaleTimeString('ar-EG') || '—');
+                        const logoutTime = session.logoutTimeString || (session.logoutTime?.toDate?.()?.toLocaleTimeString('ar-EG') || '—');
+                        const duration = session.duration || 0;
+
+                        html += `
+                            <div style="background:#f8f9fa; border-radius:12px; padding:12px; border-right:3px solid #2ecc71; transition:0.3s;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                                    <span style="font-weight:bold; color:#2c3e50;">🔹 جلسة ${index + 1}</span>
+                                    <span style="font-size:12px; color:#888;">${session.date || ''}</span>
+                                </div>
+                                <div style="display:flex; flex-direction:column; gap:3px; font-size:14px;">
+                                    <span>⏰ دخول: ${loginTime}</span>
+                                    <span>⏰ خروج: ${logoutTime}</span>
+                                    <span>⏱️ المدة: ${duration} دقيقة</span>
+                                </div>
+                            </div>
+                        `;
                     });
-                    html += `</table>`;
+
+                    html += `</div></div>`;
                 }
             }
 
             if (!found) {
-                html += `<p style="text-align:center; padding:20px;">لا توجد جلسات مسجلة</p>`;
+                html += `<p style="text-align:center; padding:30px; color:#888;">لا توجد جلسات مسجلة</p>`;
             }
 
             html += `</div>`;
@@ -931,7 +999,7 @@
         };
 
         // ============================================
-        // ADVANCED STATS (مع إصلاح أخطاء Chart.js)
+        // ADVANCED STATS
         // ============================================
         window.showAdvancedStats = async function() {
             await loadChartJS();
@@ -959,15 +1027,12 @@
 
             document.getElementById('content-area').innerHTML = html;
 
-            // ✅ انتظر حتى يتحدّث DOM
             await new Promise(resolve => setTimeout(resolve, 200));
-
             await renderCharts();
         };
 
         async function renderCharts() {
             try {
-                // ✅ انتظر شوية عشان العناصر تظهر في DOM
                 await new Promise(resolve => setTimeout(resolve, 100));
 
                 const studentsSnap = await getDocs(collection(db, 'students'));
@@ -981,7 +1046,6 @@
                     else if (data.grade === '3') grade3++;
                 });
 
-                // ✅ تحقق من وجود العنصر قبل إنشاء الرسم
                 const gradeChartEl = document.getElementById('gradeChart');
                 if (gradeChartEl) {
                     new Chart(gradeChartEl, {
@@ -1197,7 +1261,7 @@
         window.clearSearch = function() { document.getElementById('searchStudent').value = ''; showStudents(); };
 
         // ============================================
-        // STUDENT SESSIONS (جلسات طالب معين)
+        // STUDENT SESSIONS (لطالب واحد)
         // ============================================
         window.showStudentSessions = async function(studentCode) {
             const sessionsSnap = await getDocs(query(
@@ -1205,7 +1269,6 @@
                 where('studentCode', '==', studentCode)
             ));
 
-            // جلب بيانات الطالب
             const studentSnap = await getDocs(query(collection(db, 'students'), where('code', '==', studentCode)));
             let studentName = 'طالب';
             if (!studentSnap.empty) {
@@ -1242,7 +1305,7 @@
         };
 
         // ============================================
-        // DELETE STUDENT (مع تحديث المتصدرين)
+        // DELETE STUDENT
         // ============================================
         window.deleteStudent = async function(code) {
             if (!confirm('حذف الطالب نهائياً؟')) return;
@@ -1277,7 +1340,7 @@
         };
 
         // ============================================
-        // PROGRESS (مع عرض المدة بالدقائق)
+        // PROGRESS
         // ============================================
         window.showStudentProgress = async function(studentCode) {
             const q = query(collection(db, 'students'), where('code', '==', studentCode));
@@ -1500,9 +1563,8 @@
         };
 
         // ============================================
-        // VIDEOS (مع دعم الروابط العادية وزر إنهاء البث)
+        // VIDEOS
         // ============================================
-
         function extractYouTubeId(url) {
             if (!url) return null;
             const watchMatch = url.match(/youtube\.com\/watch\?v=([^&]+)/);
@@ -1658,7 +1720,7 @@
         };
 
         // ============================================
-        // BOOKS (مع دعم Google Drive وعرض للمشرف)
+        // BOOKS (مع إضافة rm=minimal لمنع التحميل)
         // ============================================
         window.addBook = async function() {
             const title = document.getElementById('bookTitle').value.trim();
@@ -1676,6 +1738,12 @@
                 const match = url.match(/id=([^&]+)/);
                 if (match) {
                     url = `https://drive.google.com/file/d/${match[1]}/preview`;
+                }
+            }
+            // إضافة rm=minimal لمنع التحميل والطباعة
+            if (url.includes('drive.google.com')) {
+                if (!url.includes('rm=minimal')) {
+                    url += url.includes('?') ? '&rm=minimal' : '?rm=minimal';
                 }
             }
 
@@ -1738,9 +1806,16 @@
             books.forEach(b => {
                 const gradeText = b.grade === 'all' ? 'للجميع' : b.grade === '1' ? 'أولى ث' : b.grade ===
                     '2' ? 'ثانية ث' : 'ثالثة ث';
+                // التأكد من وجود rm=minimal في الرابط
+                let url = b.url;
+                if (url.includes('drive.google.com')) {
+                    if (!url.includes('rm=minimal')) {
+                        url += url.includes('?') ? '&rm=minimal' : '?rm=minimal';
+                    }
+                }
                 html += `<div style="border:1px solid #ddd; padding:15px; margin:15px 0; border-radius:10px; background:white;">
                             <h4>${b.title} <span class="grade-badge grade-${b.grade}">${gradeText}</span></h4>
-                            <iframe src="${b.url}" 
+                            <iframe src="${url}" 
                                     width="100%" 
                                     height="500" 
                                     frameborder="0" 
@@ -2125,7 +2200,7 @@
         };
 
         // ============================================
-        // EXPORT STUDENT CODES (نسخة Excel - 6 أعمدة - A4 أفقي)
+        // EXPORT FUNCTIONS (كاملة)
         // ============================================
         window.exportStudentCodes = async function() {
             try {
@@ -2201,9 +2276,102 @@
             }
         };
 
-        // ============================================
-        // EXPORT STUDENT CODES PDF (نسخة 3 أعمدة - A4 أفقي)
-        // ============================================
+        window.exportAllStudentsPDF = async function() {
+            try {
+                const snap = await getDocs(collection(db, 'students'));
+                let students = [];
+                snap.forEach(doc => {
+                    const data = doc.data();
+                    students.push({
+                        name: data.name || '—',
+                        code: data.code || '—',
+                        grade: data.grade === '1' ? 'أولى ثانوي' : data.grade === '2' ? 'ثانية ثانوي' :
+                            data.grade === '3' ? 'ثالثة ثانوي' : '—',
+                        phone: data.phone || '—',
+                        parentPhone: data.parentPhone || '—',
+                        status: data.status === 'active' ? 'نشط' : data.status === 'suspended' ? 'معلق' :
+                            'غير نشط',
+                        lastLogin: data.lastLogin ? new Date(data.lastLogin.toDate()).toLocaleString(
+                        'ar-EG') : '—',
+                        devices: (data.deviceIds || []).length
+                    });
+                });
+
+                if (students.length === 0) return alert('لا يوجد طلاب');
+
+                await loadPDF();
+
+                const element = document.createElement('div');
+                element.style.direction = 'rtl';
+                element.style.fontFamily = 'Tajawal, Arial, sans-serif';
+                element.style.padding = '20px';
+                element.style.background = 'white';
+
+                const header = `
+                    <div style="display:flex; align-items:center; gap:10px; margin-bottom:20px; border-bottom:2px solid #2c3e50; padding-bottom:15px;">
+                        <img src="assets/logo.jpg" style="width:60px; height:60px; border-radius:50%; object-fit:cover;" alt="شعار المنصة">
+                        <div>
+                            <h1 style="color:#2c3e50; margin:0; font-size:22px;">منصة تعليمية</h1>
+                            <p style="color:#7f8c8d; margin:0; font-size:12px;">تقرير شامل عن الطلاب</p>
+                        </div>
+                    </div>
+                `;
+
+                let tableRows = students.map(s => `
+                    <tr style="page-break-inside: avoid;">
+                        <td style="border:1px solid #ccc; padding:8px; text-align:center;">${s.name}</td>
+                        <td style="border:1px solid #ccc; padding:8px; text-align:center;">${s.code}</td>
+                        <td style="border:1px solid #ccc; padding:8px; text-align:center;">${s.grade}</td>
+                        <td style="border:1px solid #ccc; padding:8px; text-align:center;">${s.phone}</td>
+                        <td style="border:1px solid #ccc; padding:8px; text-align:center;">${s.parentPhone}</td>
+                        <td style="border:1px solid #ccc; padding:8px; text-align:center;">${s.status}</td>
+                        <td style="border:1px solid #ccc; padding:8px; text-align:center;">${s.lastLogin}</td>
+                        <td style="border:1px solid #ccc; padding:8px; text-align:center;">${s.devices}</td>
+                    </tr>
+                `).join('');
+
+                element.innerHTML = `
+                    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
+                    ${header}
+                    <h2 style="text-align:center; color:#2c3e50; margin:10px 0;">📊 تقرير جميع الطلاب</h2>
+                    <p style="text-align:center; color:#7f8c8d; margin-bottom:15px;">تاريخ التقرير: ${new Date().toLocaleDateString('ar-EG')}</p>
+                    <table style="width:100%; border-collapse:collapse; font-size:12px;">
+                        <thead>
+                            <tr style="background:#2c3e50; color:white;">
+                                <th style="padding:10px; border:1px solid #ccc;">الاسم</th>
+                                <th style="padding:10px; border:1px solid #ccc;">الكود</th>
+                                <th style="padding:10px; border:1px solid #ccc;">الصف</th>
+                                <th style="padding:10px; border:1px solid #ccc;">التليفون</th>
+                                <th style="padding:10px; border:1px solid #ccc;">ولي الأمر</th>
+                                <th style="padding:10px; border:1px solid #ccc;">الحالة</th>
+                                <th style="padding:10px; border:1px solid #ccc;">آخر دخول</th>
+                                <th style="padding:10px; border:1px solid #ccc;">الأجهزة</th>
+                            </tr>
+                        </thead>
+                        <tbody>${tableRows}</tbody>
+                    </table>
+                    <div style="text-align:center; color:#7f8c8d; font-size:10px; margin-top:15px; border-top:1px solid #ddd; padding-top:10px;">
+                        © ${new Date().getFullYear()} منصة تعليمية - جميع الحقوق محفوظة
+                    </div>
+                `;
+
+                const opt = {
+                    margin: 10,
+                    filename: `تقرير_الطلاب_${new Date().toLocaleDateString('ar-EG')}.pdf`,
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 2, useCORS: true },
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
+                    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+                };
+
+                html2pdf().set(opt).from(element).save();
+                alert('✅ تم تحميل التقرير بنجاح');
+            } catch (error) {
+                console.error(error);
+                alert('❌ حدث خطأ: ' + error.message);
+            }
+        };
+
         window.exportStudentCodesPDF = async function() {
             try {
                 const snap = await getDocs(collection(db, 'students'));
@@ -2218,111 +2386,67 @@
                     });
                 });
 
+                if (students.length === 0) return alert('لا يوجد طلاب');
+
+                await loadPDF();
+
+                const element = document.createElement('div');
+                element.style.direction = 'rtl';
+                element.style.fontFamily = 'Tajawal, Arial, sans-serif';
+                element.style.padding = '15px';
+                element.style.background = 'white';
+
                 const gradeOrder = { 'أولى ثانوي': 1, 'ثانية ثانوي': 2, 'ثالثة ثانوي': 3 };
                 students.sort((a, b) => (gradeOrder[a.grade] || 99) - (gradeOrder[b.grade] || 99));
 
-                if (students.length === 0) {
-                    alert('لا يوجد طلاب');
-                    return;
-                }
+                const header = `
+                    <div style="display:flex; align-items:center; gap:10px; margin-bottom:15px; border-bottom:2px solid #2c3e50; padding-bottom:10px;">
+                        <img src="assets/logo.jpg" style="width:50px; height:50px; border-radius:50%; object-fit:cover;" alt="شعار المنصة">
+                        <div>
+                            <h1 style="color:#2c3e50; margin:0; font-size:20px;">منصة تعليمية</h1>
+                            <p style="color:#7f8c8d; margin:0; font-size:12px;">تقرير أكواد الطلاب</p>
+                        </div>
+                    </div>
+                `;
 
-                await loadPDF();
-                const { jsPDF } = window.jspdf;
+                let cardsHtml = students.map(s => `
+                    <div style="border:1px solid #3498db; border-radius:8px; padding:10px; background:#f8f9fa; text-align:right; page-break-inside: avoid;">
+                        <p style="margin:4px 0; font-weight:bold; color:#2c3e50;">الاسم: ${s.name}</p>
+                        <p style="margin:4px 0; color:#e67e22; font-weight:bold;">الكود: ${s.code}</p>
+                        <p style="margin:4px 0; color:#7f8c8d; font-size:12px;">الصف: ${s.grade}</p>
+                    </div>
+                `).join('');
 
-                const doc = new jsPDF('landscape', 'mm', 'a4');
-                const pageWidth = doc.internal.pageSize.getWidth();
-                const pageHeight = doc.internal.pageSize.getHeight();
+                element.innerHTML = `
+                    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
+                    ${header}
+                    <h2 style="text-align:center; color:#2c3e50; margin:5px 0;">🔑 تقرير أكواد الطلاب</h2>
+                    <p style="text-align:center; color:#7f8c8d; margin-bottom:15px;">تاريخ التقرير: ${new Date().toLocaleDateString('ar-EG')}</p>
+                    <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px;">
+                        ${cardsHtml}
+                    </div>
+                    <div style="text-align:center; color:#7f8c8d; font-size:10px; margin-top:15px; border-top:1px solid #ddd; padding-top:8px;">
+                        © ${new Date().getFullYear()} منصة تعليمية - جميع الحقوق محفوظة
+                    </div>
+                `;
 
-                doc.setFont('helvetica', 'bold');
-                doc.setFontSize(16);
-                doc.text('تقرير أكواد الطلاب', pageWidth / 2, 15, { align: 'center' });
-                doc.setFontSize(10);
-                doc.text(`تاريخ التقرير: ${new Date().toLocaleString('ar-EG')}`, pageWidth / 2, 22, { align: 'center' });
-
-                const margin = 10;
-                const gap = 4;
-                const colWidth = (pageWidth - (margin * 2) - (gap * 2)) / 3;
-                const rowHeight = 30;
-                const startY = 30;
-
-                const groupedStudents = {
-                    'أولى ثانوي': [],
-                    'ثانية ثانوي': [],
-                    'ثالثة ثانوي': []
+                const opt = {
+                    margin: 10,
+                    filename: `تقرير_أكواد_الطلاب_${new Date().toLocaleDateString('ar-EG')}.pdf`,
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 2, useCORS: true },
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
+                    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
                 };
 
-                students.forEach(s => {
-                    if (groupedStudents[s.grade]) {
-                        groupedStudents[s.grade].push(s);
-                    }
-                });
-
-                let currentY = startY;
-
-                for (const [gradeName, gradeStudents] of Object.entries(groupedStudents)) {
-                    if (gradeStudents.length === 0) continue;
-
-                    if (currentY + rowHeight + 10 > pageHeight - 15) {
-                        doc.addPage();
-                        currentY = startY;
-                    }
-
-                    doc.setFont('helvetica', 'bold');
-                    doc.setFontSize(12);
-                    doc.text(`📘 ${gradeName}`, margin, currentY + 5);
-                    currentY += 10;
-                    doc.setFont('helvetica', 'normal');
-                    doc.setFontSize(9);
-
-                    for (let i = 0; i < gradeStudents.length; i += 3) {
-                        const rowStudents = gradeStudents.slice(i, i + 3);
-
-                        if (currentY + rowHeight > pageHeight - 15) {
-                            doc.addPage();
-                            currentY = startY;
-                        }
-
-                        for (let j = 0; j < rowStudents.length; j++) {
-                            const x = margin + (j * (colWidth + gap));
-                            const y = currentY;
-                            drawStudentCardV3(doc, rowStudents[j], x, y, colWidth, rowHeight);
-                        }
-
-                        currentY += rowHeight + 3;
-                    }
-
-                    currentY += 8;
-                }
-
-                doc.save(`تقرير_أكواد_الطلاب_${new Date().toLocaleDateString('ar-EG')}.pdf`);
+                html2pdf().set(opt).from(element).save();
                 alert('✅ تم تحميل التقرير بنجاح');
-
             } catch (error) {
                 console.error('خطأ في PDF:', error);
                 alert('❌ حدث خطأ: ' + error.message);
             }
         };
 
-        function drawStudentCardV3(doc, student, x, y, width, height) {
-            doc.setDrawColor(180, 180, 180);
-            doc.setLineWidth(0.3);
-            doc.rect(x, y, width, height);
-
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(9);
-
-            const padding = 4;
-            const textX = x + padding;
-            const centerY = y + (height / 2);
-
-            doc.text(`الاسم: ${student.name}`, textX, centerY - 8);
-            doc.text(`الكود: ${student.code}`, textX, centerY + 1);
-            doc.text(`الصف: ${student.grade}`, textX, centerY + 10);
-        }
-
-        // ============================================
-        // EXPORT ALL STUDENTS
-        // ============================================
         window.exportAllStudents = async function() {
             try {
                 const snap = await getDocs(collection(db, 'students'));
@@ -2367,64 +2491,6 @@
             }
         };
 
-        window.exportAllStudentsPDF = async function() {
-            try {
-                const snap = await getDocs(collection(db, 'students'));
-                let students = [];
-                snap.forEach(doc => {
-                    const data = doc.data();
-                    students.push({
-                        name: data.name || '',
-                        code: data.code || '',
-                        grade: data.grade === '1' ? 'أولى ثانوي' : data.grade === '2' ? 'ثانية ثانوي' :
-                            data.grade === '3' ? 'ثالثة ثانوي' : '—',
-                        phone: data.phone || '—',
-                        parentPhone: data.parentPhone || '—',
-                        status: data.status === 'active' ? 'نشط' : data.status === 'suspended' ? 'معلق' :
-                            'غير نشط',
-                        lastLogin: data.lastLogin ? new Date(data.lastLogin.toDate()).toLocaleString() :
-                            '—',
-                        devices: (data.deviceIds || []).length
-                    });
-                });
-
-                if (students.length === 0) {
-                    alert('لا يوجد طلاب');
-                    return;
-                }
-
-                await loadPDF();
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF('landscape', 'pt', 'a4');
-                doc.setFont('helvetica', 'bold');
-                doc.setFontSize(14);
-                doc.text('تقرير جميع الطلاب', 14, 30);
-                doc.setFontSize(10);
-                doc.text(`تاريخ التقرير: ${new Date().toLocaleString('ar-EG')}`, 14, 50);
-
-                const tableData = students.map(s => [
-                    s.name, s.code, s.grade, s.phone, s.parentPhone, s.status, s.lastLogin, s.devices.toString()
-                ]);
-                doc.autoTable({
-                    head: [
-                        ['الاسم', 'الكود', 'الصف', 'التليفون', 'ولي الأمر', 'الحالة', 'آخر دخول', 'الأجهزة']
-                    ],
-                    body: tableData,
-                    startY: 60,
-                    styles: { font: 'helvetica', fontSize: 8 },
-                    headStyles: { fillColor: [44, 62, 80] }
-                });
-                doc.save(`تقرير_الطلاب_${new Date().toLocaleDateString()}.pdf`);
-                alert('✅ تم تحميل التقرير بنجاح');
-            } catch (error) {
-                console.error(error);
-                alert('❌ حدث خطأ: ' + error.message);
-            }
-        };
-
-        // ============================================
-        // EXPORT STUDENT PROGRESS
-        // ============================================
         window.exportStudentProgress = async function() {
             try {
                 const studentsSnap = await getDocs(collection(db, 'students'));
@@ -2543,27 +2609,65 @@
                 }
 
                 await loadPDF();
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF('landscape', 'pt', 'a4');
-                doc.setFont('helvetica', 'bold');
-                doc.setFontSize(14);
-                doc.text('تقرير تقدم الطلاب', 14, 30);
-                doc.setFontSize(10);
-                doc.text(`تاريخ التقرير: ${new Date().toLocaleString('ar-EG')}`, 14, 50);
 
-                const tableData = report.map(s => [
-                    s.name, s.code, s.grade, s.devices.toString(), s.progress
-                ]);
-                doc.autoTable({
-                    head: [
-                        ['اسم الطالب', 'الكود', 'الصف', 'الأجهزة', 'التقدم']
-                    ],
-                    body: tableData,
-                    startY: 60,
-                    styles: { font: 'helvetica', fontSize: 8 },
-                    headStyles: { fillColor: [41, 128, 185] }
-                });
-                doc.save(`تقرير_تقدم_الطلاب_${new Date().toLocaleDateString()}.pdf`);
+                const element = document.createElement('div');
+                element.style.direction = 'rtl';
+                element.style.fontFamily = 'Tajawal, Arial, sans-serif';
+                element.style.padding = '20px';
+                element.style.background = 'white';
+
+                const header = `
+                    <div style="display:flex; align-items:center; gap:10px; margin-bottom:20px; border-bottom:2px solid #2c3e50; padding-bottom:15px;">
+                        <img src="assets/logo.jpg" style="width:60px; height:60px; border-radius:50%; object-fit:cover;" alt="شعار المنصة">
+                        <div>
+                            <h1 style="color:#2c3e50; margin:0; font-size:22px;">منصة تعليمية</h1>
+                            <p style="color:#7f8c8d; margin:0; font-size:12px;">تقرير تقدم الطلاب</p>
+                        </div>
+                    </div>
+                `;
+
+                let tableRows = report.map(r => `
+                    <tr style="page-break-inside: avoid;">
+                        <td style="border:1px solid #ccc; padding:8px; text-align:center;">${r.name}</td>
+                        <td style="border:1px solid #ccc; padding:8px; text-align:center;">${r.code}</td>
+                        <td style="border:1px solid #ccc; padding:8px; text-align:center;">${r.grade}</td>
+                        <td style="border:1px solid #ccc; padding:8px; text-align:center;">${r.devices}</td>
+                        <td style="border:1px solid #ccc; padding:8px; text-align:center;">${r.progress}</td>
+                    </tr>
+                `).join('');
+
+                element.innerHTML = `
+                    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
+                    ${header}
+                    <h2 style="text-align:center; color:#2c3e50; margin:10px 0;">📊 تقرير تقدم الطلاب</h2>
+                    <p style="text-align:center; color:#7f8c8d; margin-bottom:15px;">تاريخ التقرير: ${new Date().toLocaleDateString('ar-EG')}</p>
+                    <table style="width:100%; border-collapse:collapse; font-size:11px;">
+                        <thead>
+                            <tr style="background:#2c3e50; color:white;">
+                                <th style="padding:10px; border:1px solid #ccc;">اسم الطالب</th>
+                                <th style="padding:10px; border:1px solid #ccc;">الكود</th>
+                                <th style="padding:10px; border:1px solid #ccc;">الصف</th>
+                                <th style="padding:10px; border:1px solid #ccc;">الأجهزة</th>
+                                <th style="padding:10px; border:1px solid #ccc;">التقدم</th>
+                            </tr>
+                        </thead>
+                        <tbody>${tableRows}</tbody>
+                    </table>
+                    <div style="text-align:center; color:#7f8c8d; font-size:10px; margin-top:15px; border-top:1px solid #ddd; padding-top:10px;">
+                        © ${new Date().getFullYear()} منصة تعليمية - جميع الحقوق محفوظة
+                    </div>
+                `;
+
+                const opt = {
+                    margin: 10,
+                    filename: `تقرير_تقدم_الطلاب_${new Date().toLocaleDateString('ar-EG')}.pdf`,
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 2, useCORS: true },
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
+                    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+                };
+
+                html2pdf().set(opt).from(element).save();
                 alert('✅ تم تحميل التقرير بنجاح');
             } catch (error) {
                 console.error(error);
@@ -2572,7 +2676,7 @@
         };
 
         // ============================================
-        // BADGES MANAGEMENT
+        // BADGES MANAGEMENT (مكتملة)
         // ============================================
         window.showBadgesManagement = async function() {
             const studentsSnap = await getDocs(collection(db, 'students'));
@@ -2583,14 +2687,18 @@
                             <tr>
                                 <th>الاسم</th>
                                 <th>الكود</th>
+                                <th>الصف</th>
+                                <th>عدد الفيديوهات</th>
                                 <th>الشارات</th>
                             </tr>`;
             if (studentsSnap.empty) {
-                html += `<tr><td colspan="3" style="text-align:center;">لا يوجد طلاب</td></tr>`;
+                html += `<tr><td colspan="5" style="text-align:center;">لا يوجد طلاب</td></tr>`;
             } else {
                 for (const doc of studentsSnap.docs) {
                     const student = doc.data();
                     const code = student.code;
+                    const gradeText = student.grade === '1' ? 'أولى ث' : student.grade === '2' ? 'ثانية ث' : student
+                        .grade === '3' ? 'ثالثة ث' : '—';
                     const progressSnap = await getDocs(query(collection(db, 'progress'), where('studentCode', '==',
                     code)));
                     let watchedCount = 0;
@@ -2608,6 +2716,8 @@
                     html += `<tr>
                                 <td><strong>${student.name || ''}</strong></td>
                                 <td>${code}</td>
+                                <td>${gradeText}</td>
+                                <td>${watchedCount}</td>
                                 <td>${badgeString}</td>
                             </tr>`;
                 }
@@ -2617,7 +2727,7 @@
         };
 
         // ============================================
-        // DANGER ZONE
+        // DANGER ZONE (مكتملة)
         // ============================================
         window.showDangerZone = function() {
             let html = `
@@ -2645,48 +2755,7 @@
         };
 
         // ============================================
-        // DELETE ALL SESSIONS
-        // ============================================
-        window.deleteAllSessions = async function() {
-            if (!confirm('⚠️ تحذير: أنت على وشك حذف جميع جلسات الطلاب نهائياً! هل أنت متأكد؟')) return;
-            if (!confirm('تأكيد نهائي: هل تريد حذف جميع جلسات الطلاب؟ لا يمكن التراجع عن هذا الإجراء!')) return;
-            try {
-                const snap = await getDocs(collection(db, 'sessions'));
-                let count = 0;
-                for (const doc of snap.docs) {
-                    await deleteDoc(doc.ref);
-                    count++;
-                }
-                alert(`✅ تم حذف ${count} جلسة بنجاح`);
-                showDangerZone();
-            } catch (error) {
-                alert('❌ حدث خطأ: ' + error.message);
-            }
-        };
-
-        // ============================================
-        // DELETE ALL LEADERBOARD
-        // ============================================
-        window.deleteAllLeaderboard = async function() {
-            if (!confirm('⚠️ تحذير: أنت على وشك حذف جميع بيانات المتصدرين نهائياً! هل أنت متأكد؟')) return;
-            if (!confirm('تأكيد نهائي: هل تريد حذف جميع بيانات المتصدرين؟ سيتم إعادة ترتيبهم تلقائياً عند إضافة طلاب جدد.'))
-                return;
-            try {
-                const snap = await getDocs(collection(db, 'leaderboard'));
-                let count = 0;
-                for (const doc of snap.docs) {
-                    await deleteDoc(doc.ref);
-                    count++;
-                }
-                alert(`✅ تم حذف ${count} سجل متصدرين بنجاح`);
-                showDangerZone();
-            } catch (error) {
-                alert('❌ حدث خطأ: ' + error.message);
-            }
-        };
-
-        // ============================================
-        // DELETE FUNCTIONS
+        // DELETE ALL FUNCTIONS
         // ============================================
         window.deleteAllStudents = async function() {
             if (!confirm('⚠️ تحذير: أنت على وشك حذف جميع الطلاب نهائياً! هل أنت متأكد؟')) return;
@@ -2801,6 +2870,41 @@
                     count++;
                 }
                 alert(`✅ تم حذف ${count} سجل حضور بنجاح`);
+                showDangerZone();
+            } catch (error) {
+                alert('❌ حدث خطأ: ' + error.message);
+            }
+        };
+
+        window.deleteAllSessions = async function() {
+            if (!confirm('⚠️ تحذير: أنت على وشك حذف جميع جلسات الطلاب نهائياً! هل أنت متأكد؟')) return;
+            if (!confirm('تأكيد نهائي: هل تريد حذف جميع جلسات الطلاب؟ لا يمكن التراجع عن هذا الإجراء!')) return;
+            try {
+                const snap = await getDocs(collection(db, 'sessions'));
+                let count = 0;
+                for (const doc of snap.docs) {
+                    await deleteDoc(doc.ref);
+                    count++;
+                }
+                alert(`✅ تم حذف ${count} جلسة بنجاح`);
+                showDangerZone();
+            } catch (error) {
+                alert('❌ حدث خطأ: ' + error.message);
+            }
+        };
+
+        window.deleteAllLeaderboard = async function() {
+            if (!confirm('⚠️ تحذير: أنت على وشك حذف جميع بيانات المتصدرين نهائياً! هل أنت متأكد؟')) return;
+            if (!confirm('تأكيد نهائي: هل تريد حذف جميع بيانات المتصدرين؟ سيتم إعادة ترتيبهم تلقائياً عند إضافة طلاب جدد.'))
+                return;
+            try {
+                const snap = await getDocs(collection(db, 'leaderboard'));
+                let count = 0;
+                for (const doc of snap.docs) {
+                    await deleteDoc(doc.ref);
+                    count++;
+                }
+                alert(`✅ تم حذف ${count} سجل متصدرين بنجاح`);
                 showDangerZone();
             } catch (error) {
                 alert('❌ حدث خطأ: ' + error.message);
