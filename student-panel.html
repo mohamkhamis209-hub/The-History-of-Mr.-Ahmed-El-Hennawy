@@ -882,7 +882,7 @@
         }
 
         // ============================================
-        // تهيئة مشغلات YouTube (مع تعطيل الأزرار الجانبية)
+        // تهيئة مشغلات YouTube (تعطيل زر المشاركة والنسخ فقط)
         // ============================================
         function initYouTubePlayers(videosData) {
             window.onYouTubeIframeAPIReady = function() {
@@ -931,15 +931,9 @@
                                     'autoplay': 0,
                                     'enablejsapi': 1,
                                     'origin': window.location.origin,
-                                    // ===== تعطيل الأزرار الجانبية =====
+                                    // ===== تعطيل زر المشاركة والنسخ فقط =====
                                     'showinfo': 0,
-                                    'disablekb': 1,
-                                    'playsinline': 1,
-                                    'widgetid': 1,
-                                    'loop': 0,
-                                    'playlist': youtubeId,
-                                    'hl': 'ar',
-                                    'cc_lang_pref': 'ar'
+                                    'rel': 0
                                 },
                                 events: {
                                     'onReady': function(event) {
