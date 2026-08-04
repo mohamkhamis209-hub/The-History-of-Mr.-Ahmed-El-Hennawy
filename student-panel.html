@@ -75,10 +75,33 @@
             return false;
         });
 
-        // 5. منع النسخ
+        // 5. منع النسخ (الأهم)
         document.addEventListener('copy', function(e) {
             e.preventDefault();
             return false;
+        });
+
+        // 6. منع النسخ من الـ iframe (يوتيوب)
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(() => {
+                document.querySelectorAll('iframe').forEach(iframe => {
+                    try {
+                        iframe.onload = function() {
+                            try {
+                                // محاولة منع النسخ داخل iframe
+                                iframe.contentDocument.addEventListener('copy', function(e) {
+                                    e.preventDefault();
+                                    return false;
+                                });
+                                iframe.contentDocument.addEventListener('contextmenu', function(e) {
+                                    e.preventDefault();
+                                    return false;
+                                });
+                            } catch(e) {}
+                        };
+                    } catch(e) {}
+                });
+            }, 1500);
         });
 
         console.log('🛡️ تم تفعيل الحماية ضد النسخ');
@@ -103,6 +126,7 @@
             -moz-user-select: none;
             -ms-user-select: none;
             user-select: none;
+            pointer-events: none; /* يمنع التفاعل مع iframe بالكامل - اختياري */
         }
         
         img, video {
@@ -431,28 +455,6 @@
         if (localStorage.getItem('darkMode') === 'true') {
             document.body.classList.add('dark-mode');
         }
-
-        // منع النسخ من الـ iframe بعد تحميلها
-        document.addEventListener('DOMContentLoaded', function() {
-            setTimeout(() => {
-                document.querySelectorAll('iframe').forEach(iframe => {
-                    try {
-                        iframe.onload = function() {
-                            try {
-                                iframe.contentDocument.addEventListener('copy', function(e) {
-                                    e.preventDefault();
-                                    return false;
-                                });
-                                iframe.contentDocument.addEventListener('contextmenu', function(e) {
-                                    e.preventDefault();
-                                    return false;
-                                });
-                            } catch(e) {}
-                        };
-                    } catch(e) {}
-                });
-            }, 1000);
-        });
     </script>
 
     <div class="sidebar">
@@ -882,7 +884,7 @@
         }
 
         // ============================================
-        // تهيئة مشغلات YouTube (تعطيل زر المشاركة والنسخ فقط)
+        // تهيئة مشغلات YouTube
         // ============================================
         function initYouTubePlayers(videosData) {
             window.onYouTubeIframeAPIReady = function() {
@@ -931,9 +933,8 @@
                                     'autoplay': 0,
                                     'enablejsapi': 1,
                                     'origin': window.location.origin,
-                                    // ===== تعطيل زر المشاركة والنسخ فقط =====
                                     'showinfo': 0,
-                                    'rel': 0
+                                    'disablekb': 1
                                 },
                                 events: {
                                     'onReady': function(event) {
