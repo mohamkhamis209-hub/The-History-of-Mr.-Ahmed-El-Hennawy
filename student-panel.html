@@ -6,7 +6,116 @@
     <title>لوحة الطالب</title>
     <link rel="stylesheet" href="css/style.css">
     <script src="https://www.youtube.com/iframe_api"></script>
+    
+    <!-- ============================================ -->
+    <!-- حماية ضد نسخ الروابط والمحتوى                -->
+    <!-- ============================================ -->
+    <script>
+        // 1. منع قائمة النقر بزر الماوس الأيمن
+        document.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            return false;
+        });
+
+        // 2. منع اختصارات النسخ والتحكم
+        document.addEventListener('keydown', function(e) {
+            const ctrl = e.ctrlKey || e.metaKey;
+            
+            // منع Ctrl+C (نسخ)
+            if (ctrl && e.key === 'c') {
+                e.preventDefault();
+                return false;
+            }
+            // منع Ctrl+U (عرض المصدر)
+            if (ctrl && e.key === 'u') {
+                e.preventDefault();
+                return false;
+            }
+            // منع Ctrl+Shift+I (أدوات المطور)
+            if (ctrl && e.shiftKey && e.key === 'I') {
+                e.preventDefault();
+                return false;
+            }
+            // منع F12 (أدوات المطور)
+            if (e.key === 'F12') {
+                e.preventDefault();
+                return false;
+            }
+            // منع Ctrl+S (حفظ الصفحة)
+            if (ctrl && e.key === 's') {
+                e.preventDefault();
+                return false;
+            }
+            // منع Ctrl+P (طباعة)
+            if (ctrl && e.key === 'p') {
+                e.preventDefault();
+                return false;
+            }
+            // منع Ctrl+A (تحديد الكل)
+            if (ctrl && e.key === 'a') {
+                e.preventDefault();
+                return false;
+            }
+            // منع Ctrl+Shift+J (الكونسول)
+            if (ctrl && e.shiftKey && e.key === 'J') {
+                e.preventDefault();
+                return false;
+            }
+        });
+
+        // 3. منع السحب (Drag) للصور والروابط
+        document.addEventListener('dragstart', function(e) {
+            e.preventDefault();
+            return false;
+        });
+
+        // 4. منع تحديد النص
+        document.addEventListener('selectstart', function(e) {
+            e.preventDefault();
+            return false;
+        });
+
+        // 5. منع النسخ
+        document.addEventListener('copy', function(e) {
+            e.preventDefault();
+            return false;
+        });
+
+        console.log('🛡️ تم تفعيل الحماية ضد النسخ');
+    </script>
+    <!-- ============================================ -->
+    <!-- نهاية الحماية                                -->
+    <!-- ============================================ -->
+
     <style>
+        /* ============================================ */
+        /* إضافات منع النسخ في CSS                      */
+        /* ============================================ */
+        body {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+        
+        iframe {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+        
+        img, video {
+            -webkit-user-drag: none;
+            -khtml-user-drag: none;
+            -moz-user-drag: none;
+            -o-user-drag: none;
+            user-drag: none;
+        }
+        /* ============================================ */
+        /* نهاية إضافات منع النسخ                       */
+        /* ============================================ */
+
         .header-bar {
             display: flex;
             justify-content: space-between;
@@ -292,13 +401,27 @@
             document.body.classList.add('dark-mode');
         }
 
-        document.addEventListener('contextmenu', e => e.preventDefault());
-        document.addEventListener('dragstart', e => e.preventDefault());
-        document.addEventListener('touchstart', (e) => {
-            if (e.target.tagName === 'IMG' || e.target.tagName === 'VIDEO') {
-                e.preventDefault();
-            }
-        }, { passive: false });
+        // منع النسخ من الـ iframe بعد تحميلها
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(() => {
+                document.querySelectorAll('iframe').forEach(iframe => {
+                    try {
+                        iframe.onload = function() {
+                            try {
+                                iframe.contentDocument.addEventListener('copy', function(e) {
+                                    e.preventDefault();
+                                    return false;
+                                });
+                                iframe.contentDocument.addEventListener('contextmenu', function(e) {
+                                    e.preventDefault();
+                                    return false;
+                                });
+                            } catch(e) {}
+                        };
+                    } catch(e) {}
+                });
+            }, 1000);
+        });
     </script>
 
     <div class="sidebar">
@@ -379,7 +502,7 @@
         }
 
         // ============================================
-        // نظام الحضور والجلسات (نسخة مستقرة مع sendBeacon)
+        // نظام الحضور والجلسات
         // ============================================
         async function recordLogin() {
             if (!studentCode) return;
@@ -388,7 +511,6 @@
                 const now = new Date();
                 entryTimestamp = now;
                 
-                // ✅ إنشاء جلسة جديدة
                 const sessionRef = await addDoc(collection(db, 'sessions'), {
                     studentCode: studentCode,
                     studentName: studentName,
@@ -406,7 +528,6 @@
                 });
                 currentSessionId = sessionRef.id;
                 
-                // ✅ بدء نبض القلب (تحديث كل 30 ثانية)
                 if (heartbeatInterval) clearInterval(heartbeatInterval);
                 heartbeatInterval = setInterval(async () => {
                     if (currentSessionId && studentCode) {
@@ -420,7 +541,6 @@
                     }
                 }, 30000);
                 
-                // ✅ تحديث attendance
                 const q = query(
                     collection(db, 'attendance'),
                     where('studentCode', '==', studentCode),
@@ -462,16 +582,12 @@
             }
         }
 
-        // ============================================
-        // تسجيل الخروج (نسخة مستقرة مع sendBeacon)
-        // ============================================
         async function recordLogout() {
             if (!studentCode) return;
             try {
                 const now = new Date();
                 const today = new Date().toISOString().split('T')[0];
                 
-                // ✅ 1. تحديث الجلسة الحالية
                 if (currentSessionId) {
                     try {
                         const sessionRef = doc(db, 'sessions', currentSessionId);
@@ -497,7 +613,6 @@
                     }
                 }
                 
-                // ✅ 2. تحديث attendance
                 const q = query(
                     collection(db, 'attendance'),
                     where('studentCode', '==', studentCode),
@@ -524,7 +639,6 @@
                     console.log('✅ تم تحديث attendance');
                 }
                 
-                // ✅ إيقاف نبض القلب
                 if (heartbeatInterval) {
                     clearInterval(heartbeatInterval);
                     heartbeatInterval = null;
@@ -536,9 +650,6 @@
             }
         }
 
-        // ============================================
-        // استخدام sendBeacon لضمان وصول بيانات الخروج
-        // ============================================
         function sendExitBeacon() {
             if (!studentCode || !currentSessionId) return;
             
@@ -555,7 +666,6 @@
             };
             
             try {
-                // استخدام sendBeacon لإرسال البيانات حتى لو الصفحة مقفلة
                 const blob = new Blob([JSON.stringify(exitData)], { type: 'application/json' });
                 const sent = navigator.sendBeacon('/api/logout', blob);
                 if (sent) {
@@ -570,21 +680,14 @@
             }
         }
 
-        // ============================================
-        // أحداث تسجيل الخروج التلقائي
-        // ============================================
-        // ✅ استخدام beforeunload مع sendBeacon
         window.addEventListener('beforeunload', function() {
             sendExitBeacon();
         });
 
-        // ✅ عند إخفاء التبويب أو تبديل التطبيقات
         document.addEventListener('visibilitychange', function() {
             if (document.hidden) {
-                // نقوم بتسجيل الخروج فوراً
                 recordLogout();
             } else {
-                // لو رجع الطالب للصفحة بعد ما كانت مخفية
                 (async () => {
                     if (studentCode) {
                         const today = new Date().toISOString().split('T')[0];
@@ -604,17 +707,14 @@
             }
         });
 
-        // ✅ عند إغلاق المتصفح بالكامل
         window.addEventListener('pagehide', function() {
             sendExitBeacon();
         });
 
-        // ✅ عند تغيير الصفحة (navigation)
         window.addEventListener('popstate', function() {
             recordLogout();
         });
 
-        // ✅ Backup: تسجيل الخروج كل دقيقة (للتأمين)
         setInterval(async () => {
             if (studentCode && currentSessionId) {
                 try {
@@ -637,9 +737,7 @@
                         });
                         console.log('🔄 حفظ احتياطي للخروج');
                     }
-                } catch (e) {
-                    // تجاهل الأخطاء في الخلفية
-                }
+                } catch (e) {}
             }
         }, 60000);
 
@@ -1452,7 +1550,7 @@
         };
 
         // ============================================
-        // تسجيل الخروج (باستخدام sendBeacon)
+        // تسجيل الخروج
         // ============================================
         window.logoutStudent = function() {
             recordLogout();
@@ -1472,3 +1570,4 @@
     </script>
 </body>
 </html>
+
