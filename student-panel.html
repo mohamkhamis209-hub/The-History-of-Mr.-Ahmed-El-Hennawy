@@ -327,6 +327,29 @@
             height: 100%;
             border-radius: 10px;
         }
+        /* زر التكبير المخصص */
+        .fullscreen-btn {
+            position: absolute;
+            bottom: 60px;
+            right: 15px;
+            z-index: 10;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 20px;
+            cursor: pointer;
+            transition: 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .fullscreen-btn:hover {
+            background: rgba(0,0,0,0.9);
+            transform: scale(1.1);
+        }
         .progress-info {
             margin-top: 10px;
             color: #888;
@@ -383,6 +406,13 @@
             .leaderboard-item {
                 flex-wrap: wrap;
                 gap: 5px;
+            }
+            .fullscreen-btn {
+                bottom: 50px;
+                right: 10px;
+                width: 32px;
+                height: 32px;
+                font-size: 16px;
             }
         }
     </style>
@@ -851,7 +881,7 @@
         }
 
         // ============================================
-        // تهيئة مشغلات YouTube
+        // تهيئة مشغلات YouTube (مع إصلاح مشكلة التكبير)
         // ============================================
         function initYouTubePlayers(videosData) {
             window.onYouTubeIframeAPIReady = function() {
@@ -897,16 +927,16 @@
                                     'cc_load_policy': 0,
                                     'fs': 1,
                                     'autohide': 1,
+                                    'autoplay': 0,
+                                    'enablejsapi': 1,
+                                    'origin': window.location.origin
                                 },
                                 events: {
                                     'onReady': function(event) {
                                         console.log(`🎬 الفيديو ${videoId} جاهز`);
-                                        if (watched > 0) {
-                                            try {
-                                                event.target.seekTo(watched, true);
-                                            } catch(e) {
-                                                console.warn('خطأ في التقدم للوقت المحفوظ');
-                                            }
+                                        const progressText = document.getElementById(`progress-text-${videoId}`);
+                                        if (progressText) {
+                                            progressText.innerText = '🟢 اضغط على زر التشغيل للمشاهدة';
                                         }
                                         updateProgressUI(videoId, watched, total);
                                     },
@@ -948,6 +978,44 @@
                             });
 
                             players[videoId] = player;
+
+                            // إضافة زر تكبير مخصص
+                            const wrapper = container.parentElement;
+                            if (wrapper) {
+                                // إزالة أي زر موجود مسبقاً
+                                const oldBtn = wrapper.querySelector('.fullscreen-btn');
+                                if (oldBtn) oldBtn.remove();
+
+                                const fullscreenBtn = document.createElement('button');
+                                fullscreenBtn.className = 'fullscreen-btn';
+                                fullscreenBtn.innerHTML = '⛶';
+                                fullscreenBtn.title = 'تكبير الفيديو';
+                                fullscreenBtn.setAttribute('aria-label', 'تكبير الفيديو');
+                                fullscreenBtn.addEventListener('click', function(e) {
+                                    e.stopPropagation();
+                                    if (player && player.getIframe) {
+                                        const iframe = player.getIframe();
+                                        if (iframe) {
+                                            if (iframe.requestFullscreen) {
+                                                iframe.requestFullscreen();
+                                            } else if (iframe.webkitRequestFullscreen) {
+                                                iframe.webkitRequestFullscreen();
+                                            } else if (iframe.msRequestFullscreen) {
+                                                iframe.msRequestFullscreen();
+                                            } else {
+                                                // إذا كان المتصفح لا يدعم Fullscreen API
+                                                window.open(
+                                                    `https://www.youtube.com/watch?v=${youtubeId}`,
+                                                    '_blank'
+                                                );
+                                            }
+                                        }
+                                    }
+                                });
+                                wrapper.style.position = 'relative';
+                                wrapper.appendChild(fullscreenBtn);
+                            }
+
                         } catch (error) {
                             console.error('خطأ في تهيئة المشغل:', error);
                         }
