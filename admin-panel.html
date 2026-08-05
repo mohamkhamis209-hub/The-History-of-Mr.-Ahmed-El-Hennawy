@@ -339,6 +339,67 @@
             border-right-color: #3498db;
         }
 
+        /* ===== نظام المصروفات ===== */
+        .fees-card {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin: 10px 0;
+            border-right: 4px solid #27ae60;
+            transition: 0.3s;
+        }
+        .fees-card:hover {
+            transform: translateX(-5px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .fees-card .student-name {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .fees-card .fees-amount {
+            font-size: 16px;
+            color: #27ae60;
+        }
+        .fees-card .fees-due {
+            color: #e74c3c;
+        }
+        .fees-card .fees-paid {
+            color: #27ae60;
+        }
+        .fees-card .payment-date {
+            color: #888;
+            font-size: 12px;
+        }
+        .fees-total {
+            background: #2c3e50;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 12px;
+            margin: 10px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .fees-total .number {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        body.dark-mode .fees-card {
+            background: #2d2d44;
+            color: #e0e0e0;
+        }
+        body.dark-mode .fees-card .student-name {
+            color: #e0e0e0;
+        }
+        body.dark-mode .fees-total {
+            background: #0f3460;
+        }
+        /* ===== نهاية نظام المصروفات ===== */
+
         @media (max-width: 768px) {
             .dashboard-cards {
                 grid-template-columns: repeat(2, 1fr);
@@ -387,6 +448,8 @@
             <li onclick="showSection('leaderboard')">🏆 المتصدرين</li>
             <li onclick="showSection('advancedStats')">📈 إحصائيات متقدمة</li>
             <li onclick="showSection('sessions')">🕐 جلسات الطلاب</li>
+            <li onclick="showSection('fees')">💰 المصروفات</li>
+            <li onclick="showSection('grades')">📚 إدارة الصفوف</li>
             <li onclick="showSection('dangerZone')" class="danger">⚠️ منطقة الخطر</li>
             <li onclick="logoutAdmin()" style="color:#e74c3c;">🚪 خروج</li>
         </ul>
@@ -506,6 +569,12 @@
                 case 'sessions':
                     showAllSessions();
                     break;
+                case 'fees':
+                    showFeesManagement();
+                    break;
+                case 'grades':
+                    showGradesManagement();
+                    break;
                 case 'dangerZone':
                     showDangerZone();
                     break;
@@ -515,7 +584,7 @@
         };
 
         // ============================================
-        // DASHBOARD (مع عرض جميع الطلاب وليس آخر 5 فقط)
+        // DASHBOARD
         // ============================================
         async function showDashboard() {
             const [studentsSnap, videosSnap, booksSnap, examsSnap, devicesSnap, attendanceSnap, sessionsSnap] = await Promise
@@ -552,7 +621,6 @@
                 else if (data.grade === '2') grade2++;
                 else if (data.grade === '3') grade3++;
 
-                // جمع جميع الطلاب مع آخر دخول
                 if (data.lastLogin) {
                     allLogins.push({
                         name: data.name || 'طالب',
@@ -570,7 +638,6 @@
                 }
             });
 
-            // ترتيب حسب آخر دخول (الأحدث أولاً)
             allLogins.sort((a, b) => {
                 if (!a.lastLogin) return 1;
                 if (!b.lastLogin) return -1;
@@ -591,7 +658,6 @@
                 }
             });
 
-            // بناء جدول جميع الطلاب
             let studentsTableRows = allLogins.map(s => {
                 const gradeText = s.grade === '1' ? 'أولى ث' : s.grade === '2' ? 'ثانية ث' : s.grade === '3' ?
                     'ثالثة ث' : '—';
@@ -791,7 +857,7 @@
         };
 
         // ============================================
-        // SESSIONS (تم التعديل الكامل هنا)
+        // SESSIONS
         // ============================================
         window.showAllSessions = async function() {
             const gradeFilter = document.getElementById('filterSessionsGrade')?.value || 'all';
@@ -842,7 +908,6 @@
                     sessionsList.push({ id: s.id, ...s.data() });
                 });
 
-                // ترتيب الجلسات من الأحدث إلى الأقدم (حسب وقت الدخول)
                 sessionsList.sort((a, b) => {
                     const timeA = a.loginTimeMs || 0;
                     const timeB = b.loginTimeMs || 0;
@@ -1159,7 +1224,8 @@
                 deviceIds: [],
                 firstLogin: null,
                 lastLogin: null,
-                registeredAt: new Date()
+                registeredAt: new Date(),
+                feesAmount: 500 // المبلغ المستحق الافتراضي
             });
             alert(`✅ تم إضافة ${name} بالكود ${code}`);
             showStudents();
@@ -1720,7 +1786,7 @@
         };
 
         // ============================================
-        // BOOKS (مع إضافة rm=minimal لمنع التحميل)
+        // BOOKS
         // ============================================
         window.addBook = async function() {
             const title = document.getElementById('bookTitle').value.trim();
@@ -1740,7 +1806,6 @@
                     url = `https://drive.google.com/file/d/${match[1]}/preview`;
                 }
             }
-            // إضافة rm=minimal لمنع التحميل والطباعة
             if (url.includes('drive.google.com')) {
                 if (!url.includes('rm=minimal')) {
                     url += url.includes('?') ? '&rm=minimal' : '?rm=minimal';
@@ -1806,7 +1871,6 @@
             books.forEach(b => {
                 const gradeText = b.grade === 'all' ? 'للجميع' : b.grade === '1' ? 'أولى ث' : b.grade ===
                     '2' ? 'ثانية ث' : 'ثالثة ث';
-                // التأكد من وجود rm=minimal في الرابط
                 let url = b.url;
                 if (url.includes('drive.google.com')) {
                     if (!url.includes('rm=minimal')) {
@@ -2200,7 +2264,7 @@
         };
 
         // ============================================
-        // EXPORT FUNCTIONS (كاملة)
+        // EXPORT FUNCTIONS
         // ============================================
         window.exportStudentCodes = async function() {
             try {
@@ -2676,7 +2740,7 @@
         };
 
         // ============================================
-        // BADGES MANAGEMENT (مكتملة)
+        // BADGES MANAGEMENT
         // ============================================
         window.showBadgesManagement = async function() {
             const studentsSnap = await getDocs(collection(db, 'students'));
@@ -2727,7 +2791,7 @@
         };
 
         // ============================================
-        // DANGER ZONE (مكتملة)
+        // DANGER ZONE
         // ============================================
         window.showDangerZone = function() {
             let html = `
@@ -2745,6 +2809,8 @@
                         <button onclick="deleteAllAttendance()" class="btn-sm btn-danger" style="padding:12px 30px;">📅 محو جميع الحضور</button>
                         <button onclick="deleteAllSessions()" class="btn-sm btn-danger" style="padding:12px 30px;">🕐 محو جميع الجلسات</button>
                         <button onclick="deleteAllLeaderboard()" class="btn-sm btn-danger" style="padding:12px 30px;">🏆 حذف المتصدرين</button>
+                        <button onclick="deleteAllFees()" class="btn-sm btn-danger" style="padding:12px 30px;">💰 محو جميع المصروفات</button>
+                        <button onclick="deleteAllGrades()" class="btn-sm btn-danger" style="padding:12px 30px;">📚 محو جميع الصفوف</button>
                     </div>
                 </div>
                 <div style="margin-top:20px; padding:20px; background:#fff8e7; border-radius:15px; border:1px solid #f39c12;">
@@ -2911,6 +2977,40 @@
             }
         };
 
+        window.deleteAllFees = async function() {
+            if (!confirm('⚠️ تحذير: أنت على وشك حذف جميع بيانات المصروفات نهائياً! هل أنت متأكد؟')) return;
+            if (!confirm('تأكيد نهائي: هل تريد حذف جميع بيانات المصروفات؟ لا يمكن التراجع عن هذا الإجراء!')) return;
+            try {
+                const snap = await getDocs(collection(db, 'fees'));
+                let count = 0;
+                for (const doc of snap.docs) {
+                    await deleteDoc(doc.ref);
+                    count++;
+                }
+                alert(`✅ تم حذف ${count} سجل مصروفات بنجاح`);
+                showDangerZone();
+            } catch (error) {
+                alert('❌ حدث خطأ: ' + error.message);
+            }
+        };
+
+        window.deleteAllGrades = async function() {
+            if (!confirm('⚠️ تحذير: أنت على وشك حذف جميع الصفوف نهائياً! هل أنت متأكد؟')) return;
+            if (!confirm('تأكيد نهائي: هل تريد حذف جميع الصفوف؟ لا يمكن التراجع عن هذا الإجراء!')) return;
+            try {
+                const snap = await getDocs(collection(db, 'grades'));
+                let count = 0;
+                for (const doc of snap.docs) {
+                    await deleteDoc(doc.ref);
+                    count++;
+                }
+                alert(`✅ تم حذف ${count} صف بنجاح`);
+                showDangerZone();
+            } catch (error) {
+                alert('❌ حدث خطأ: ' + error.message);
+            }
+        };
+
         // ============================================
         // DELETE ITEM
         // ============================================
@@ -2919,6 +3019,565 @@
             await deleteDoc(doc(db, collectionName, docId));
             alert('🗑️ تم الحذف بنجاح');
             showSection(collectionName);
+        };
+
+        // ============================================
+        // نظام المصروفات
+        // ============================================
+
+        // عرض إدارة المصروفات
+        window.showFeesManagement = async function() {
+            const gradeFilter = document.getElementById('filterFeesGrade')?.value || 'all';
+            const searchTerm = document.getElementById('searchFeesStudent')?.value?.trim()?.toLowerCase() || '';
+
+            // جلب جميع الطلاب
+            let studentsQ;
+            if (gradeFilter === 'all') {
+                studentsQ = collection(db, 'students');
+            } else {
+                studentsQ = query(collection(db, 'students'), where('grade', '==', gradeFilter));
+            }
+            const studentsSnap = await getDocs(studentsQ);
+
+            // جلب جميع المدفوعات
+            const feesSnap = await getDocs(collection(db, 'fees'));
+            const feesMap = {};
+            feesSnap.forEach(d => {
+                const data = d.data();
+                if (!feesMap[data.studentCode]) {
+                    feesMap[data.studentCode] = [];
+                }
+                feesMap[data.studentCode].push({ id: d.id, ...data });
+            });
+
+            // جلب الصفوف المتاحة للفلتر
+            const gradesSnap = await getDocs(collection(db, 'grades'));
+            let gradeOptions = `<option value="all">📋 جميع الصفوف</option>`;
+            gradesSnap.forEach(d => {
+                const data = d.data();
+                gradeOptions += `<option value="${data.code}" ${gradeFilter === data.code ? 'selected' : ''}>${data.name}</option>`;
+            });
+
+            let html = `
+                <h2>💰 إدارة المصروفات</h2>
+                <p style="color:#888; margin-bottom:20px;">تسجيل ومتابعة مصروفات الطلاب</p>
+                
+                <div class="filter-bar">
+                    <select id="filterFeesGrade" onchange="showFeesManagement()">
+                        ${gradeOptions}
+                    </select>
+                    <input id="searchFeesStudent" class="search-box" placeholder="🔍 بحث باسم أو كود الطالب..." value="${searchTerm}">
+                    <button onclick="searchFees()" class="btn-sm btn-search">🔍 بحث</button>
+                    <button onclick="clearFeesSearch()" class="btn-sm btn-clear">✖️ إلغاء</button>
+                </div>
+                
+                <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:15px;">
+                    <button onclick="exportFeesReport()" class="btn-sm" style="background:#27ae60; color:white; padding:10px 25px;">📥 تحميل Excel</button>
+                    <button onclick="exportFeesReportPDF()" class="btn-sm" style="background:#e74c3c; color:white; padding:10px 25px;">📄 تحميل PDF</button>
+                </div>
+                
+                <div id="feesContainer">`;
+
+            // تجميع الطلاب مع مصروفاتهم
+            let studentsList = [];
+            for (const doc of studentsSnap.docs) {
+                const student = doc.data();
+                const code = student.code;
+                const payments = feesMap[code] || [];
+                
+                // حساب الإجماليات
+                let totalPaid = 0;
+                payments.forEach(p => {
+                    totalPaid += p.amount || 0;
+                });
+                
+                // المبلغ الافتراضي المستحق
+                const defaultFees = student.feesAmount || 500;
+                
+                studentsList.push({
+                    ...student,
+                    payments: payments,
+                    totalPaid: totalPaid,
+                    totalDue: defaultFees,
+                    remaining: defaultFees - totalPaid
+                });
+            }
+
+            // فلترة بالبحث
+            if (searchTerm) {
+                studentsList = studentsList.filter(s =>
+                    (s.name && s.name.toLowerCase().includes(searchTerm)) ||
+                    (s.code && s.code.toLowerCase().includes(searchTerm))
+                );
+            }
+
+            // ترتيب حسب الاسم
+            studentsList.sort((a, b) => a.name?.localeCompare(b.name || '') || 0);
+
+            if (studentsList.length === 0) {
+                html += `<p style="text-align:center; padding:30px; color:#888;">لا يوجد طلاب</p>`;
+            } else {
+                // إحصائيات عامة
+                let totalAllPaid = 0;
+                let totalAllDue = 0;
+                let totalAllRemaining = 0;
+                studentsList.forEach(s => {
+                    totalAllPaid += s.totalPaid;
+                    totalAllDue += s.totalDue;
+                    totalAllRemaining += s.remaining;
+                });
+
+                html += `
+                    <div class="fees-total">
+                        <span>💰 إجمالي المدفوع: <span class="number">${totalAllPaid} ج.م</span></span>
+                        <span>📋 إجمالي المستحق: <span class="number">${totalAllDue} ج.م</span></span>
+                        <span>⚠️ إجمالي المتبقي: <span class="number">${totalAllRemaining} ج.م</span></span>
+                    </div>`;
+
+                studentsList.forEach(student => {
+                    const gradeText = student.grade === '1' ? 'أولى ث' : student.grade === '2' ? 'ثانية ث' : student.grade === '3' ? 'ثالثة ث' : '—';
+                    const remainingClass = student.remaining > 0 ? 'fees-due' : 'fees-paid';
+                    
+                    html += `
+                        <div class="fees-card">
+                            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                                <div>
+                                    <span class="student-name">${student.name || 'طالب'}</span>
+                                    <span style="color:#888; font-size:14px;">(${student.code})</span>
+                                    <span class="grade-badge grade-${student.grade || 'all'}">${gradeText}</span>
+                                </div>
+                                <div style="display:flex; gap:15px; flex-wrap:wrap;">
+                                    <span class="fees-paid">✅ دفع: ${student.totalPaid} ج.م</span>
+                                    <span class="${remainingClass}">${student.remaining > 0 ? '⚠️ متبقي: ' + student.remaining + ' ج.م' : '✅ مكتمل'}</span>
+                                </div>
+                            </div>
+                            
+                            <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
+                                <button onclick="showAddPayment('${student.code}')" class="btn-sm" style="background:#27ae60; color:white;">➕ إضافة دفعة</button>
+                                <button onclick="togglePayments('${student.code}')" class="btn-sm" style="background:#3498db; color:white;">📋 عرض المدفوعات</button>
+                                <button onclick="setStudentFees('${student.code}')" class="btn-sm" style="background:#f39c12; color:white;">⚙️ تعيين المبلغ</button>
+                            </div>
+                            
+                            <div id="payments-${student.code}" style="display:none; margin-top:10px; padding:10px; background:#f8f9fa; border-radius:8px;">
+                                <h4 style="margin-bottom:10px;">📋 سجل المدفوعات</h4>`;
+                    
+                    if (student.payments.length === 0) {
+                        html += `<p style="color:#888;">لا توجد مدفوعات</p>`;
+                    } else {
+                        html += `
+                            <table border="1" cellpadding="8" style="width:100%; border-collapse:collapse; font-size:13px;">
+                                <tr>
+                                    <th>التاريخ</th>
+                                    <th>المبلغ</th>
+                                    <th>ملاحظات</th>
+                                    <th>إجراء</th>
+                                </tr>`;
+                        student.payments.forEach(p => {
+                            const date = p.paymentDate?.toDate?.()?.toLocaleDateString('ar-EG') || p.createdAt?.toDate?.()?.toLocaleDateString('ar-EG') || '—';
+                            html += `
+                                <tr>
+                                    <td>${date}</td>
+                                    <td>${p.amount || 0} ج.م</td>
+                                    <td>${p.notes || '—'}</td>
+                                    <td><button onclick="deletePayment('${p.id}','${student.code}')" class="btn-sm" style="background:#e74c3c; color:white;">🗑️</button></td>
+                                </tr>`;
+                        });
+                        html += `</table>`;
+                    }
+                    
+                    html += `
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
+            html += `</div>`;
+            document.getElementById('content-area').innerHTML = html;
+        };
+
+        // البحث في المصروفات
+        window.searchFees = function() { showFeesManagement(); };
+        window.clearFeesSearch = function() { 
+            document.getElementById('searchFeesStudent').value = ''; 
+            showFeesManagement(); 
+        };
+
+        // إظهار نموذج إضافة دفعة
+        window.showAddPayment = function(studentCode) {
+            const amount = prompt('أدخل المبلغ المدفوع (بالجنيه المصري):');
+            if (amount === null) return;
+            const numAmount = parseFloat(amount);
+            if (isNaN(numAmount) || numAmount <= 0) {
+                return alert('⚠️ أدخل مبلغ صحيح');
+            }
+            
+            const notes = prompt('أدخل ملاحظات (اختياري):');
+            
+            addPayment(studentCode, numAmount, notes || '');
+        };
+
+        // إضافة دفعة جديدة
+        window.addPayment = async function(studentCode, amount, notes) {
+            try {
+                // جلب بيانات الطالب
+                const q = query(collection(db, 'students'), where('code', '==', studentCode));
+                const snap = await getDocs(q);
+                if (snap.empty) {
+                    return alert('⚠️ الطالب غير موجود');
+                }
+                const student = snap.docs[0].data();
+                
+                await addDoc(collection(db, 'fees'), {
+                    studentCode: studentCode,
+                    studentName: student.name || 'طالب',
+                    studentGrade: student.grade || 'all',
+                    amount: amount,
+                    notes: notes || '',
+                    paymentDate: serverTimestamp(),
+                    createdAt: serverTimestamp()
+                });
+                
+                alert('✅ تم تسجيل الدفعة بنجاح');
+                showFeesManagement();
+            } catch (error) {
+                console.error('خطأ في إضافة الدفعة:', error);
+                alert('❌ حدث خطأ');
+            }
+        };
+
+        // عرض/إخفاء المدفوعات
+        window.togglePayments = function(studentCode) {
+            const el = document.getElementById(`payments-${studentCode}`);
+            if (el) {
+                el.style.display = el.style.display === 'none' ? 'block' : 'none';
+            }
+        };
+
+        // حذف دفعة
+        window.deletePayment = async function(paymentId, studentCode) {
+            if (!confirm('⚠️ هل أنت متأكد من حذف هذه الدفعة؟')) return;
+            try {
+                await deleteDoc(doc(db, 'fees', paymentId));
+                alert('✅ تم حذف الدفعة');
+                showFeesManagement();
+            } catch (error) {
+                console.error('خطأ في حذف الدفعة:', error);
+                alert('❌ حدث خطأ');
+            }
+        };
+
+        // تعيين المبلغ المستحق للطالب
+        window.setStudentFees = async function(studentCode) {
+            const amount = prompt('أدخل المبلغ المستحق للطالب (بالجنيه المصري):');
+            if (amount === null) return;
+            const numAmount = parseFloat(amount);
+            if (isNaN(numAmount) || numAmount < 0) {
+                return alert('⚠️ أدخل مبلغ صحيح');
+            }
+            
+            try {
+                const q = query(collection(db, 'students'), where('code', '==', studentCode));
+                const snap = await getDocs(q);
+                if (snap.empty) {
+                    return alert('⚠️ الطالب غير موجود');
+                }
+                const docRef = snap.docs[0].ref;
+                await updateDoc(docRef, {
+                    feesAmount: numAmount
+                });
+                alert('✅ تم تعيين المبلغ المستحق');
+                showFeesManagement();
+            } catch (error) {
+                console.error('خطأ في تعيين المبلغ:', error);
+                alert('❌ حدث خطأ');
+            }
+        };
+
+        // ============================================
+        // تقارير المصروفات
+        // ============================================
+
+        // تصدير تقرير المصروفات Excel
+        window.exportFeesReport = async function() {
+            try {
+                const studentsSnap = await getDocs(collection(db, 'students'));
+                const feesSnap = await getDocs(collection(db, 'fees'));
+                
+                const feesMap = {};
+                feesSnap.forEach(d => {
+                    const data = d.data();
+                    if (!feesMap[data.studentCode]) {
+                        feesMap[data.studentCode] = [];
+                    }
+                    feesMap[data.studentCode].push(data);
+                });
+                
+                const report = [];
+                for (const doc of studentsSnap.docs) {
+                    const student = doc.data();
+                    const code = student.code;
+                    const payments = feesMap[code] || [];
+                    let totalPaid = 0;
+                    payments.forEach(p => { totalPaid += p.amount || 0; });
+                    
+                    const defaultFees = student.feesAmount || 500;
+                    
+                    // تفاصيل المدفوعات
+                    let paymentDetails = '';
+                    payments.forEach((p, index) => {
+                        const date = p.paymentDate?.toDate?.()?.toLocaleDateString('ar-EG') || '—';
+                        paymentDetails += `دفعة ${index+1}: ${p.amount || 0} ج.م (${date}) ${p.notes ? ' - ' + p.notes : ''}\n`;
+                    });
+                    
+                    report.push({
+                        'الاسم': student.name || '',
+                        'الكود': code,
+                        'الصف': student.grade === '1' ? 'أولى ثانوي' : student.grade === '2' ? 'ثانية ثانوي' : student.grade === '3' ? 'ثالثة ثانوي' : '—',
+                        'المبلغ المستحق': defaultFees + ' ج.م',
+                        'إجمالي المدفوع': totalPaid + ' ج.م',
+                        'المتبقي': (defaultFees - totalPaid) + ' ج.م',
+                        'تفاصيل المدفوعات': paymentDetails || 'لا توجد مدفوعات'
+                    });
+                }
+                
+                await loadXLSX();
+                const XLSX = window.XLSX;
+                const wb = XLSX.utils.book_new();
+                const ws = XLSX.utils.json_to_sheet(report);
+                XLSX.utils.book_append_sheet(wb, ws, 'المصروفات');
+                ws['!cols'] = [
+                    { wch: 20 }, { wch: 15 }, { wch: 20 }, { wch: 18 },
+                    { wch: 18 }, { wch: 18 }, { wch: 50 }
+                ];
+                const fileName = `تقرير_المصروفات_${new Date().toLocaleDateString('ar-EG')}.xlsx`;
+                XLSX.writeFile(wb, fileName);
+                alert('✅ تم تحميل التقرير بنجاح');
+            } catch (error) {
+                console.error(error);
+                alert('❌ حدث خطأ: ' + error.message);
+            }
+        };
+
+        // تصدير تقرير المصروفات PDF
+        window.exportFeesReportPDF = async function() {
+            try {
+                const studentsSnap = await getDocs(collection(db, 'students'));
+                const feesSnap = await getDocs(collection(db, 'fees'));
+                
+                const feesMap = {};
+                feesSnap.forEach(d => {
+                    const data = d.data();
+                    if (!feesMap[data.studentCode]) {
+                        feesMap[data.studentCode] = [];
+                    }
+                    feesMap[data.studentCode].push(data);
+                });
+                
+                let reportRows = '';
+                let totalAllPaid = 0;
+                let totalAllDue = 0;
+                
+                for (const doc of studentsSnap.docs) {
+                    const student = doc.data();
+                    const code = student.code;
+                    const payments = feesMap[code] || [];
+                    let totalPaid = 0;
+                    payments.forEach(p => { totalPaid += p.amount || 0; });
+                    
+                    const defaultFees = student.feesAmount || 500;
+                    totalAllPaid += totalPaid;
+                    totalAllDue += defaultFees;
+                    
+                    let paymentDetails = '';
+                    payments.forEach((p, index) => {
+                        const date = p.paymentDate?.toDate?.()?.toLocaleDateString('ar-EG') || '—';
+                        paymentDetails += `دفعة ${index+1}: ${p.amount || 0} ج.م (${date}) ${p.notes ? ' - ' + p.notes : ''}<br>`;
+                    });
+                    
+                    const gradeText = student.grade === '1' ? 'أولى ثانوي' : student.grade === '2' ? 'ثانية ثانوي' : student.grade === '3' ? 'ثالثة ثانوي' : '—';
+                    
+                    reportRows += `
+                        <tr style="page-break-inside: avoid;">
+                            <td style="border:1px solid #ccc; padding:8px; text-align:center;">${student.name || ''}</td>
+                            <td style="border:1px solid #ccc; padding:8px; text-align:center;">${code}</td>
+                            <td style="border:1px solid #ccc; padding:8px; text-align:center;">${gradeText}</td>
+                            <td style="border:1px solid #ccc; padding:8px; text-align:center;">${defaultFees} ج.م</td>
+                            <td style="border:1px solid #ccc; padding:8px; text-align:center;">${totalPaid} ج.م</td>
+                            <td style="border:1px solid #ccc; padding:8px; text-align:center; color:${(defaultFees - totalPaid) > 0 ? '#e74c3c' : '#27ae60'}; font-weight:bold;">${(defaultFees - totalPaid)} ج.م</td>
+                            <td style="border:1px solid #ccc; padding:8px; font-size:11px;">${paymentDetails || 'لا توجد مدفوعات'}</td>
+                        </tr>
+                    `;
+                }
+                
+                await loadPDF();
+                
+                const element = document.createElement('div');
+                element.style.direction = 'rtl';
+                element.style.fontFamily = 'Tajawal, Arial, sans-serif';
+                element.style.padding = '20px';
+                element.style.background = 'white';
+                
+                element.innerHTML = `
+                    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
+                    <div style="display:flex; align-items:center; gap:10px; margin-bottom:20px; border-bottom:2px solid #2c3e50; padding-bottom:15px;">
+                        <img src="assets/logo.jpg" style="width:60px; height:60px; border-radius:50%; object-fit:cover;" alt="شعار المنصة">
+                        <div>
+                            <h1 style="color:#2c3e50; margin:0; font-size:22px;">منصة تعليمية</h1>
+                            <p style="color:#7f8c8d; margin:0; font-size:12px;">تقرير المصروفات</p>
+                        </div>
+                    </div>
+                    <h2 style="text-align:center; color:#2c3e50; margin:10px 0;">💰 تقرير المصروفات</h2>
+                    <p style="text-align:center; color:#7f8c8d; margin-bottom:15px;">تاريخ التقرير: ${new Date().toLocaleDateString('ar-EG')}</p>
+                    
+                    <div style="display:flex; justify-content:space-around; padding:15px; background:#f8f9fa; border-radius:10px; margin-bottom:15px; flex-wrap:wrap;">
+                        <span>💰 إجمالي المدفوع: <strong>${totalAllPaid} ج.م</strong></span>
+                        <span>📋 إجمالي المستحق: <strong>${totalAllDue} ج.م</strong></span>
+                        <span>⚠️ إجمالي المتبقي: <strong>${totalAllDue - totalAllPaid} ج.م</strong></span>
+                    </div>
+                    
+                    <table style="width:100%; border-collapse:collapse; font-size:11px;">
+                        <thead>
+                            <tr style="background:#2c3e50; color:white;">
+                                <th style="padding:8px; border:1px solid #ccc;">الاسم</th>
+                                <th style="padding:8px; border:1px solid #ccc;">الكود</th>
+                                <th style="padding:8px; border:1px solid #ccc;">الصف</th>
+                                <th style="padding:8px; border:1px solid #ccc;">المستحق</th>
+                                <th style="padding:8px; border:1px solid #ccc;">المدفوع</th>
+                                <th style="padding:8px; border:1px solid #ccc;">المتبقي</th>
+                                <th style="padding:8px; border:1px solid #ccc;">تفاصيل المدفوعات</th>
+                            </tr>
+                        </thead>
+                        <tbody>${reportRows}</tbody>
+                    </table>
+                    
+                    <div style="text-align:center; color:#7f8c8d; font-size:10px; margin-top:15px; border-top:1px solid #ddd; padding-top:10px;">
+                        © ${new Date().getFullYear()} منصة تعليمية - جميع الحقوق محفوظة
+                    </div>
+                `;
+                
+                const opt = {
+                    margin: 10,
+                    filename: `تقرير_المصروفات_${new Date().toLocaleDateString('ar-EG')}.pdf`,
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 2, useCORS: true },
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
+                    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+                };
+                
+                html2pdf().set(opt).from(element).save();
+                alert('✅ تم تحميل التقرير بنجاح');
+            } catch (error) {
+                console.error('خطأ في PDF:', error);
+                alert('❌ حدث خطأ: ' + error.message);
+            }
+        };
+
+        // ============================================
+        // إدارة الصفوف
+        // ============================================
+
+        window.showGradesManagement = async function() {
+            const gradesSnap = await getDocs(collection(db, 'grades'));
+            
+            let html = `
+                <h2>📚 إدارة الصفوف</h2>
+                <p style="color:#888; margin-bottom:20px;">إضافة أو حذف الصفوف المتاحة في المنصة</p>
+                
+                <div style="background:white; padding:20px; border-radius:15px; box-shadow:0 2px 10px rgba(0,0,0,0.05); margin-bottom:20px;">
+                    <h3 style="margin-bottom:15px;">➕ إضافة صف جديد</h3>
+                    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                        <input id="newGradeName" placeholder="اسم الصف (مثال: الصف الثالث الإعدادي)" style="flex:2; min-width:200px;">
+                        <input id="newGradeCode" placeholder="كود الصف (مثال: prep3)" style="flex:1; min-width:150px;">
+                        <button onclick="addNewGrade()" class="btn-sm btn-add" style="padding:10px 30px;">➕ إضافة</button>
+                    </div>
+                    <p style="color:#888; font-size:12px; margin-top:10px;">💡 الكود يستخدم للفلترة والبحث، يجب أن يكون فريداً</p>
+                </div>
+                
+                <div style="overflow-x:auto;">
+                <table border="1" cellpadding="10" style="width:100%; border-collapse:collapse; background:white;">
+                    <tr>
+                        <th>#</th>
+                        <th>اسم الصف</th>
+                        <th>الكود</th>
+                        <th>تاريخ الإضافة</th>
+                        <th>الإجراءات</th>
+                    </tr>`;
+            
+            if (gradesSnap.empty) {
+                html += `<tr><td colspan="5" style="text-align:center; padding:20px; color:#888;">لا توجد صفوف مضافة</td></tr>`;
+            } else {
+                let index = 1;
+                for (const doc of gradesSnap.docs) {
+                    const data = doc.data();
+                    const date = data.createdAt?.toDate?.()?.toLocaleDateString('ar-EG') || '—';
+                    html += `
+                        <tr>
+                            <td>${index++}</td>
+                            <td><strong>${data.name}</strong></td>
+                            <td><span style="background:#3498db; color:white; padding:2px 10px; border-radius:12px; font-size:12px;">${data.code}</span></td>
+                            <td>${date}</td>
+                            <td>
+                                <button onclick="deleteGrade('${doc.id}')" class="btn-sm" style="background:#e74c3c; color:white;">🗑️ حذف</button>
+                            </td>
+                        </tr>
+                    `;
+                }
+            }
+            
+            html += `</table></div>`;
+            document.getElementById('content-area').innerHTML = html;
+        };
+
+        // إضافة صف جديد
+        window.addNewGrade = async function() {
+            const gradeName = document.getElementById('newGradeName').value.trim();
+            const gradeCode = document.getElementById('newGradeCode').value.trim().toLowerCase().replace(/\s/g, '');
+            
+            if (!gradeName || !gradeCode) {
+                return alert('⚠️ أدخل اسم الصف والكود');
+            }
+            
+            try {
+                const q = query(collection(db, 'grades'), where('code', '==', gradeCode));
+                const snap = await getDocs(q);
+                if (!snap.empty) {
+                    return alert('⚠️ هذا الكود موجود بالفعل، اختر كوداً آخر');
+                }
+                
+                await addDoc(collection(db, 'grades'), {
+                    name: gradeName,
+                    code: gradeCode,
+                    createdAt: serverTimestamp()
+                });
+                
+                alert('✅ تم إضافة الصف الجديد');
+                document.getElementById('newGradeName').value = '';
+                document.getElementById('newGradeCode').value = '';
+                showGradesManagement();
+            } catch (error) {
+                console.error('خطأ في إضافة الصف:', error);
+                alert('❌ حدث خطأ: ' + error.message);
+            }
+        };
+
+        // حذف صف
+        window.deleteGrade = async function(gradeId) {
+            if (!confirm('⚠️ هل أنت متأكد من حذف هذا الصف؟ سيؤثر على الطلاب المرتبطين به.')) return;
+            if (!confirm('تأكيد نهائي: هل تريد حذف هذا الصف؟')) return;
+            
+            try {
+                const gradeDoc = await getDoc(doc(db, 'grades', gradeId));
+                const gradeData = gradeDoc.data();
+                
+                await deleteDoc(doc(db, 'grades', gradeId));
+                
+                alert(`✅ تم حذف الصف "${gradeData?.name || ''}" بنجاح`);
+                showGradesManagement();
+            } catch (error) {
+                console.error('خطأ في حذف الصف:', error);
+                alert('❌ حدث خطأ: ' + error.message);
+            }
         };
 
         // ============================================
@@ -2933,3 +3592,4 @@
     </script>
 </body>
 </html>
+
