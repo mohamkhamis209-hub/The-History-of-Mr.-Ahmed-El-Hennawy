@@ -121,6 +121,13 @@
         .btn-success:hover {
             background: #1e8449;
         }
+        .btn-edit {
+            background: #3498db;
+            color: white;
+        }
+        .btn-edit:hover {
+            background: #2980b9;
+        }
 
         .dashboard-cards {
             display: grid;
@@ -343,6 +350,65 @@
             border-right-color: #3498db;
         }
 
+        .fees-card {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin: 10px 0;
+            border-right: 4px solid #27ae60;
+            transition: 0.3s;
+        }
+        .fees-card:hover {
+            transform: translateX(-5px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .fees-card .student-name {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .fees-card .fees-amount {
+            font-size: 16px;
+            color: #27ae60;
+        }
+        .fees-card .fees-due {
+            color: #e74c3c;
+        }
+        .fees-card .fees-paid {
+            color: #27ae60;
+        }
+        .fees-card .payment-date {
+            color: #888;
+            font-size: 12px;
+        }
+        .fees-total {
+            background: #2c3e50;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 12px;
+            margin: 10px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .fees-total .number {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        body.dark-mode .fees-card {
+            background: #2d2d44;
+            color: #e0e0e0;
+        }
+        body.dark-mode .fees-card .student-name {
+            color: #e0e0e0;
+        }
+        body.dark-mode .fees-total {
+            background: #0f3460;
+        }
+
         @media (max-width: 768px) {
             .dashboard-cards {
                 grid-template-columns: repeat(2, 1fr);
@@ -414,6 +480,8 @@
             query, where, getDoc, setDoc, serverTimestamp
         } from './js/firebase-config.js';
 
+        let cachedGrades = []; // تخزين الصفوف مؤقتاً
+
         function generateCode() {
             return Math.random().toString(36).substring(2, 8).toUpperCase();
         }
@@ -458,6 +526,44 @@
                 script.onerror = () => reject(new Error('فشل تحميل Chart.js'));
                 document.head.appendChild(script);
             });
+        }
+
+        // ============================================
+        // جلب الصفوف من Firebase
+        // ============================================
+        async function getGrades() {
+            try {
+                const gradesSnap = await getDocs(collection(db, 'grades'));
+                cachedGrades = [];
+                gradesSnap.forEach(d => {
+                    cachedGrades.push({ id: d.id, ...d.data() });
+                });
+                return cachedGrades;
+            } catch (error) {
+                console.error('خطأ في جلب الصفوف:', error);
+                return [];
+            }
+        }
+
+        // ============================================
+        // إنشاء خيارات الصفوف في Select
+        // ============================================
+        function getGradeOptions(selected = 'all') {
+            let options = `<option value="all" ${selected === 'all' ? 'selected' : ''}>🌐 للجميع</option>`;
+            // الصفوف الأساسية
+            const basicGrades = [
+                { code: '1', name: 'الصف الأول الثانوي' },
+                { code: '2', name: 'الصف الثاني الثانوي' },
+                { code: '3', name: 'الصف الثالث الثانوي' }
+            ];
+            basicGrades.forEach(g => {
+                options += `<option value="${g.code}" ${selected === g.code ? 'selected' : ''}>${g.name}</option>`;
+            });
+            // الصفوف المضافة
+            cachedGrades.forEach(g => {
+                options += `<option value="${g.code}" ${selected === g.code ? 'selected' : ''}>${g.name}</option>`;
+            });
+            return options;
         }
 
         window.showSection = function(section) {
@@ -549,6 +655,9 @@
             const today = new Date().toISOString().split('T')[0];
 
             let allLogins = [];
+            let customGradeCount = {};
+
+            await getGrades();
 
             studentsSnap.forEach(doc => {
                 const data = doc.data();
@@ -556,9 +665,16 @@
                 if (data.status === 'active') activeStudents++;
                 else if (data.status === 'suspended') suspendedStudents++;
                 else inactiveStudents++;
+                
+                // حساب الصفوف الأساسية والمضافة
                 if (data.grade === '1') grade1++;
                 else if (data.grade === '2') grade2++;
                 else if (data.grade === '3') grade3++;
+                else {
+                    // صف مخصص
+                    const gradeName = cachedGrades.find(g => g.code === data.grade)?.name || data.grade;
+                    customGradeCount[gradeName] = (customGradeCount[gradeName] || 0) + 1;
+                }
 
                 if (data.lastLogin) {
                     allLogins.push({
@@ -599,7 +715,7 @@
 
             let studentsTableRows = allLogins.map(s => {
                 const gradeText = s.grade === '1' ? 'أولى ث' : s.grade === '2' ? 'ثانية ث' : s.grade === '3' ?
-                    'ثالثة ث' : '—';
+                    'ثالثة ث' : (cachedGrades.find(g => g.code === s.grade)?.name || s.grade || '—');
                 const lastLoginFormatted = s.lastLogin ? new Date(s.lastLogin).toLocaleString('ar-EG') : '—';
                 return `<tr>
                             <td style="padding:8px; border:1px solid #ddd;">${s.name}</td>
@@ -608,6 +724,38 @@
                             <td style="padding:8px; border:1px solid #ddd;">${lastLoginFormatted}</td>
                         </tr>`;
             }).join('');
+
+            // بناء توزيع الصفوف
+            let gradeDistribution = `
+                <div>
+                    <span>📘 أولى ثانوي: ${grade1}</span>
+                    <div style="background:#eee; border-radius:10px; height:10px; margin-top:5px;">
+                        <div style="background:#3498db; height:10px; border-radius:10px; width:${totalStudents > 0 ? (grade1/totalStudents)*100 : 0}%;"></div>
+                    </div>
+                </div>
+                <div>
+                    <span>📗 ثانية ثانوي: ${grade2}</span>
+                    <div style="background:#eee; border-radius:10px; height:10px; margin-top:5px;">
+                        <div style="background:#f39c12; height:10px; border-radius:10px; width:${totalStudents > 0 ? (grade2/totalStudents)*100 : 0}%;"></div>
+                    </div>
+                </div>
+                <div>
+                    <span>📕 ثالثة ثانوي: ${grade3}</span>
+                    <div style="background:#eee; border-radius:10px; height:10px; margin-top:5px;">
+                        <div style="background:#e74c3c; height:10px; border-radius:10px; width:${totalStudents > 0 ? (grade3/totalStudents)*100 : 0}%;"></div>
+                    </div>
+                </div>`;
+
+            // إضافة الصفوف المخصصة للتوزيع
+            for (const [name, count] of Object.entries(customGradeCount)) {
+                gradeDistribution += `
+                    <div>
+                        <span>📚 ${name}: ${count}</span>
+                        <div style="background:#eee; border-radius:10px; height:10px; margin-top:5px;">
+                            <div style="background:#9b59b6; height:10px; border-radius:10px; width:${totalStudents > 0 ? (count/totalStudents)*100 : 0}%;"></div>
+                        </div>
+                    </div>`;
+            }
 
             let html = `
                 <h2>📊 لوحة التحكم</h2>
@@ -659,24 +807,7 @@
                     <div style="background:white; padding:20px; border-radius:15px; box-shadow:0 2px 10px rgba(0,0,0,0.05);">
                         <h3 style="margin-bottom:15px;">📊 توزيع الطلاب حسب الصف</h3>
                         <div style="display:flex; flex-direction:column; gap:10px;">
-                            <div>
-                                <span>📘 أولى ثانوي: ${grade1}</span>
-                                <div style="background:#eee; border-radius:10px; height:10px; margin-top:5px;">
-                                    <div style="background:#3498db; height:10px; border-radius:10px; width:${totalStudents > 0 ? (grade1/totalStudents)*100 : 0}%;"></div>
-                                </div>
-                            </div>
-                            <div>
-                                <span>📗 ثانية ثانوي: ${grade2}</span>
-                                <div style="background:#eee; border-radius:10px; height:10px; margin-top:5px;">
-                                    <div style="background:#f39c12; height:10px; border-radius:10px; width:${totalStudents > 0 ? (grade2/totalStudents)*100 : 0}%;"></div>
-                                </div>
-                            </div>
-                            <div>
-                                <span>📕 ثالثة ثانوي: ${grade3}</span>
-                                <div style="background:#eee; border-radius:10px; height:10px; margin-top:5px;">
-                                    <div style="background:#e74c3c; height:10px; border-radius:10px; width:${totalStudents > 0 ? (grade3/totalStudents)*100 : 0}%;"></div>
-                                </div>
-                            </div>
+                            ${gradeDistribution}
                         </div>
                     </div>
                     <div style="background:white; padding:20px; border-radius:15px; box-shadow:0 2px 10px rgba(0,0,0,0.05);">
@@ -704,6 +835,7 @@
         // ATTENDANCE REPORT
         // ============================================
         window.showAttendanceReport = async function() {
+            await getGrades();
             const gradeFilter = document.getElementById('filterAttendanceGrade')?.value || 'all';
             const dateFilter = document.getElementById('filterAttendanceDate')?.value || '';
 
@@ -718,10 +850,7 @@
             let html = `<h2>📅 تقرير الحضور</h2>
                         <div class="filter-bar">
                             <select id="filterAttendanceGrade" onchange="showAttendanceReport()">
-                                <option value="all" ${gradeFilter === 'all' ? 'selected' : ''}>📋 جميع الصفوف</option>
-                                <option value="1" ${gradeFilter === '1' ? 'selected' : ''}>📘 أولى ثانوي</option>
-                                <option value="2" ${gradeFilter === '2' ? 'selected' : ''}>📗 ثانية ثانوي</option>
-                                <option value="3" ${gradeFilter === '3' ? 'selected' : ''}>📕 ثالثة ثانوي</option>
+                                ${getGradeOptions(gradeFilter)}
                             </select>
                             <input type="date" id="filterAttendanceDate" value="${dateFilter}" onchange="showAttendanceReport()">
                             <button onclick="document.getElementById('filterAttendanceDate').value=''; showAttendanceReport();" class="btn-sm btn-clear">✖️ إلغاء الفلترة</button>
@@ -799,6 +928,7 @@
         // SESSIONS
         // ============================================
         window.showAllSessions = async function() {
+            await getGrades();
             const gradeFilter = document.getElementById('filterSessionsGrade')?.value || 'all';
             const dateFilter = document.getElementById('filterSessionsDate')?.value || '';
 
@@ -813,10 +943,7 @@
             let html = `<h2>🕐 جلسات الطلاب</h2>
                         <div class="filter-bar">
                             <select id="filterSessionsGrade" onchange="showAllSessions()">
-                                <option value="all" ${gradeFilter === 'all' ? 'selected' : ''}>📋 جميع الصفوف</option>
-                                <option value="1" ${gradeFilter === '1' ? 'selected' : ''}>📘 أولى ثانوي</option>
-                                <option value="2" ${gradeFilter === '2' ? 'selected' : ''}>📗 ثانية ثانوي</option>
-                                <option value="3" ${gradeFilter === '3' ? 'selected' : ''}>📕 ثالثة ثانوي</option>
+                                ${getGradeOptions(gradeFilter)}
                             </select>
                             <input type="date" id="filterSessionsDate" value="${dateFilter}" onchange="showAllSessions()">
                             <button onclick="document.getElementById('filterSessionsDate').value=''; showAllSessions();" class="btn-sm btn-clear">✖️ إلغاء الفلترة</button>
@@ -855,10 +982,11 @@
 
                 if (sessionsList.length > 0) {
                     found = true;
+                    const gradeText = student.grade === '1' ? 'أولى ث' : student.grade === '2' ? 'ثانية ث' : student.grade === '3' ? 'ثالثة ث' : (cachedGrades.find(g => g.code === student.grade)?.name || student.grade || '—');
                     html += `
                         <div style="background:white; padding:15px; border-radius:15px; box-shadow:0 2px 10px rgba(0,0,0,0.05); margin-bottom:20px;">
                             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
-                                <h3 style="margin:0;">${student.name || 'طالب'} (${code})</h3>
+                                <h3 style="margin:0;">${student.name || 'طالب'} (${code}) <span class="grade-badge ${student.grade === '1' || student.grade === '2' || student.grade === '3' ? 'grade-' + student.grade : 'grade-custom'}">${gradeText}</span></h3>
                                 <span style="background:#3498db; color:white; padding:4px 12px; border-radius:50px; font-size:14px;">🔁 عدد الجلسات: ${sessionsList.length}</span>
                             </div>
                             <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap:10px;">`;
@@ -899,6 +1027,7 @@
         // LEADERBOARD
         // ============================================
         window.showLeaderboard = async function() {
+            await getGrades();
             const gradeFilter = document.getElementById('filterLeaderboardGrade')?.value || 'all';
 
             let leaderboardQ;
@@ -919,10 +1048,7 @@
                         <p style="color:#888; margin-bottom:20px;">ترتيب الطلاب حسب النقاط</p>
                         <div class="filter-bar">
                             <select id="filterLeaderboardGrade" onchange="showLeaderboard()">
-                                <option value="all" ${gradeFilter === 'all' ? 'selected' : ''}>📋 جميع الصفوف</option>
-                                <option value="1" ${gradeFilter === '1' ? 'selected' : ''}>📘 أولى ثانوي</option>
-                                <option value="2" ${gradeFilter === '2' ? 'selected' : ''}>📗 ثانية ثانوي</option>
-                                <option value="3" ${gradeFilter === '3' ? 'selected' : ''}>📕 ثالثة ثانوي</option>
+                                ${getGradeOptions(gradeFilter)}
                             </select>
                             <button onclick="updateLeaderboardManual()" class="btn-sm btn-success">🔄 تحديث الترتيب</button>
                         </div>
@@ -937,13 +1063,14 @@
                     const topClass = rank === 1 ? 'top1' : rank === 2 ? 'top2' : rank === 3 ? 'top3' : '';
                     const medals = ['🥇', '🥈', '🥉'];
                     const icon = isTop ? medals[rank - 1] : `#${rank}`;
+                    const gradeText = item.grade === '1' ? 'أولى ث' : item.grade === '2' ? 'ثانية ث' : item.grade === '3' ? 'ثالثة ث' : (cachedGrades.find(g => g.code === item.grade)?.name || item.grade || '—');
 
                     html += `
                         <div class="leaderboard-item ${topClass}">
                             <div class="rank">${icon}</div>
                             <div class="name">
                                 ${item.name}
-                                <span style="color:#888; font-size:12px;">(${item.grade === '1' ? 'أولى ث' : item.grade === '2' ? 'ثانية ث' : item.grade === '3' ? 'ثالثة ث' : '—'})</span>
+                                <span style="color:#888; font-size:12px;">(${gradeText})</span>
                                 <span style="color:#888; font-size:12px;"> - ${item.videosWatched || 0} فيديو</span>
                             </div>
                             <div class="points">⭐ ${item.points || 0}</div>
@@ -1040,26 +1167,43 @@
                 await new Promise(resolve => setTimeout(resolve, 100));
 
                 const studentsSnap = await getDocs(collection(db, 'students'));
-                let grade1 = 0,
-                    grade2 = 0,
-                    grade3 = 0;
+                await getGrades();
+                
+                let gradeCounts = {};
                 studentsSnap.forEach(d => {
                     const data = d.data();
-                    if (data.grade === '1') grade1++;
-                    else if (data.grade === '2') grade2++;
-                    else if (data.grade === '3') grade3++;
+                    const grade = data.grade || 'all';
+                    gradeCounts[grade] = (gradeCounts[grade] || 0) + 1;
                 });
 
                 const gradeChartEl = document.getElementById('gradeChart');
                 if (gradeChartEl) {
+                    const labels = [];
+                    const data = [];
+                    const colors = ['#3498db', '#f39c12', '#e74c3c', '#9b59b6', '#1abc9c', '#2ecc71', '#e67e22'];
+                    let colorIndex = 0;
+                    
+                    for (const [grade, count] of Object.entries(gradeCounts)) {
+                        let label = grade;
+                        if (grade === '1') label = 'أولى ثانوي';
+                        else if (grade === '2') label = 'ثانية ثانوي';
+                        else if (grade === '3') label = 'ثالثة ثانوي';
+                        else {
+                            const found = cachedGrades.find(g => g.code === grade);
+                            label = found?.name || grade;
+                        }
+                        labels.push(label);
+                        data.push(count);
+                    }
+                    
                     new Chart(gradeChartEl, {
                         type: 'bar',
                         data: {
-                            labels: ['أولى ثانوي', 'ثانية ثانوي', 'ثالثة ثانوي'],
+                            labels: labels,
                             datasets: [{
                                 label: 'عدد الطلاب',
-                                data: [grade1, grade2, grade3],
-                                backgroundColor: ['#3498db', '#f39c12', '#e74c3c'],
+                                data: data,
+                                backgroundColor: colors.slice(0, labels.length),
                                 borderRadius: 5
                             }]
                         },
@@ -1070,8 +1214,6 @@
                             }
                         }
                     });
-                } else {
-                    console.warn('⚠️ العنصر gradeChart غير موجود');
                 }
 
                 const videosSnap = await getDocs(collection(db, 'videos'));
@@ -1104,8 +1246,6 @@
                                 }
                             }
                         });
-                    } else {
-                        console.warn('⚠️ العنصر videosChart غير موجود');
                     }
                 }
 
@@ -1133,8 +1273,6 @@
                             }
                         }
                     });
-                } else {
-                    console.warn('⚠️ العنصر activityChart غير موجود');
                 }
 
             } catch (error) {
@@ -1143,7 +1281,7 @@
         }
 
         // ============================================
-        // STUDENTS (مع إضافة صف دراسي جديد)
+        // STUDENTS (مع إدارة الصفوف)
         // ============================================
         window.addStudent = async function() {
             const name = document.getElementById('stName').value.trim();
@@ -1179,7 +1317,6 @@
             }
 
             try {
-                // التحقق من عدم وجود تكرار
                 const q = query(collection(db, 'grades'), where('code', '==', gradeCode));
                 const snap = await getDocs(q);
                 if (!snap.empty) {
@@ -1195,26 +1332,65 @@
                 alert('✅ تم إضافة الصف الجديد');
                 document.getElementById('newGradeName').value = '';
                 document.getElementById('newGradeCode').value = '';
-                showStudents(); // تحديث الصفحة
+                await getGrades(); // تحديث الكاش
+                showStudents();
             } catch (error) {
                 console.error('خطأ في إضافة الصف:', error);
                 alert('❌ حدث خطأ: ' + error.message);
             }
         };
 
+        // حذف صف
+        window.deleteGrade = async function(gradeId, gradeCode) {
+            if (!confirm(`⚠️ هل أنت متأكد من حذف هذا الصف؟ سيؤثر على الطلاب المرتبطين به.`)) return;
+            if (!confirm('تأكيد نهائي: هل تريد حذف هذا الصف؟')) return;
+
+            try {
+                // التحقق من وجود طلاب مرتبطين بالصف
+                const studentsQ = query(collection(db, 'students'), where('grade', '==', gradeCode));
+                const studentsSnap = await getDocs(studentsQ);
+                if (!studentsSnap.empty) {
+                    if (!confirm(`⚠️ يوجد ${studentsSnap.size} طالب(ة) في هذا الصف. هل تريد حذف الصف مع الطلاب؟`)) return;
+                    // حذف الطلاب المرتبطين
+                    for (const doc of studentsSnap.docs) {
+                        await deleteDoc(doc.ref);
+                    }
+                }
+
+                await deleteDoc(doc(db, 'grades', gradeId));
+                alert('✅ تم حذف الصف بنجاح');
+                await getGrades(); // تحديث الكاش
+                showStudents();
+            } catch (error) {
+                console.error('خطأ في حذف الصف:', error);
+                alert('❌ حدث خطأ: ' + error.message);
+            }
+        };
+
+        // تعديل اسم صف
+        window.editGrade = async function(gradeId, oldCode) {
+            const newName = prompt('أدخل الاسم الجديد للصف:');
+            if (newName === null) return;
+            const trimmedName = newName.trim();
+            if (!trimmedName) return alert('⚠️ الاسم لا يمكن أن يكون فارغاً');
+
+            try {
+                await updateDoc(doc(db, 'grades', gradeId), {
+                    name: trimmedName
+                });
+                alert('✅ تم تحديث اسم الصف بنجاح');
+                await getGrades(); // تحديث الكاش
+                showStudents();
+            } catch (error) {
+                console.error('خطأ في تعديل الصف:', error);
+                alert('❌ حدث خطأ: ' + error.message);
+            }
+        };
+
         window.showStudents = async function() {
+            await getGrades();
             const gradeFilter = document.getElementById('filterGrade')?.value || 'all';
             const searchTerm = document.getElementById('searchStudent')?.value?.trim()?.toLowerCase() || '';
-
-            // جلب الصفوف المضافة
-            const gradesSnap = await getDocs(collection(db, 'grades'));
-            let gradeOptions = `<option value="all">📋 جميع الصفوف</option>`;
-            let customGrades = [];
-            gradesSnap.forEach(d => {
-                const data = d.data();
-                customGrades.push(data);
-                gradeOptions += `<option value="${data.code}" ${gradeFilter === data.code ? 'selected' : ''}>${data.name}</option>`;
-            });
 
             let q;
             if (gradeFilter === 'all') {
@@ -1238,16 +1414,33 @@
                 );
             }
 
+            // بناء جدول الصفوف المضافة
+            let gradesTableHtml = '';
+            if (cachedGrades.length > 0) {
+                gradesTableHtml = `
+                    <div style="margin-top:15px; padding:15px; background:#f0f4ff; border-radius:12px; border:1px solid #d0d8e8;">
+                        <h4 style="margin-bottom:10px;">📚 الصفوف المضافة</h4>
+                        <div style="display:flex; flex-wrap:wrap; gap:10px;">
+                            ${cachedGrades.map(g => `
+                                <div style="background:white; padding:8px 15px; border-radius:8px; border:1px solid #9b59b6; display:flex; align-items:center; gap:8px;">
+                                    <span style="color:#9b59b6; font-weight:bold;">${g.name}</span>
+                                    <span style="color:#888; font-size:11px;">(${g.code})</span>
+                                    <button onclick="editGrade('${g.id}','${g.code}')" class="btn-sm btn-edit" style="padding:2px 8px; font-size:11px;">✏️</button>
+                                    <button onclick="deleteGrade('${g.id}','${g.code}')" class="btn-sm btn-danger" style="padding:2px 8px; font-size:11px;">🗑️</button>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
             let html = `<h2>👨‍🎓 إدارة الطلاب</h2>
                         <div class="filter-bar">
                             <input id="stName" placeholder="اسم الطالب" style="flex:1; min-width:120px;">
                             <input id="stPhone" placeholder="رقم التليفون" style="flex:1; min-width:120px;">
                             <input id="stParentPhone" placeholder="رقم ولي الأمر" style="flex:1; min-width:120px;">
                             <select id="stGrade">
-                                <option value="1">الصف الأول الثانوي</option>
-                                <option value="2">الصف الثاني الثانوي</option>
-                                <option value="3">الصف الثالث الثانوي</option>
-                                ${customGrades.map(g => `<option value="${g.code}">${g.name}</option>`).join('')}
+                                ${getGradeOptions('1')}
                             </select>
                             <button onclick="addStudent()" class="btn-sm btn-add">➕ إضافة طالب</button>
                         </div>
@@ -1256,9 +1449,10 @@
                             <input id="newGradeCode" placeholder="كود الصف (مثال: prep3)" style="flex:1; min-width:100px;">
                             <button onclick="addNewGrade()" class="btn-sm" style="background:#9b59b6; color:white; padding:8px 20px;">➕ إضافة صف جديد</button>
                         </div>
+                        ${gradesTableHtml}
                         <div class="filter-bar">
                             <select id="filterGrade" onchange="showStudents()">
-                                ${gradeOptions}
+                                ${getGradeOptions(gradeFilter)}
                             </select>
                             <input id="searchStudent" class="search-box" placeholder="🔍 بحث بالاسم أو الكود..." value="${searchTerm}">
                             <button onclick="searchStudents()" class="btn-sm btn-search">🔍 بحث</button>
@@ -1283,10 +1477,9 @@
                 const deviceCount = (s.deviceIds || []).length;
                 const statusText = s.status === 'active' ? '🟢 نشط' : (s.status === 'suspended' ? '🔴 معلق' :
                     '⚪ غير نشط');
-                // التحقق إذا كان الصف من الصفوف المضافة
-                const isCustom = customGrades.some(g => g.code === s.grade);
+                const isCustom = cachedGrades.some(g => g.code === s.grade);
                 const gradeClass = isCustom ? 'grade-custom' : (s.grade || 'all');
-                const gradeText = isCustom ? (customGrades.find(g => g.code === s.grade)?.name || s.grade) :
+                const gradeText = isCustom ? (cachedGrades.find(g => g.code === s.grade)?.name || s.grade) :
                     (s.grade === '1' ? 'أولى ث' : s.grade === '2' ? 'ثانية ث' : s.grade === '3' ? 'ثالثة ث' : '—');
                 html += `<tr>
                     <td><strong>${s.name}</strong></td>
@@ -1545,6 +1738,7 @@
         // ALL PROGRESS
         // ============================================
         window.showAllProgress = async function() {
+            await getGrades();
             const gradeFilter = document.getElementById('filterProgressGrade')?.value || 'all';
 
             let studentsQ;
@@ -1558,20 +1752,18 @@
             let html = `<h2>📊 تقدم جميع الطلاب</h2>
                         <div class="filter-bar">
                             <select id="filterProgressGrade" onchange="showAllProgress()">
-                                <option value="all" ${gradeFilter === 'all' ? 'selected' : ''}>📋 جميع الصفوف</option>
-                                <option value="1" ${gradeFilter === '1' ? 'selected' : ''}>📘 الصف الأول الثانوي</option>
-                                <option value="2" ${gradeFilter === '2' ? 'selected' : ''}>📗 الصف الثاني الثانوي</option>
-                                <option value="3" ${gradeFilter === '3' ? 'selected' : ''}>📕 الصف الثالث الثانوي</option>
+                                ${getGradeOptions(gradeFilter)}
                             </select>
                         </div>
                         <ul style="list-style:none; padding:0;">`;
             if (studentsSnap.empty) html += `<li>لا يوجد طلاب</li>`;
             for (const doc of studentsSnap.docs) {
                 const data = doc.data();
-                const gradeText = data.grade === '1' ? 'أولى ث' : data.grade === '2' ? 'ثانية ث' : data.grade ===
-                    '3' ? 'ثالثة ث' : '—';
+                const isCustom = cachedGrades.some(g => g.code === data.grade);
+                const gradeText = isCustom ? (cachedGrades.find(g => g.code === data.grade)?.name || data.grade) :
+                    (data.grade === '1' ? 'أولى ث' : data.grade === '2' ? 'ثانية ث' : data.grade === '3' ? 'ثالثة ث' : '—');
                 html += `<li style="margin:10px 0; display:flex; align-items:center; gap:15px; flex-wrap:wrap;">
-                            ${data.name} (${data.code}) <span class="grade-badge grade-${data.grade}">${gradeText}</span>
+                            ${data.name} (${data.code}) <span class="grade-badge ${isCustom ? 'grade-custom' : (data.grade || 'all')}">${gradeText}</span>
                             <button onclick="showStudentProgress('${data.code}')" class="btn-sm" style="background:#3498db; color:white;">عرض التقدم</button>
                         </li>`;
             }
@@ -1583,6 +1775,7 @@
         // ALL DEVICES
         // ============================================
         window.showAllDevices = async function() {
+            await getGrades();
             const gradeFilter = document.getElementById('filterDevicesGrade')?.value || 'all';
 
             let studentsQ;
@@ -1596,19 +1789,17 @@
             let html = `<h2>📱 إدارة الأجهزة لجميع الطلاب</h2>
                         <div class="filter-bar">
                             <select id="filterDevicesGrade" onchange="showAllDevices()">
-                                <option value="all" ${gradeFilter === 'all' ? 'selected' : ''}>📋 جميع الصفوف</option>
-                                <option value="1" ${gradeFilter === '1' ? 'selected' : ''}>📘 الصف الأول الثانوي</option>
-                                <option value="2" ${gradeFilter === '2' ? 'selected' : ''}>📗 الصف الثاني الثانوي</option>
-                                <option value="3" ${gradeFilter === '3' ? 'selected' : ''}>📕 الصف الثالث الثانوي</option>
+                                ${getGradeOptions(gradeFilter)}
                             </select>
                         </div>`;
             if (studentsSnap.empty) html += `<p>لا يوجد طلاب</p>`;
             for (const doc of studentsSnap.docs) {
                 const data = doc.data();
-                const gradeText = data.grade === '1' ? 'أولى ث' : data.grade === '2' ? 'ثانية ث' : data.grade ===
-                    '3' ? 'ثالثة ث' : '—';
+                const isCustom = cachedGrades.some(g => g.code === data.grade);
+                const gradeText = isCustom ? (cachedGrades.find(g => g.code === data.grade)?.name || data.grade) :
+                    (data.grade === '1' ? 'أولى ث' : data.grade === '2' ? 'ثانية ث' : data.grade === '3' ? 'ثالثة ث' : '—');
                 html += `<div style="margin:15px 0; border-bottom:1px solid #ddd; padding-bottom:10px;">
-                            <strong>${data.name}</strong> (${data.code}) <span class="grade-badge grade-${data.grade}">${gradeText}</span> - الأجهزة: ${(data.deviceIds||[]).length}
+                            <strong>${data.name}</strong> (${data.code}) <span class="grade-badge ${isCustom ? 'grade-custom' : (data.grade || 'all')}">${gradeText}</span> - الأجهزة: ${(data.deviceIds||[]).length}
                             <button onclick="showStudentDevices('${data.code}')" class="btn-sm" style="background:#9b59b6; color:white;">إدارة الأجهزة</button>
                         </div>`;
             }
@@ -1682,6 +1873,7 @@
         window.clearVideoSearch = function() { document.getElementById('searchVideo').value = ''; showVideos(); };
 
         window.showVideos = async function() {
+            await getGrades();
             const gradeFilter = document.getElementById('filterVidGrade')?.value || 'all';
             const searchTerm = document.getElementById('searchVideo')?.value?.trim()?.toLowerCase() || '';
 
@@ -1710,10 +1902,7 @@
                             <input id="vidTitle" placeholder="عنوان الفيديو">
                             <input id="vidUrl" placeholder="رابط يوتيوب (أي رابط)" style="flex:2; min-width:200px;">
                             <select id="vidGrade">
-                                <option value="all">🌐 للجميع</option>
-                                <option value="1">📘 أولى ثانوي</option>
-                                <option value="2">📗 ثانية ثانوي</option>
-                                <option value="3">📕 ثالثة ثانوي</option>
+                                ${getGradeOptions('all')}
                             </select>
                             <select id="vidType">
                                 <option value="normal">🎬 فيديو عادي</option>
@@ -1723,10 +1912,7 @@
                         </div>
                         <div class="filter-bar">
                             <select id="filterVidGrade" onchange="showVideos()">
-                                <option value="all" ${gradeFilter === 'all' ? 'selected' : ''}>📋 جميع الفيديوهات</option>
-                                <option value="1" ${gradeFilter === '1' ? 'selected' : ''}>📘 أولى ثانوي</option>
-                                <option value="2" ${gradeFilter === '2' ? 'selected' : ''}>📗 ثانية ثانوي</option>
-                                <option value="3" ${gradeFilter === '3' ? 'selected' : ''}>📕 ثالثة ثانوي</option>
+                                ${getGradeOptions(gradeFilter)}
                             </select>
                             <input id="searchVideo" class="search-box" placeholder="🔍 بحث بالعنوان..." value="${searchTerm}">
                             <button onclick="searchVideos()" class="btn-sm btn-search">🔍 بحث</button>
@@ -1737,14 +1923,15 @@
                 html += `<p>لا يوجد فيديوهات</p>`;
             } else {
                 videos.forEach(v => {
-                    const gradeText = v.grade === 'all' ? 'للجميع' : v.grade === '1' ? 'أولى ث' : v.grade ===
-                        '2' ? 'ثانية ث' : 'ثالثة ث';
+                    const isCustom = cachedGrades.some(g => g.code === v.grade);
+                    const gradeText = isCustom ? (cachedGrades.find(g => g.code === v.grade)?.name || v.grade) :
+                        (v.grade === 'all' ? 'للجميع' : v.grade === '1' ? 'أولى ث' : v.grade === '2' ? 'ثانية ث' : v.grade === '3' ? 'ثالثة ث' : v.grade || '—');
                     const isLive = v.type === 'live' && !v.isLiveEnded;
                     const isEndedLive = v.type === 'live' && v.isLiveEnded;
 
                     html += `<div style="border:1px solid #ddd; padding:15px; margin:15px 0; border-radius:10px; background:white;">
                                 <h4>${v.title} 
-                                    <span class="grade-badge grade-${v.grade}">${gradeText}</span>
+                                    <span class="grade-badge ${isCustom ? 'grade-custom' : (v.grade || 'all')}">${gradeText}</span>
                                     ${isLive ? '<span class="live-badge">🔴 مباشر</span>' : ''}
                                     ${isEndedLive ? '<span class="ended-badge">📹 بث سابق</span>' : ''}
                                 </h4>`;
@@ -1808,6 +1995,7 @@
         window.clearBookSearch = function() { document.getElementById('searchBook').value = ''; showBooks(); };
 
         window.showBooks = async function() {
+            await getGrades();
             const gradeFilter = document.getElementById('filterBookGrade')?.value || 'all';
             const searchTerm = document.getElementById('searchBook')?.value?.trim()?.toLowerCase() || '';
 
@@ -1836,19 +2024,13 @@
                             <input id="bookTitle" placeholder="عنوان الكتاب">
                             <input id="bookUrl" placeholder="رابط جوجل درايف" style="flex:2; min-width:200px;">
                             <select id="bookGrade">
-                                <option value="all">🌐 للجميع</option>
-                                <option value="1">📘 أولى ثانوي</option>
-                                <option value="2">📗 ثانية ثانوي</option>
-                                <option value="3">📕 ثالثة ثانوي</option>
+                                ${getGradeOptions('all')}
                             </select>
                             <button onclick="addBook()" class="btn-sm btn-add">➕ إضافة</button>
                         </div>
                         <div class="filter-bar">
                             <select id="filterBookGrade" onchange="showBooks()">
-                                <option value="all" ${gradeFilter === 'all' ? 'selected' : ''}>📋 جميع الكتب</option>
-                                <option value="1" ${gradeFilter === '1' ? 'selected' : ''}>📘 أولى ثانوي</option>
-                                <option value="2" ${gradeFilter === '2' ? 'selected' : ''}>📗 ثانية ثانوي</option>
-                                <option value="3" ${gradeFilter === '3' ? 'selected' : ''}>📕 ثالثة ثانوي</option>
+                                ${getGradeOptions(gradeFilter)}
                             </select>
                             <input id="searchBook" class="search-box" placeholder="🔍 بحث بالعنوان..." value="${searchTerm}">
                             <button onclick="searchBooks()" class="btn-sm btn-search">🔍 بحث</button>
@@ -1856,8 +2038,9 @@
                         </div>`;
             if (books.length === 0) html += `<p>لا يوجد كتب</p>`;
             books.forEach(b => {
-                const gradeText = b.grade === 'all' ? 'للجميع' : b.grade === '1' ? 'أولى ث' : b.grade ===
-                    '2' ? 'ثانية ث' : 'ثالثة ث';
+                const isCustom = cachedGrades.some(g => g.code === b.grade);
+                const gradeText = isCustom ? (cachedGrades.find(g => g.code === b.grade)?.name || b.grade) :
+                    (b.grade === 'all' ? 'للجميع' : b.grade === '1' ? 'أولى ث' : b.grade === '2' ? 'ثانية ث' : b.grade === '3' ? 'ثالثة ث' : b.grade || '—');
                 let url = b.url;
                 if (url.includes('drive.google.com')) {
                     if (!url.includes('rm=minimal')) {
@@ -1865,7 +2048,7 @@
                     }
                 }
                 html += `<div style="border:1px solid #ddd; padding:15px; margin:15px 0; border-radius:10px; background:white;">
-                            <h4>${b.title} <span class="grade-badge grade-${b.grade}">${gradeText}</span></h4>
+                            <h4>${b.title} <span class="grade-badge ${isCustom ? 'grade-custom' : (b.grade || 'all')}">${gradeText}</span></h4>
                             <iframe src="${url}" 
                                     width="100%" 
                                     height="500" 
@@ -1897,6 +2080,7 @@
         window.clearExamSearch = function() { document.getElementById('searchExam').value = ''; showExams(); };
 
         window.showExams = async function() {
+            await getGrades();
             const gradeFilter = document.getElementById('filterExamGrade')?.value || 'all';
             const searchTerm = document.getElementById('searchExam')?.value?.trim()?.toLowerCase() || '';
 
@@ -1926,19 +2110,13 @@
                             <select id="exType"><option value="text">نص</option><option value="image">صورة</option><option value="video">فيديو</option></select>
                             <input id="exContent" placeholder="نص السؤال أو الرابط" style="flex:2; min-width:200px;">
                             <select id="exGrade">
-                                <option value="all">🌐 للجميع</option>
-                                <option value="1">📘 أولى ثانوي</option>
-                                <option value="2">📗 ثانية ثانوي</option>
-                                <option value="3">📕 ثالثة ثانوي</option>
+                                ${getGradeOptions('all')}
                             </select>
                             <button onclick="addExam()" class="btn-sm btn-add">➕ إضافة</button>
                         </div>
                         <div class="filter-bar">
                             <select id="filterExamGrade" onchange="showExams()">
-                                <option value="all" ${gradeFilter === 'all' ? 'selected' : ''}>📋 جميع الاختبارات</option>
-                                <option value="1" ${gradeFilter === '1' ? 'selected' : ''}>📘 أولى ثانوي</option>
-                                <option value="2" ${gradeFilter === '2' ? 'selected' : ''}>📗 ثانية ثانوي</option>
-                                <option value="3" ${gradeFilter === '3' ? 'selected' : ''}>📕 ثالثة ثانوي</option>
+                                ${getGradeOptions(gradeFilter)}
                             </select>
                             <input id="searchExam" class="search-box" placeholder="🔍 بحث بالعنوان..." value="${searchTerm}">
                             <button onclick="searchExams()" class="btn-sm btn-search">🔍 بحث</button>
@@ -1946,10 +2124,11 @@
                         </div>`;
             if (exams.length === 0) html += `<p>لا يوجد اختبارات</p>`;
             exams.forEach(e => {
-                const gradeText = e.grade === 'all' ? 'للجميع' : e.grade === '1' ? 'أولى ث' : e.grade ===
-                    '2' ? 'ثانية ث' : 'ثالثة ث';
+                const isCustom = cachedGrades.some(g => g.code === e.grade);
+                const gradeText = isCustom ? (cachedGrades.find(g => g.code === e.grade)?.name || e.grade) :
+                    (e.grade === 'all' ? 'للجميع' : e.grade === '1' ? 'أولى ث' : e.grade === '2' ? 'ثانية ث' : e.grade === '3' ? 'ثالثة ث' : e.grade || '—');
                 html += `<div style="border:1px solid #ddd; padding:15px; margin:15px 0; border-radius:10px; background:white;">
-                            <h4>${e.title} <span class="grade-badge grade-${e.grade}">${gradeText}</span></h4>
+                            <h4>${e.title} <span class="grade-badge ${isCustom ? 'grade-custom' : (e.grade || 'all')}">${gradeText}</span></h4>
                             <p><strong>النوع:</strong> ${e.type}</p>
                             <p><strong>المحتوى:</strong> ${e.content}</p>
                             <button onclick="deleteItem('exams','${e.id}')" class="btn-sm" style="background:#e74c3c; color:white;">🗑️ حذف</button>
@@ -2000,6 +2179,7 @@
         window.clearNotifSearch = function() { document.getElementById('searchNotif').value = ''; showNotifications(); };
 
         window.showNotifications = async function() {
+            await getGrades();
             const gradeFilter = document.getElementById('filterNotifGrade')?.value || 'all';
             const searchTerm = document.getElementById('searchNotif')?.value?.trim()?.toLowerCase() || '';
 
@@ -2029,19 +2209,13 @@
                             <input type="file" id="notifFile" accept="image/*,video/*">
                             <input id="notifTarget" placeholder="كود طالب معين أو 'all'" style="flex:1;">
                             <select id="notifGrade">
-                                <option value="all">🌐 للجميع</option>
-                                <option value="1">📘 أولى ثانوي</option>
-                                <option value="2">📗 ثانية ثانوي</option>
-                                <option value="3">📕 ثالثة ثانوي</option>
+                                ${getGradeOptions('all')}
                             </select>
                             <button onclick="sendNotif()" class="btn-sm btn-add">📨 إرسال</button>
                         </div>
                         <div class="filter-bar">
                             <select id="filterNotifGrade" onchange="showNotifications()">
-                                <option value="all" ${gradeFilter === 'all' ? 'selected' : ''}>📋 جميع الإشعارات</option>
-                                <option value="1" ${gradeFilter === '1' ? 'selected' : ''}>📘 أولى ثانوي</option>
-                                <option value="2" ${gradeFilter === '2' ? 'selected' : ''}>📗 ثانية ثانوي</option>
-                                <option value="3" ${gradeFilter === '3' ? 'selected' : ''}>📕 ثالثة ثانوي</option>
+                                ${getGradeOptions(gradeFilter)}
                             </select>
                             <input id="searchNotif" class="search-box" placeholder="🔍 بحث بالنص..." value="${searchTerm}">
                             <button onclick="searchNotifications()" class="btn-sm btn-search">🔍 بحث</button>
@@ -2049,10 +2223,11 @@
                         </div>`;
             if (notifs.length === 0) html += `<p>لا يوجد إشعارات</p>`;
             notifs.forEach(n => {
-                const gradeText = n.grade === 'all' ? 'للجميع' : n.grade === '1' ? 'أولى ث' : n.grade ===
-                    '2' ? 'ثانية ث' : 'ثالثة ث';
+                const isCustom = cachedGrades.some(g => g.code === n.grade);
+                const gradeText = isCustom ? (cachedGrades.find(g => g.code === n.grade)?.name || n.grade) :
+                    (n.grade === 'all' ? 'للجميع' : n.grade === '1' ? 'أولى ث' : n.grade === '2' ? 'ثانية ث' : n.grade === '3' ? 'ثالثة ث' : n.grade || '—');
                 html += `<div style="border-bottom:1px solid #eee; padding:15px; background:white; margin-bottom:10px; border-radius:8px;">
-                            <p style="font-size:16px;">${n.text} <span class="grade-badge grade-${n.grade}">${gradeText}</span></p>`;
+                            <p style="font-size:16px;">${n.text} <span class="grade-badge ${isCustom ? 'grade-custom' : (n.grade || 'all')}">${gradeText}</span></p>`;
                 if (n.mediaUrl) {
                     if (n.mediaType === 'video') {
                         html += `<video controls controlsList="nodownload" src="${n.mediaUrl}" width="100%" height="250" style="border-radius:8px; margin:10px 0;"></video>`;
@@ -2074,6 +2249,7 @@
         window.clearDeviceSearch = function() { document.getElementById('searchDevice').value = ''; showPendingDevices(); };
 
         window.showPendingDevices = async function() {
+            await getGrades();
             const gradeFilter = document.getElementById('filterDeviceGrade')?.value || 'all';
             const searchTerm = document.getElementById('searchDevice')?.value?.trim()?.toLowerCase() || '';
 
@@ -2103,10 +2279,7 @@
             let html = `<h2>📱 طلبات الأجهزة الجديدة</h2>
                         <div class="filter-bar">
                             <select id="filterDeviceGrade" onchange="showPendingDevices()">
-                                <option value="all" ${gradeFilter === 'all' ? 'selected' : ''}>📋 جميع الطلبات</option>
-                                <option value="1" ${gradeFilter === '1' ? 'selected' : ''}>📘 أولى ثانوي</option>
-                                <option value="2" ${gradeFilter === '2' ? 'selected' : ''}>📗 ثانية ثانوي</option>
-                                <option value="3" ${gradeFilter === '3' ? 'selected' : ''}>📕 ثالثة ثانوي</option>
+                                ${getGradeOptions(gradeFilter)}
                             </select>
                             <input id="searchDevice" class="search-box" placeholder="🔍 بحث بكود الطالب أو الجهاز..." value="${searchTerm}">
                             <button onclick="searchDevices()" class="btn-sm btn-search">🔍 بحث</button>
@@ -2116,12 +2289,13 @@
                 html += `<p>لا توجد طلبات معلقة</p>`;
             } else {
                 devices.forEach(d => {
-                    const gradeText = d.grade === '1' ? 'أولى ث' : d.grade === '2' ? 'ثانية ث' : d.grade ===
-                        '3' ? 'ثالثة ث' : '—';
+                    const isCustom = cachedGrades.some(g => g.code === d.grade);
+                    const gradeText = isCustom ? (cachedGrades.find(g => g.code === d.grade)?.name || d.grade) :
+                        (d.grade === '1' ? 'أولى ث' : d.grade === '2' ? 'ثانية ث' : d.grade === '3' ? 'ثالثة ث' : '—');
                     html += `<div style="border:1px solid #ddd; padding:15px; margin:15px 0; border-radius:10px; background:white;">
                                 <p><strong>الطالب كود:</strong> ${d.studentCode}</p>
                                 <p><strong>الجهاز:</strong> ${d.deviceId}</p>
-                                <p><strong>الصف:</strong> <span class="grade-badge grade-${d.grade}">${gradeText}</span></p>
+                                <p><strong>الصف:</strong> <span class="grade-badge ${isCustom ? 'grade-custom' : (d.grade || 'all')}">${gradeText}</span></p>
                                 <button onclick="approveDevice('${d.id}', '${d.studentCode}', '${d.deviceId}')" class="btn-sm" style="background:#2ecc71; color:white;">✅ موافقة</button>
                                 <button onclick="rejectDevice('${d.id}')" class="btn-sm" style="background:#e74c3c; color:white;">❌ رفض</button>
                             </div>`;
@@ -2225,7 +2399,7 @@
         };
 
         // ============================================
-        // REPORTS
+        // REPORTS (مختصرة للطول)
         // ============================================
         window.showReports = function() {
             let html = `<h2>📊 التقارير</h2>
@@ -2256,18 +2430,21 @@
         };
 
         // ============================================
-        // EXPORT FUNCTIONS (مختصرة للطول)
+        // EXPORT FUNCTIONS (مختصرة)
         // ============================================
         window.exportStudentCodes = async function() {
             try {
+                await getGrades();
                 const snap = await getDocs(collection(db, 'students'));
                 let students = [];
                 snap.forEach(doc => {
                     const data = doc.data();
+                    const isCustom = cachedGrades.some(g => g.code === data.grade);
+                    const gradeText = isCustom ? (cachedGrades.find(g => g.code === data.grade)?.name || data.grade) :
+                        (data.grade === '1' ? 'أولى ثانوي' : data.grade === '2' ? 'ثانية ثانوي' : data.grade === '3' ? 'ثالثة ثانوي' : '—');
                     students.push({
                         name: data.name || '',
-                        grade: data.grade === '1' ? 'أولى ثانوي' : data.grade === '2' ? 'ثانية ثانوي' :
-                            data.grade === '3' ? 'ثالثة ثانوي' : '—',
+                        grade: gradeText,
                         code: data.code || ''
                     });
                 });
@@ -2333,12 +2510,12 @@
         };
 
         // باقي دوال التصدير (exportAllStudents, exportAllStudentsPDF, exportStudentCodesPDF, exportStudentProgress, exportStudentProgressPDF) موجودة ولكن اختصرتها للطول
-        // ... (نفس الكود السابق)
 
         // ============================================
         // BADGES MANAGEMENT
         // ============================================
         window.showBadgesManagement = async function() {
+            await getGrades();
             const studentsSnap = await getDocs(collection(db, 'students'));
             let html = `<h2>🏅 إدارة المكافآت والشارات</h2>
                         <p style="color:#888; margin-bottom:20px;">عرض الشارات التي حصل عليها كل طالب</p>
@@ -2357,8 +2534,9 @@
                 for (const doc of studentsSnap.docs) {
                     const student = doc.data();
                     const code = student.code;
-                    const gradeText = student.grade === '1' ? 'أولى ث' : student.grade === '2' ? 'ثانية ث' : student
-                        .grade === '3' ? 'ثالثة ث' : '—';
+                    const isCustom = cachedGrades.some(g => g.code === student.grade);
+                    const gradeText = isCustom ? (cachedGrades.find(g => g.code === student.grade)?.name || student.grade) :
+                        (student.grade === '1' ? 'أولى ث' : student.grade === '2' ? 'ثانية ث' : student.grade === '3' ? 'ثالثة ث' : '—');
                     const progressSnap = await getDocs(query(collection(db, 'progress'), where('studentCode', '==',
                     code)));
                     let watchedCount = 0;
@@ -2390,10 +2568,10 @@
         // FEES MANAGEMENT (المصروفات)
         // ============================================
         window.showFeesManagement = async function() {
+            await getGrades();
             const gradeFilter = document.getElementById('filterFeesGrade')?.value || 'all';
             const searchTerm = document.getElementById('searchFeesStudent')?.value?.trim()?.toLowerCase() || '';
 
-            // جلب جميع الطلاب
             let studentsQ;
             if (gradeFilter === 'all') {
                 studentsQ = collection(db, 'students');
@@ -2402,7 +2580,6 @@
             }
             const studentsSnap = await getDocs(studentsQ);
 
-            // جلب جميع المدفوعات
             const feesSnap = await getDocs(collection(db, 'fees'));
             const feesMap = {};
             feesSnap.forEach(d => {
@@ -2413,20 +2590,12 @@
                 feesMap[data.studentCode].push({ id: d.id, ...data });
             });
 
-            // جلب الصفوف المتاحة للفلتر
-            const gradesSnap = await getDocs(collection(db, 'grades'));
-            let gradeOptions = `<option value="all">📋 جميع الصفوف</option>`;
-            gradesSnap.forEach(d => {
-                const data = d.data();
-                gradeOptions += `<option value="${data.code}" ${gradeFilter === data.code ? 'selected' : ''}>${data.name}</option>`;
-            });
-
             let html = `<h2>💰 المصروفات</h2>
                         <p style="color:#888; margin-bottom:20px;">متابعة مصروفات الطلاب</p>
                         
                         <div class="filter-bar">
                             <select id="filterFeesGrade" onchange="showFeesManagement()">
-                                ${gradeOptions}
+                                ${getGradeOptions(gradeFilter)}
                             </select>
                             <input id="searchFeesStudent" class="search-box" placeholder="🔍 بحث باسم أو كود الطالب..." value="${searchTerm}">
                             <button onclick="searchFees()" class="btn-sm btn-search">🔍 بحث</button>
@@ -2440,7 +2609,6 @@
                         
                         <div id="feesContainer">`;
 
-            // تجميع الطلاب مع مصروفاتهم
             let studentsList = [];
             for (const doc of studentsSnap.docs) {
                 const student = doc.data();
@@ -2492,7 +2660,9 @@
                     </div>`;
 
                 studentsList.forEach(student => {
-                    const gradeText = student.grade === '1' ? 'أولى ث' : student.grade === '2' ? 'ثانية ث' : student.grade === '3' ? 'ثالثة ث' : '—';
+                    const isCustom = cachedGrades.some(g => g.code === student.grade);
+                    const gradeText = isCustom ? (cachedGrades.find(g => g.code === student.grade)?.name || student.grade) :
+                        (student.grade === '1' ? 'أولى ث' : student.grade === '2' ? 'ثانية ث' : student.grade === '3' ? 'ثالثة ث' : '—');
                     const remainingClass = student.remaining > 0 ? 'fees-due' : 'fees-paid';
                     
                     html += `
@@ -2501,7 +2671,7 @@
                                 <div>
                                     <span class="student-name">${student.name || 'طالب'}</span>
                                     <span style="color:#888; font-size:14px;">(${student.code})</span>
-                                    <span class="grade-badge grade-${student.grade || 'all'}">${gradeText}</span>
+                                    <span class="grade-badge ${isCustom ? 'grade-custom' : (student.grade || 'all')}">${gradeText}</span>
                                 </div>
                                 <div style="display:flex; gap:15px; flex-wrap:wrap;">
                                     <span class="fees-paid">✅ دفع: ${student.totalPaid} ج.م</span>
@@ -2647,6 +2817,7 @@
         // ============================================
         window.exportFeesReport = async function() {
             try {
+                await getGrades();
                 const studentsSnap = await getDocs(collection(db, 'students'));
                 const feesSnap = await getDocs(collection(db, 'fees'));
                 
@@ -2668,6 +2839,9 @@
                     payments.forEach(p => { totalPaid += p.amount || 0; });
                     
                     const defaultFees = student.feesAmount || 500;
+                    const isCustom = cachedGrades.some(g => g.code === student.grade);
+                    const gradeText = isCustom ? (cachedGrades.find(g => g.code === student.grade)?.name || student.grade) :
+                        (student.grade === '1' ? 'أولى ثانوي' : student.grade === '2' ? 'ثانية ثانوي' : student.grade === '3' ? 'ثالثة ثانوي' : '—');
                     
                     let paymentDetails = '';
                     payments.forEach((p, index) => {
@@ -2678,7 +2852,7 @@
                     report.push({
                         'الاسم': student.name || '',
                         'الكود': code,
-                        'الصف': student.grade === '1' ? 'أولى ثانوي' : student.grade === '2' ? 'ثانية ثانوي' : student.grade === '3' ? 'ثالثة ثانوي' : '—',
+                        'الصف': gradeText,
                         'المبلغ المستحق': defaultFees + ' ج.م',
                         'إجمالي المدفوع': totalPaid + ' ج.م',
                         'المتبقي': (defaultFees - totalPaid) + ' ج.م',
@@ -2706,6 +2880,7 @@
 
         window.exportFeesReportPDF = async function() {
             try {
+                await getGrades();
                 const studentsSnap = await getDocs(collection(db, 'students'));
                 const feesSnap = await getDocs(collection(db, 'fees'));
                 
@@ -2732,14 +2907,15 @@
                     const defaultFees = student.feesAmount || 500;
                     totalAllPaid += totalPaid;
                     totalAllDue += defaultFees;
+                    const isCustom = cachedGrades.some(g => g.code === student.grade);
+                    const gradeText = isCustom ? (cachedGrades.find(g => g.code === student.grade)?.name || student.grade) :
+                        (student.grade === '1' ? 'أولى ثانوي' : student.grade === '2' ? 'ثانية ثانوي' : student.grade === '3' ? 'ثالثة ثانوي' : '—');
                     
                     let paymentDetails = '';
                     payments.forEach((p, index) => {
                         const date = p.paymentDate?.toDate?.()?.toLocaleDateString('ar-EG') || '—';
                         paymentDetails += `دفعة ${index+1}: ${p.amount || 0} ج.م (${date}) ${p.notes ? ' - ' + p.notes : ''}<br>`;
                     });
-                    
-                    const gradeText = student.grade === '1' ? 'أولى ثانوي' : student.grade === '2' ? 'ثانية ثانوي' : student.grade === '3' ? 'ثالثة ثانوي' : '—';
                     
                     reportRows += `
                         <tr style="page-break-inside: avoid;">
@@ -3056,6 +3232,10 @@
             window.location.href = 'index.html';
         };
 
+        // ============================================
+        // جلب الصفوف عند بدء التحميل
+        // ============================================
+        await getGrades();
         showSection('dashboard');
     </script>
 </body>
