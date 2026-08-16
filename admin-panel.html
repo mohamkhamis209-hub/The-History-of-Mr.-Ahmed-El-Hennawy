@@ -1633,8 +1633,6 @@
             const phone = document.getElementById('stPhone').value.trim();
             const parentPhone = document.getElementById('stParentPhone').value.trim();
             const grade = document.getElementById('stGrade').value;
-            const groupSelect = document.getElementById('stGroup');
-            const groupIds = groupSelect ? Array.from(groupSelect.selectedOptions).map(o => o.value).filter(Boolean) : [];
             if (!name || !phone || !parentPhone) return alert('أدخل جميع البيانات');
             const code = generateCode();
             await addDoc(collection(db, 'students'), {
@@ -1643,7 +1641,7 @@
                 phone,
                 parentPhone,
                 grade: grade,
-                groupIds,
+                groupIds: [],
                 status: 'inactive',
                 suspendMessage: '',
                 deviceIds: [],
@@ -1737,8 +1735,6 @@
 
         window.showStudents = async function() {
             await getGrades();
-            const groups = await getGroups();
-            const groupMap = Object.fromEntries(groups.map(g => [g.id, g]));
             const gradeFilter = document.getElementById('filterGrade')?.value || 'all';
             const searchTerm = document.getElementById('searchStudent')?.value?.trim()?.toLowerCase() || '';
 
@@ -1792,10 +1788,6 @@
                             <select id="stGrade">
                                 ${getGradeOptions('1')}
                             </select>
-                            <select id="stGroup" multiple title="يمكن اختيار أكثر من مجموعة" style="min-width:220px; min-height:42px;">
-                                <option value="">👥 اختر المجموعة (يمكن أكثر من مجموعة)</option>
-                                ${groups.map(g => `<option value="${g.id}">${escapeHtml(g.name)} — ${g.mode==='center'?'🏫 سنتر':g.mode==='online'?'💻 أونلاين':'👤 خاص'}</option>`).join('')}
-                            </select>
                             <button onclick="addStudent()" class="btn-sm btn-add">➕ إضافة طالب</button>
                         </div>
                         <div class="filter-bar" style="background:#e8f0fe; border:1px dashed #3498db;">
@@ -1820,13 +1812,12 @@
                                 <th>التليفون</th>
                                 <th>ولي الأمر</th>
                                 <th>الصف</th>
-                                <th>المجموعة</th>
                                 <th>الحالة</th>
                                 <th>آخر دخول</th>
                                 <th>الأجهزة</th>
                                 <th>الإجراءات</th>
                             </tr>`;
-            if (students.length === 0) html += `<tr><td colspan="10" style="text-align:center;">لا يوجد طلاب</td></tr>`;
+            if (students.length === 0) html += `<tr><td colspan="9" style="text-align:center;">لا يوجد طلاب</td></tr>`;
             students.forEach(s => {
                 const lastLogin = s.lastLogin ? new Date(s.lastLogin.toDate()).toLocaleString() : '—';
                 const deviceCount = (s.deviceIds || []).length;
@@ -1834,8 +1825,6 @@
                     '⚪ غير نشط');
                 const isCustom = cachedGrades.some(g => g.code === s.grade);
                 const gradeClass = isCustom ? 'grade-custom' : (s.grade || 'all');
-                const studentGroupNames = (s.groupIds || []).map(id => groupMap[id]?.name).filter(Boolean);
-                const groupText = studentGroupNames.length ? studentGroupNames.map(n => `<span class="grade-badge grade-custom" style="margin:2px;">${escapeHtml(n)}</span>`).join(' ') : '—';
                 const gradeText = isCustom ? (cachedGrades.find(g => g.code === s.grade)?.name || s.grade) :
                     (s.grade === '1' ? 'أولى ث' : s.grade === '2' ? 'ثانية ث' : s.grade === '3' ? 'ثالثة ث' : '—');
                 html += `<tr>
@@ -1844,7 +1833,6 @@
                     <td>${s.phone || '—'}</td>
                     <td>${s.parentPhone || '—'}</td>
                     <td><span class="grade-badge ${gradeClass}">${gradeText}</span></td>
-                    <td>${groupText}</td>
                     <td>${statusText}</td>
                     <td>${lastLogin}</td>
                     <td>${deviceCount}</td>
@@ -3488,19 +3476,25 @@
         };
 
         window.deleteAllAttendance = async function() {
-            if (!confirm('⚠️ تحذير: أنت على وشك حذف جميع سجلات الحضور نهائياً! هل أنت متأكد؟')) return;
-            if (!confirm('تأكيد نهائي: هل تريد حذف جميع سجلات الحضور؟ لا يمكن التراجع عن هذا الإجراء!')) return;
+            if (!confirm('⚠️ تحذير: سيتم حذف جميع سجلات حضور المنصة والسنتر نهائياً! هل أنت متأكد؟')) return;
+            if (!confirm('تأكيد نهائي: حذف كل الحضور؟ لا يمكن التراجع عن هذا الإجراء!')) return;
             try {
-                const snap = await getDocs(collection(db, 'attendance'));
-                let count = 0;
-                for (const doc of snap.docs) {
-                    await deleteDoc(doc.ref);
-                    count++;
+                let total = 0;
+                const collections = ['attendance', 'centerAttendance'];
+
+                for (const collectionName of collections) {
+                    const snap = await getDocs(collection(db, collectionName));
+                    for (const attendanceDoc of snap.docs) {
+                        await deleteDoc(attendanceDoc.ref);
+                        total++;
+                    }
                 }
-                alert(`✅ تم حذف ${count} سجل حضور بنجاح`);
+
+                alert(`✅ تم حذف ${total} سجل حضور بنجاح (المنصة + السنتر)`);
                 window.showDangerZone();
             } catch (error) {
-                alert('❌ حدث خطأ: ' + error.message);
+                console.error('deleteAllAttendance error:', error);
+                alert('❌ حدث خطأ أثناء حذف الحضور: ' + error.message);
             }
         };
 
