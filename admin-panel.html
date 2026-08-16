@@ -3755,7 +3755,7 @@
   function wa(r){return `السلام عليكم،%0A%0A📊 تقرير متابعة الطالب: ${encodeURIComponent(r.st.name||'')}%0A%0A👥 المجموعة: ${encodeURIComponent(r.st.groupName||'')}%0A🏫 الحضور: ${r.present} من ${r.total} — نسبة ${r.att}%25%0A❌ الغياب: ${r.absent}%0A%0A📝 الامتحانات:%0A${r.ex.length?r.ex.map(e=>`• ${encodeURIComponent(e.name||'')} — ${e.score}/${e.total} — ${Number(e.percentage||0).toFixed(1)}%25${e.note?` — ${encodeURIComponent(e.note)}`:''}`).join('%0A'):'لا توجد امتحانات مسجلة.'}%0A%0A📈 متوسط الدرجات: ${r.avg}%25%0A⭐ التقييم: ${encodeURIComponent(r.level)}%0A%0Aمع تمنياتنا له بالتوفيق والنجاح ❤️`;}
   window.showParentReports=async function(){
     try{
-      if(!requirePermission('parentReports')){
+      if(window.requirePermission && !window.requirePermission('parentReports')){
         area().innerHTML='<div class="group-card"><h2>⛔ لا توجد صلاحية</h2><p>اطلب من المشرف الأساسي تفعيل صلاحية تقارير أولياء الأمور لهذا الحساب.</p></div>';
         return;
       }
@@ -3792,7 +3792,7 @@
   };
   window.openAllExamStudents=async function(){
     try{
-      if(!requirePermission('examGrades')){
+      if(window.requirePermission && !window.requirePermission('examGrades')){
         area().innerHTML='<div class="group-card"><h2>⛔ لا توجد صلاحية</h2><p>اطلب من المشرف الأساسي تفعيل صلاحية درجات الامتحانات لهذا الحساب.</p></div>';
         return;
       }
@@ -3811,7 +3811,7 @@
     }
   };
   window.openExamStudent=async function(id){const sd=await getDoc(doc(db,'students',id));if(!sd.exists())return;const st=sd.data(),ex=await exams(id);area().innerHTML=`<div class="group-card"><button class="btn-sm" onclick="showParentReports()">⬅️ رجوع</button><h2>📝 درجات امتحانات: ${esc(st.name)}</h2><div style="display:grid;gap:8px;margin:15px 0"><input id="peName" placeholder="اسم الامتحان"><input id="peDate" type="date"><input id="peScore" type="number" min="0" step="0.01" placeholder="درجة الطالب"><input id="peTotal" type="number" min="0.01" step="0.01" placeholder="الدرجة النهائية"><input id="peNote" placeholder="ملاحظات (اختياري)"><button class="btn-sm btn-add" onclick="saveStudentExam('${id}')">➕ حفظ الامتحان</button></div><table style="width:100%;border-collapse:collapse"><tr><th>الامتحان</th><th>التاريخ</th><th>الدرجة</th><th>النسبة</th><th>ملاحظات</th><th></th></tr>${ex.map(e=>`<tr><td>${esc(e.name)}</td><td>${esc(e.date)}</td><td>${e.score}/${e.total}</td><td>${Number(e.percentage||0).toFixed(1)}%</td><td>${esc(e.note||'—')}</td><td><button onclick="deleteStudentExam('${e.id}','${id}')">🗑️</button></td></tr>`).join('')||'<tr><td colspan="6">لا توجد امتحانات</td></tr>'}</table><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:15px"><button class="btn-sm" onclick="previewParentReport('${id}')">👁️ معاينة التقرير</button><button class="btn-sm btn-add" onclick="downloadParentReport('${id}')">⬇️ تحميل PDF</button><button class="btn-sm btn-add" onclick="sendParentWhatsApp('${id}')">📱 فتح WhatsApp</button></div></div>`;};
-  window.saveStudentExam=async function(id){const name=document.getElementById('peName').value.trim(),date=document.getElementById('peDate').value,score=Number(document.getElementById('peScore').value),total=Number(document.getElementById('peTotal').value),note=document.getElementById('peNote').value.trim();if(!name||!date||!Number.isFinite(score)||!Number.isFinite(total)||total<=0||score<0||score>total)return alert('⚠️ أدخل بيانات الامتحان والدرجات بشكل صحيح');await addDoc(collection(db,'studentExams'),{studentId:id,name,date,score,total,percentage:Number((score/total*100).toFixed(2)),note,createdAt:serverTimestamp(),createdBy:adminName});openExamStudent(id);};
+  window.saveStudentExam=async function(id){const name=document.getElementById('peName').value.trim(),date=document.getElementById('peDate').value,score=Number(document.getElementById('peScore').value),total=Number(document.getElementById('peTotal').value),note=document.getElementById('peNote').value.trim();if(!name||!date||!Number.isFinite(score)||!Number.isFinite(total)||total<=0||score<0||score>total)return alert('⚠️ أدخل بيانات الامتحان والدرجات بشكل صحيح');await addDoc(collection(db,'studentExams'),{studentId:id,name,date,score,total,percentage:Number((score/total*100).toFixed(2)),note,createdAt:serverTimestamp(),createdBy:(window.adminName||"")});openExamStudent(id);};
   window.deleteStudentExam=async function(eid,sid){if(!confirm('حذف درجة الامتحان؟'))return;await deleteDoc(doc(db,'studentExams',eid));openExamStudent(sid);};
   window.previewParentReport=async function(id){const r=await report(id,document.getElementById('prMonth')?.value||'all'),w=window.open('','_blank');if(!w)return;w.document.write(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>تقرير ولي الأمر</title></head><body>${html(r)}</body></html>`);w.document.close();};
   window.downloadParentReport=async function(id){const r=await report(id,document.getElementById('prMonth')?.value||'all');await loadPDF();const h=document.createElement('div');h.innerHTML=html(r);const el=h.firstElementChild;document.body.appendChild(el);await html2pdf().set({margin:8,filename:`تقرير_${r.st.name||r.st.code}.pdf`,html2canvas:{scale:2},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}}).from(el).save();el.remove();};
@@ -3823,7 +3823,8 @@
 })();
 </script>
 
-<script>
+<script type="module">
+import { db, collection, getDocs, deleteDoc, doc, writeBatch } from './js/firebase-config.js';
 /* FINAL RESET: delete every platform record and local state */
 (function(){
   if(window.__FINAL_DELETE_EVERYTHING_V3) return;
