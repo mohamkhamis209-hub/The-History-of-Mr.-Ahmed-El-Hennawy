@@ -739,14 +739,39 @@
 
         window.deleteGroup = async function(groupId){
             if(!requirePermission('groups')) return;
-            if(!confirm('حذف المجموعة؟ لن يتم حذف الطلاب، لكن سيتم فك ارتباطهم بها.')) return;
-            const studentsSnap=await getDocs(query(collection(db,'students'),where('groupIds','array-contains',groupId)));
-            for(const s of studentsSnap.docs){
-                const ids=s.data().groupIds||[];
-                await updateDoc(s.ref,{groupIds:ids.filter(x=>x!==groupId)});
+            if(!confirm('⚠️ حذف المجموعة؟ سيتم فك ارتباطها من الطلاب وحذف حصصها وسجلات حضور السنتر الخاصة بها.')) return;
+            try{
+                // فك ارتباط المجموعة من كل الطلاب
+                const studentsSnap=await getDocs(query(collection(db,'students'),where('groupIds','array-contains',groupId)));
+                for(const s of studentsSnap.docs){
+                    const ids=s.data().groupIds||[];
+                    await updateDoc(s.ref,{groupIds:ids.filter(x=>x!==groupId)});
+                }
+
+                // حذف كل حصص السنتر الخاصة بالمجموعة وسجلات حضورها
+                const sessionsSnap=await getDocs(query(collection(db,'centerSessions'),where('groupId','==',groupId)));
+                for(const sessionDoc of sessionsSnap.docs){
+                    const attendanceSnap=await getDocs(query(collection(db,'centerAttendance'),where('sessionId','==',sessionDoc.id)));
+                    for(const attendanceDoc of attendanceSnap.docs){
+                        await deleteDoc(attendanceDoc.ref);
+                    }
+                    await deleteDoc(sessionDoc.ref);
+                }
+
+                // تنظيف أي سجلات حضور قديمة مرتبطة مباشرة بالمجموعة
+                const directAttendanceSnap=await getDocs(query(collection(db,'centerAttendance'),where('groupId','==',groupId)));
+                for(const attendanceDoc of directAttendanceSnap.docs){
+                    await deleteDoc(attendanceDoc.ref);
+                }
+
+                // حذف المجموعة نفسها
+                await deleteDoc(doc(db,'groups',groupId));
+                alert('✅ تم حذف المجموعة وتنظيف حضور السنتر والطلاب المرتبطين بها');
+                window.showGroupsManagement();
+            }catch(error){
+                console.error('deleteGroup error:',error);
+                alert('❌ حدث خطأ أثناء حذف المجموعة: '+error.message);
             }
-            await deleteDoc(doc(db,'groups',groupId));
-            window.showGroupsManagement();
         };
 
         window.manageGroupStudents = async function(groupId){
@@ -814,8 +839,13 @@
         window.showCenterAttendance = async function(){
             if(!requirePermission('attendance')) return;
             const groups=await getGroups();
+            const existingGroupIds=new Set(groups.map(g=>g.id));
             const sessionsSnap=await getDocs(collection(db,'centerSessions'));
-            const sessions=[]; sessionsSnap.forEach(d=>sessions.push({id:d.id,...d.data()}));
+            const sessions=[]; sessionsSnap.forEach(d=>{
+                const data=d.data();
+                // لا تعرض أي حصة مرتبطة بمجموعة تم حذفها
+                if(existingGroupIds.has(data.groupId)) sessions.push({id:d.id,...data});
+            });
             sessions.sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
             let selected=document.getElementById('centerSessionSelect')?.value || sessions[0]?.id || '';
             let html=`<h2>📅 حضور وغياب السنتر</h2>

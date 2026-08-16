@@ -1426,7 +1426,12 @@
                     groupsSnap.forEach(d => groupMap[d.id] = d.data());
 
                     const rows = [];
-                    attSnap.forEach(d => rows.push(d.data()));
+                    attSnap.forEach(d => {
+                        const data = d.data();
+                        // لا تعرض حضوراً تابعاً لمجموعة تم حذفها من النظام
+                        if (data.groupId && !groupMap[data.groupId]) return;
+                        rows.push(data);
+                    });
                     rows.sort((a,b) => String(b.date||'').localeCompare(String(a.date||'')));
 
                     let present = rows.filter(r=>r.status==='present').length;
