@@ -926,6 +926,10 @@
             return isPrimaryAdmin() || adminPermissions.includes('*') || adminPermissions.includes(permission);
         }
 
+        // Expose the same permission checker to the later reports/exams module.
+        // The reports module calls window.__canUsePermission(...).
+        window.__canUsePermission = hasPermission;
+
         function requirePermission(permission) {
             if (!hasPermission(permission)) {
                 alert('⛔ ليس لديك صلاحية لاستخدام هذا القسم');
