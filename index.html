@@ -36,5 +36,90 @@
             document.querySelector('.theme-toggle').textContent = '☀️';
         }
     </script>
+
+<!-- PLATFORM PROTECTION LAYER -->
+<style>
+  /* Prevent selection/dragging on the student UI. Inputs remain usable. */
+  body { -webkit-user-select:none; user-select:none; }
+  input, textarea, select, [contenteditable="true"] { -webkit-user-select:text; user-select:text; }
+  img, video, iframe { -webkit-user-drag:none; user-drag:none; }
+  #screenProtectionOverlay {
+    display:none; position:fixed; inset:0; z-index:2147483647;
+    background:#080808; color:#fff; align-items:center; justify-content:center;
+    text-align:center; font-family:Arial,sans-serif; padding:30px;
+  }
+  #screenProtectionOverlay .box {max-width:560px}
+  #screenProtectionOverlay h2 {margin-bottom:12px}
+</style>
+<div id="screenProtectionOverlay">
+  <div class="box">
+    <div style="font-size:52px">🔒</div>
+    <h2>المحتوى محمي</h2>
+    <p>تم إيقاف عرض المحتوى مؤقتًا. ارجع إلى المنصة لاستكمال المشاهدة.</p>
+  </div>
+</div>
+<script>
+(function(){
+  "use strict";
+
+  const overlay = document.getElementById("screenProtectionOverlay");
+  const showOverlay = () => { if (overlay) overlay.style.display = "flex"; };
+  const hideOverlay = () => { if (overlay) overlay.style.display = "none"; };
+
+  // Right click / common copy-save-print shortcuts.
+  document.addEventListener("contextmenu", e => e.preventDefault(), true);
+  document.addEventListener("dragstart", e => e.preventDefault(), true);
+  document.addEventListener("selectstart", e => {
+    const t = e.target;
+    if (!(t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable))) e.preventDefault();
+  }, true);
+
+  document.addEventListener("keydown", e => {
+    const k = String(e.key || "").toLowerCase();
+    const ctrl = e.ctrlKey || e.metaKey;
+    const blocked =
+      (ctrl && ["c","x","s","u","p","a"].includes(k)) ||
+      (ctrl && e.shiftKey && ["i","j","c"].includes(k)) ||
+      k === "f12" ||
+      (e.ctrlKey && e.shiftKey && k === "s");
+    if (blocked) {
+      const t = e.target;
+      const editable = t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable);
+      if (!editable) {
+        e.preventDefault(); e.stopPropagation();
+      }
+    }
+  }, true);
+
+  // Hide content when page is backgrounded or window loses focus.
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) showOverlay();
+    else hideOverlay();
+  });
+  window.addEventListener("blur", showOverlay);
+  window.addEventListener("focus", hideOverlay);
+
+  // Best-effort screenshot/recording heuristics. Browser APIs cannot guarantee prevention.
+  // If the browser exposes a capture-related signal, cover the page.
+  ["beforeprint"].forEach(ev => window.addEventListener(ev, showOverlay));
+  window.addEventListener("afterprint", hideOverlay);
+
+  // Warn/cover when common DevTools shortcuts are attempted.
+  let last = 0;
+  setInterval(() => {
+    const now = Date.now();
+    // Large window dimension mismatch can indicate a docked devtools panel.
+    const suspicious = Math.abs(window.outerWidth - window.innerWidth) > 500 ||
+                       Math.abs(window.outerHeight - window.innerHeight) > 400;
+    if (suspicious && now - last > 1500) {
+      last = now;
+      showOverlay();
+    } else if (!suspicious && !document.hidden) {
+      hideOverlay();
+    }
+  }, 1200);
+})();
+</script>
+
 </body>
 </html>

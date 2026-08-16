@@ -328,6 +328,42 @@
             height: 100%;
             border-radius: 10px;
         }
+        .video-watermark {
+            position: absolute;
+            z-index: 20;
+            pointer-events: none;
+            color: rgba(255,255,255,0.72);
+            background: rgba(0,0,0,0.20);
+            border: 1px solid rgba(255,255,255,0.18);
+            border-radius: 8px;
+            padding: 6px 10px;
+            font-size: 13px;
+            font-weight: 700;
+            white-space: nowrap;
+            text-shadow: 0 1px 3px #000;
+            user-select: none;
+            transition: left 2.2s ease, top 2.2s ease, opacity 0.5s ease;
+        }
+        .video-container:fullscreen {
+            width: 100vw;
+            height: 100vh;
+            padding-bottom: 0;
+            border-radius: 0;
+            background: #000;
+        }
+        .video-container:-webkit-full-screen {
+            width: 100vw;
+            height: 100vh;
+            padding-bottom: 0;
+            border-radius: 0;
+            background: #000;
+        }
+        .video-container:fullscreen iframe,
+        .video-container:fullscreen .youtube-player,
+        .video-container:-webkit-full-screen iframe,
+        .video-container:-webkit-full-screen .youtube-player {
+            border-radius: 0;
+        }
         /* زر التكبير المخصص */
         .fullscreen-btn {
             position: absolute;
@@ -997,26 +1033,47 @@
                                 fullscreenBtn.setAttribute('aria-label', 'تكبير الفيديو');
                                 fullscreenBtn.addEventListener('click', function(e) {
                                     e.stopPropagation();
-                                    if (player && player.getIframe) {
-                                        const iframe = player.getIframe();
-                                        if (iframe) {
-                                            if (iframe.requestFullscreen) {
-                                                iframe.requestFullscreen();
-                                            } else if (iframe.webkitRequestFullscreen) {
-                                                iframe.webkitRequestFullscreen();
-                                            } else if (iframe.msRequestFullscreen) {
-                                                iframe.msRequestFullscreen();
-                                            } else {
-                                                window.open(
-                                                    `https://www.youtube.com/watch?v=${youtubeId}`,
-                                                    '_blank'
-                                                );
-                                            }
+                                    const videoContainer = container.closest('.video-container');
+                                    if (!videoContainer) return;
+                                    try {
+                                        if (document.fullscreenElement === videoContainer) {
+                                            if (document.exitFullscreen) document.exitFullscreen();
+                                            else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+                                        } else if (videoContainer.requestFullscreen) {
+                                            videoContainer.requestFullscreen();
+                                        } else if (videoContainer.webkitRequestFullscreen) {
+                                            videoContainer.webkitRequestFullscreen();
+                                        } else if (videoContainer.msRequestFullscreen) {
+                                            videoContainer.msRequestFullscreen();
                                         }
+                                    } catch(err) {
+                                        console.error('Fullscreen error:', err);
                                     }
                                 });
                                 wrapper.style.position = 'relative';
                                 wrapper.appendChild(fullscreenBtn);
+
+                                // علامة مائية متحركة باسم الطالب وكوده فوق الفيديو
+                                const videoContainer = container.closest('.video-container');
+                                if (videoContainer) {
+                                    let watermark = videoContainer.querySelector('.video-watermark');
+                                    if (!watermark) {
+                                        watermark = document.createElement('div');
+                                        watermark.className = 'video-watermark';
+                                        watermark.textContent = `${studentName} • ${studentCode}`;
+                                        videoContainer.appendChild(watermark);
+                                    }
+                                    const moveWatermark = () => {
+                                        const maxX = Math.max(5, videoContainer.clientWidth - watermark.offsetWidth - 5);
+                                        const maxY = Math.max(5, videoContainer.clientHeight - watermark.offsetHeight - 5);
+                                        watermark.style.left = `${Math.floor(5 + Math.random() * Math.max(1, maxX - 5))}px`;
+                                        watermark.style.top = `${Math.floor(5 + Math.random() * Math.max(1, maxY - 5))}px`;
+                                    };
+                                    moveWatermark();
+                                    if (watermark._timer) clearInterval(watermark._timer);
+                                    watermark._timer = setInterval(moveWatermark, 7000);
+                                    videoContainer.addEventListener('fullscreenchange', moveWatermark);
+                                }
                             }
 
                         } catch (error) {
@@ -1683,6 +1740,91 @@
         updatePointsDisplay(studentCode);
         loadSection('dashboard');
     </script>
+
+<!-- PLATFORM PROTECTION LAYER -->
+<style>
+  /* Prevent selection/dragging on the student UI. Inputs remain usable. */
+  body { -webkit-user-select:none; user-select:none; }
+  input, textarea, select, [contenteditable="true"] { -webkit-user-select:text; user-select:text; }
+  img, video, iframe { -webkit-user-drag:none; user-drag:none; }
+  #screenProtectionOverlay {
+    display:none; position:fixed; inset:0; z-index:2147483647;
+    background:#080808; color:#fff; align-items:center; justify-content:center;
+    text-align:center; font-family:Arial,sans-serif; padding:30px;
+  }
+  #screenProtectionOverlay .box {max-width:560px}
+  #screenProtectionOverlay h2 {margin-bottom:12px}
+</style>
+<div id="screenProtectionOverlay">
+  <div class="box">
+    <div style="font-size:52px">🔒</div>
+    <h2>المحتوى محمي</h2>
+    <p>تم إيقاف عرض المحتوى مؤقتًا. ارجع إلى المنصة لاستكمال المشاهدة.</p>
+  </div>
+</div>
+<script>
+(function(){
+  "use strict";
+
+  const overlay = document.getElementById("screenProtectionOverlay");
+  const showOverlay = () => { if (overlay) overlay.style.display = "flex"; };
+  const hideOverlay = () => { if (overlay) overlay.style.display = "none"; };
+
+  // Right click / common copy-save-print shortcuts.
+  document.addEventListener("contextmenu", e => e.preventDefault(), true);
+  document.addEventListener("dragstart", e => e.preventDefault(), true);
+  document.addEventListener("selectstart", e => {
+    const t = e.target;
+    if (!(t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable))) e.preventDefault();
+  }, true);
+
+  document.addEventListener("keydown", e => {
+    const k = String(e.key || "").toLowerCase();
+    const ctrl = e.ctrlKey || e.metaKey;
+    const blocked =
+      (ctrl && ["c","x","s","u","p","a"].includes(k)) ||
+      (ctrl && e.shiftKey && ["i","j","c"].includes(k)) ||
+      k === "f12" ||
+      (e.ctrlKey && e.shiftKey && k === "s");
+    if (blocked) {
+      const t = e.target;
+      const editable = t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable);
+      if (!editable) {
+        e.preventDefault(); e.stopPropagation();
+      }
+    }
+  }, true);
+
+  // Hide content when page is backgrounded or window loses focus.
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) showOverlay();
+    else hideOverlay();
+  });
+  window.addEventListener("blur", showOverlay);
+  window.addEventListener("focus", hideOverlay);
+
+  // Best-effort screenshot/recording heuristics. Browser APIs cannot guarantee prevention.
+  // If the browser exposes a capture-related signal, cover the page.
+  ["beforeprint"].forEach(ev => window.addEventListener(ev, showOverlay));
+  window.addEventListener("afterprint", hideOverlay);
+
+  // Warn/cover when common DevTools shortcuts are attempted.
+  let last = 0;
+  setInterval(() => {
+    const now = Date.now();
+    // Large window dimension mismatch can indicate a docked devtools panel.
+    const suspicious = Math.abs(window.outerWidth - window.innerWidth) > 500 ||
+                       Math.abs(window.outerHeight - window.innerHeight) > 400;
+    if (suspicious && now - last > 1500) {
+      last = now;
+      showOverlay();
+    } else if (!suspicious && !document.hidden) {
+      hideOverlay();
+    }
+  }, 1200);
+})();
+</script>
+
 </body>
 </html>
 
