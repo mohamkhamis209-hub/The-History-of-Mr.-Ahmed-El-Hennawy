@@ -3861,7 +3861,7 @@
           <button class="btn-sm" onclick="previewParentReport('${id}')">👁️ معاينة التقرير</button>
           <button class="btn-sm btn-add" onclick="downloadParentReport('${id}')">⬇️ تحميل PDF</button>
           <button class="btn-sm btn-add" onclick="sendParentWhatsApp('${id}')">📱 إرسال عبر WhatsApp</button>
-          <button class="btn-sm" onclick="sendParentAutomatic('${id}')">🤖 إرسال تلقائي</button>
+          
         </div>
       </div>`;
   };
@@ -3957,15 +3957,17 @@
   };
 
   window.sendParentAutomatic=async function(){
-    alert('🤖 الإرسال التلقائي جاهز من ناحية الواجهة، وسيتم تفعيله بعد ربط WhatsApp Business API. لم يتم وضع أي مفتاح API داخل ملفات المنصة حفاظًا على أمان الحساب.');
+    alert('🤖 الإرسال التلقائي غير مفعل. يتم فتح WhatsApp برسالة جاهزة ويضغط المشرف إرسال بنفسه.');
   };
 
-  window.showAllParentReports=async function(){
+  
+window.prepareAllParentReports=async function(){const ss=await studentsPR();const valid=ss.filter(x=>String(x.parentPhone||'').replace(/[^\d]/g,''));const area=document.getElementById('content-area');area.innerHTML=`<h2>📢 تقارير أولياء الأمور — إرسال يدوي</h2><div class=\"group-card\"><p>اضغط WhatsApp بجانب الطالب لفتح المحادثة والرسالة جاهزة، ثم المشرف يضغط إرسال بنفسه.</p><div style=\"display:grid;gap:8px\">${valid.map(x=>`<div style=\"display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px;border-bottom:1px solid #ddd\"><span>👨‍🎓 ${escPR(x.name||'')} — ${escPR(x.parentPhone||'')}</span><div><button class=\"btn-sm\" onclick=\"previewParentReport('${x.id}')\">👁️</button> <button class=\"btn-sm\" onclick=\"downloadParentReport('${x.id}')\">⬇️ PDF</button> <button class=\"btn-sm btn-add\" onclick=\"sendParentWhatsApp('${x.id}')\">📱 WhatsApp</button></div></div>`).join('')}</div></div><button class=\"btn-sm\" onclick=\"showParentReports()\">⬅️ العودة</button>`;};
+window.showAllParentReports=async function(){
     const ss=await studentsPR();
     area().innerHTML=`<h2>📢 التقارير الشهرية لجميع الطلاب</h2>
       <div class="group-card">
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:15px">
-          <button class="btn-sm btn-add" onclick="bulkAutomaticWhatsApp()">🤖 إرسال تلقائي للجميع</button>
+          
         </div>
         ${ss.map(x=>`<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;padding:10px;border-bottom:1px solid #ddd">
           <span>👨‍🎓 ${escPR(x.name||'')} — ${escPR(x.parentPhone||'لا يوجد رقم')}</span>
