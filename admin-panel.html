@@ -467,27 +467,27 @@
         <img src="assets/Mohamed.jpg" alt="Admin" class="admin-img">
         <h3>مرحباً بمشرف المنصه</h3>
         <ul>
-            <li onclick="showSection('dashboard')" data-permission="dashboard">📊 الرئيسية</li>
-            <li onclick="showSection('students')" data-permission="students">👨‍🎓 الطلاب</li>
-            <li onclick="showSection('videos')" data-permission="videos">🎬 الفيديوهات</li>
-            <li onclick="showSection('books')" data-permission="books">📚 الكتب</li>
-            <li onclick="showSection('exams')" data-permission="exams">📝 الاختبارات</li>
-            <li onclick="showSection('notifications')" data-permission="notifications">🔔 الإشعارات</li>
-            <li onclick="showSection('devices')" data-permission="devices">📱 طلبات الأجهزة</li>
-            <li onclick="showSection('progress')" data-permission="progress">📊 تقدم الطلاب</li>
-            <li onclick="showSection('allDevices')" data-permission="allDevices">📱 إدارة الأجهزة</li>
-            <li onclick="showSection('liveSettings')" data-permission="liveSettings">📡 إعدادات البث</li>
-            <li onclick="showSection('reports')" data-permission="reports">📊 التقارير</li>
-            <li onclick="showSection('badges')" data-permission="badges">🏅 المكافآت</li>
+            <li onclick="window.showSection('dashboard')" data-permission="dashboard">📊 الرئيسية</li>
+            <li onclick="window.showSection('students')" data-permission="students">👨‍🎓 الطلاب</li>
+            <li onclick="window.showSection('videos')" data-permission="videos">🎬 الفيديوهات</li>
+            <li onclick="window.showSection('books')" data-permission="books">📚 الكتب</li>
+            <li onclick="window.showSection('exams')" data-permission="exams">📝 الاختبارات</li>
+            <li onclick="window.showSection('notifications')" data-permission="notifications">🔔 الإشعارات</li>
+            <li onclick="window.showSection('devices')" data-permission="devices">📱 طلبات الأجهزة</li>
+            <li onclick="window.showSection('progress')" data-permission="progress">📊 تقدم الطلاب</li>
+            <li onclick="window.showSection('allDevices')" data-permission="allDevices">📱 إدارة الأجهزة</li>
+            <li onclick="window.showSection('liveSettings')" data-permission="liveSettings">📡 إعدادات البث</li>
+            <li onclick="window.showSection('reports')" data-permission="reports">📊 التقارير</li>
+            <li onclick="window.showSection('badges')" data-permission="badges">🏅 المكافآت</li>
             <li onclick="showSection('groups')" data-permission="groups">👥 المجموعات والسنتر</li>
-            <li onclick="showSection('attendance')" data-permission="attendance">📅 حضور السنتر</li>
-            <li onclick="showSection('leaderboard')" data-permission="leaderboard">🏆 المتصدرين</li>
-            <li onclick="showSection('advancedStats')" data-permission="advancedStats">📈 إحصائيات متقدمة</li>
-            <li onclick="showSection('sessions')" data-permission="sessions">🕐 جلسات الطلاب</li>
-            <li onclick="showSection('fees')" data-permission="fees">💰 المصروفات</li>
+            <li onclick="window.showSection('attendance')" data-permission="attendance">📅 حضور السنتر</li>
+            <li onclick="window.showSection('leaderboard')" data-permission="leaderboard">🏆 المتصدرين</li>
+            <li onclick="window.showSection('advancedStats')" data-permission="advancedStats">📈 إحصائيات متقدمة</li>
+            <li onclick="window.showSection('sessions')" data-permission="sessions">🕐 جلسات الطلاب</li>
+            <li onclick="window.showSection('fees')" data-permission="fees">💰 المصروفات</li>
             <li onclick="showSection('assistants')" data-primary-only="true">👨‍💼 المشرفون المساعدون</li>
-            <li onclick="showSection('dangerZone')" data-permission="dangerZone" class="danger">⚠️ منطقة الخطر</li>
-            <li onclick="logoutAdmin()" style="color:#e74c3c;">🚪 خروج</li>
+            <li onclick="window.showSection('dangerZone')" data-permission="dangerZone" class="danger">⚠️ منطقة الخطر</li>
+            <li onclick="window.logoutAdmin()" style="color:#e74c3c;">🚪 خروج</li>
         </ul>
     </div>
 
@@ -3703,7 +3703,7 @@
         // جلب الصفوف عند بدء التحميل
         // ============================================
         await getGrades();
-        showSection('dashboard');
+        await window.showSection('dashboard');
     </script>
 </body>
 </html>
