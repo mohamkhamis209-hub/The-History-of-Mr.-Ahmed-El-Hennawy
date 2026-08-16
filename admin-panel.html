@@ -747,6 +747,13 @@
                 const ids=s.data().groupIds||[];
                 await updateDoc(s.ref,{groupIds:ids.filter(x=>x!==groupId)});
             }
+            // حذف حصص السنتر والحضور المرتبطين بالمجموعة حتى لا تظهر المجموعة بعد حذفها
+            const oldSessionsSnap = await getDocs(query(collection(db,'centerSessions'),where('groupId','==',groupId)));
+            for(const sess of oldSessionsSnap.docs){
+                const oldAttSnap = await getDocs(query(collection(db,'centerAttendance'),where('sessionId','==',sess.id)));
+                for(const a of oldAttSnap.docs) await deleteDoc(a.ref);
+                await deleteDoc(sess.ref);
+            }
             await deleteDoc(doc(db,'groups',groupId));
             window.showGroupsManagement();
         };
@@ -816,8 +823,14 @@
         window.showCenterAttendance = async function(){
             if(!requirePermission('attendance')) return;
             const groups=await getGroups();
+            const validGroupIds=new Set(groups.map(g=>g.id));
             const sessionsSnap=await getDocs(collection(db,'centerSessions'));
-            const sessions=[]; sessionsSnap.forEach(d=>sessions.push({id:d.id,...d.data()}));
+            const sessions=[];
+            sessionsSnap.forEach(d=>{
+                const data=d.data();
+                // لا تعرض أي حصة لمجموعة تم حذفها
+                if(validGroupIds.has(data.groupId)) sessions.push({id:d.id,...data});
+            });
             sessions.sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
             let selected=document.getElementById('centerSessionSelect')?.value || sessions[0]?.id || '';
             let html=`<h2>📅 حضور وغياب السنتر</h2>
@@ -3721,16 +3734,8 @@
         await getGrades();
         await window.showSection('dashboard');
     </script>
-<script type="module">
-import { db, collection, addDoc, getDocs, deleteDoc, doc, query, where, getDoc, serverTimestamp } from './js/firebase-config.js';
+<script>
 (function(){
-  const hasPerm=(p)=>{
-    try{
-      if(localStorage.getItem('adminRole')==='primary') return true;
-      const a=JSON.parse(localStorage.getItem('adminPermissions')||'[]');
-      return a.includes('*') || a.includes(p);
-    }catch(e){return true;}
-  };
   const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const area=()=>document.getElementById('content-area');
   async function students(){const q=await getDocs(collection(db,'students'));const a=[];q.forEach(d=>a.push({id:d.id,...d.data()}));return a;}
@@ -3750,7 +3755,7 @@ import { db, collection, addDoc, getDocs, deleteDoc, doc, query, where, getDoc, 
   function wa(r){return `السلام عليكم،%0A%0A📊 تقرير متابعة الطالب: ${encodeURIComponent(r.st.name||'')}%0A%0A👥 المجموعة: ${encodeURIComponent(r.st.groupName||'')}%0A🏫 الحضور: ${r.present} من ${r.total} — نسبة ${r.att}%25%0A❌ الغياب: ${r.absent}%0A%0A📝 الامتحانات:%0A${r.ex.length?r.ex.map(e=>`• ${encodeURIComponent(e.name||'')} — ${e.score}/${e.total} — ${Number(e.percentage||0).toFixed(1)}%25${e.note?` — ${encodeURIComponent(e.note)}`:''}`).join('%0A'):'لا توجد امتحانات مسجلة.'}%0A%0A📈 متوسط الدرجات: ${r.avg}%25%0A⭐ التقييم: ${encodeURIComponent(r.level)}%0A%0Aمع تمنياتنا له بالتوفيق والنجاح ❤️`;}
   window.showParentReports=async function(){
     try{
-      if(!hasPerm('parentReports')){
+      if(!requirePermission('parentReports')){
         area().innerHTML='<div class="group-card"><h2>⛔ لا توجد صلاحية</h2><p>اطلب من المشرف الأساسي تفعيل صلاحية تقارير أولياء الأمور لهذا الحساب.</p></div>';
         return;
       }
@@ -3787,7 +3792,7 @@ import { db, collection, addDoc, getDocs, deleteDoc, doc, query, where, getDoc, 
   };
   window.openAllExamStudents=async function(){
     try{
-      if(!hasPerm('examGrades')){
+      if(!requirePermission('examGrades')){
         area().innerHTML='<div class="group-card"><h2>⛔ لا توجد صلاحية</h2><p>اطلب من المشرف الأساسي تفعيل صلاحية درجات الامتحانات لهذا الحساب.</p></div>';
         return;
       }
@@ -3815,6 +3820,96 @@ import { db, collection, addDoc, getDocs, deleteDoc, doc, query, where, getDoc, 
   window.previewParentMonth=async(id,m)=>{const r=await report(id,m),w=window.open('','_blank');if(w){w.document.write(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"></head><body>${html(r)}</body></html>`);w.document.close();}};
   window.downloadParentMonth=async(id,m)=>{const r=await report(id,m);await loadPDF();const h=document.createElement('div');h.innerHTML=html(r);const el=h.firstElementChild;document.body.appendChild(el);await html2pdf().set({margin:8,filename:`تقرير_${r.st.name||r.st.code}_${m}.pdf`,html2canvas:{scale:2},jsPDF:{unit:'mm',format:'a4'} }).from(el).save();el.remove();};
   window.sendParentMonth=async(id,m)=>{const r=await report(id,m),phone=String(r.st.parentPhone||'').replace(/\D/g,'');if(!phone)return alert('⚠️ لا يوجد رقم ولي أمر');window.open(`https://wa.me/${phone}?text=${wa(r)}`,'_blank');};
+})();
+</script>
+
+<script>
+/* FINAL RESET: delete every platform record and local state */
+(function(){
+  if(window.__FINAL_DELETE_EVERYTHING_V3) return;
+  window.__FINAL_DELETE_EVERYTHING_V3=true;
+
+  const FINAL_COLLECTIONS=[
+    'students','groups','groupStudents','centerSessions','centerAttendance',
+    'attendance','attendanceRecords','studentAttendance',
+    'videos','books','exams','questions','questionBank','studentExams',
+    'parentReports','notifications','schedules','honorBoard','leaderboard',
+    'assistantPermissions','assistantSupervisors','supervisors','admins',
+    'users','devices','deviceApprovals','settings','platformSettings',
+    'messages','reports','reportLogs'
+  ];
+
+  async function deleteCollection(name){
+    try{
+      const snap=await getDocs(collection(db,name));
+      if(snap.empty) return 0;
+      let count=0;
+      let batch=writeBatch(db);
+      let n=0;
+      snap.forEach(d=>{
+        batch.delete(d.ref); n++; count++;
+        if(n===450){ batch.commit(); batch=writeBatch(db); n=0; }
+      });
+      if(n) await batch.commit();
+      return count;
+    }catch(e){
+      console.warn('reset skip',name,e);
+      return 0;
+    }
+  }
+
+  window.finalDeleteEverything=async function(){
+    const ok=confirm(
+      '⚠️ تحذير نهائي\\n\\nسيتم حذف كل بيانات المنصة: الطلاب، المجموعات، السنتر، الحضور، الفيديوهات، الكتب، الامتحانات، الدرجات، التقارير، المشرفين والصلاحيات والإعدادات المخزنة.\\n\\nستعود المنصة كأنها جديدة تمامًا.\\n\\nهل أنت متأكد؟'
+    );
+    if(!ok) return;
+    const ok2=prompt('اكتب حذف كل شيء للتأكيد');
+    if(ok2!=='حذف كل شيء') return alert('تم إلغاء العملية.');
+
+    const btn=document.getElementById('finalDeleteEverythingBtn');
+    if(btn){btn.disabled=true;btn.textContent='⏳ جاري حذف كل البيانات...';}
+
+    let total=0;
+    for(const c of FINAL_COLLECTIONS){
+      total += await deleteCollection(c);
+    }
+
+    // Clear client-side state without touching Firebase SDK/session immediately.
+    try{localStorage.clear();}catch(e){}
+    try{sessionStorage.clear();}catch(e){}
+
+    alert('✅ تم حذف كل بيانات المنصة بنجاح.\\n\\nعدد السجلات التي تمت محاولة إزالتها: '+total+'\\n\\nسيتم إعادة تحميل الصفحة.');
+    location.reload();
+  };
+
+  function installResetButton(){
+    let b=document.getElementById('finalDeleteEverythingBtn');
+    if(!b){
+      const candidates=[...document.querySelectorAll('button,a,[role="button"]')];
+      const old=candidates.find(x=>/حذف كل شيء|حذف جميع البيانات|محو كل شيء/.test((x.textContent||'').trim()));
+      if(old){
+        b=old;
+        b.id='finalDeleteEverythingBtn';
+        b.onclick=window.finalDeleteEverything;
+      }
+    }
+    // If no existing button was found, create one inside the danger area.
+    if(!b){
+      const danger=[...document.querySelectorAll('*')].find(x=>/منطقة الخطر/.test((x.textContent||'').trim()) && x.children?.length);
+      if(danger){
+        b=document.createElement('button');
+        b.id='finalDeleteEverythingBtn';
+        b.className='btn-sm btn-danger';
+        b.textContent='🗑️ حذف كل شيء';
+        b.style.cssText='margin:10px 0;width:100%';
+        b.onclick=window.finalDeleteEverything;
+        danger.appendChild(b);
+      }
+    }
+  }
+
+  setTimeout(installResetButton,500);
+  setTimeout(installResetButton,1500);
 })();
 </script>
 </body>
