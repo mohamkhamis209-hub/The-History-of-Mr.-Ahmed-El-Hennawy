@@ -4,7 +4,7 @@ import {
     doc, updateDoc, query, where, getDoc, setDoc, serverTimestamp 
 } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 import { 
-    getStorage, ref, uploadBytes, getDownloadURL 
+    getStorage, ref, uploadBytes, getDownloadURL, listAll, deleteObject 
 } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-storage.js";
 
 const firebaseConfig = {
@@ -22,7 +22,7 @@ const db = getFirestore(app);
 const storage = getStorage(app);
 
 export { 
-    db, storage, ref, uploadBytes, getDownloadURL,
+    db, storage, ref, uploadBytes, getDownloadURL, listAll, deleteObject,
     collection, addDoc, getDocs, deleteDoc, doc, updateDoc, 
     query, where, getDoc, setDoc, serverTimestamp
 };
