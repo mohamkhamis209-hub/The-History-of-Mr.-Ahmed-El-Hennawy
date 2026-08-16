@@ -482,6 +482,7 @@
             <li onclick="showSection('groups')" data-permission="groups">👥 المجموعات والسنتر</li>
             <li onclick="window.showSection('attendance')" data-permission="attendance">📅 حضور السنتر</li>
             <li onclick="window.showSection('parentReports')" data-permission="parentReports">👨‍👩‍👦 تقارير أولياء الأمور</li>
+            <li onclick="window.showSection('examGrades')" data-permission="examGrades">📝 درجات امتحانات الطلاب</li>
             <li onclick="window.showSection('leaderboard')" data-permission="leaderboard">🏆 المتصدرين</li>
             <li onclick="window.showSection('advancedStats')" data-permission="advancedStats">📈 إحصائيات متقدمة</li>
             <li onclick="window.showSection('sessions')" data-permission="sessions">🕐 جلسات الطلاب</li>
@@ -607,7 +608,7 @@
 
         const ASSISTANT_PERMISSIONS = [
             ['dashboard','الرئيسية'],['students','الطلاب'],['groups','المجموعات والسنتر'],
-            ['attendance','حضور السنتر'],['parentReports','تقارير أولياء الأمور'],['videos','الفيديوهات'],['books','الكتب'],['exams','الاختبارات'],
+            ['attendance','حضور السنتر'],['parentReports','تقارير أولياء الأمور'],['examGrades','درجات امتحانات الطلاب'],['videos','الفيديوهات'],['books','الكتب'],['exams','الاختبارات'],
             ['notifications','الإشعارات'],['devices','طلبات الأجهزة'],['progress','تقدم الطلاب'],
             ['allDevices','إدارة الأجهزة'],['liveSettings','إعدادات البث'],['reports','التقارير'],
             ['badges','المكافآت'],['leaderboard','المتصدرين'],['advancedStats','الإحصائيات'],
@@ -942,7 +943,7 @@
                 dashboard:'dashboard', students:'students', videos:'videos', books:'books',
                 exams:'exams', notifications:'notifications', devices:'devices', progress:'progress',
                 allDevices:'allDevices', liveSettings:'liveSettings', reports:'reports', badges:'badges',
-                attendance:'attendance', groups:'groups', parentReports:'parentReports', leaderboard:'leaderboard',
+                attendance:'attendance', groups:'groups', parentReports:'parentReports', examGrades:'examGrades', leaderboard:'leaderboard',
                 advancedStats:'advancedStats', sessions:'sessions', fees:'fees', dangerZone:'dangerZone'
             };
             if (section !== 'assistants' && !requirePermission(permissionMap[section] || section)) return;
@@ -964,6 +965,7 @@
                 case 'badges': window.showBadgesManagement(); break;
                 case 'attendance': window.showCenterAttendance(); break;
                 case 'parentReports': window.showParentReports(); break;
+                case 'examGrades': window.openAllExamStudents(); break;
                 case 'groups': window.showGroupsManagement(); break;
                 case 'assistants': window.showAssistantManagement(); break;
                 case 'leaderboard': window.showLeaderboard(); break;
@@ -3738,8 +3740,63 @@
   }
   function html(r){return `<div dir="rtl" style="font-family:Tahoma,Arial;padding:30px;background:#fff;color:#111;max-width:850px;margin:auto"><h1 style="text-align:center">📊 تقرير متابعة الطالب</h1><p style="text-align:center">${r.month==='all'?'تقرير شامل':`تقرير شهر ${esc(r.month)}`}</p><hr><p><b>الطالب:</b> ${esc(r.st.name||'—')}</p><p><b>الكود:</b> ${esc(r.st.code||'—')}</p><p><b>الصف:</b> ${esc(r.st.grade||'—')}</p><p><b>المجموعة:</b> ${esc(r.st.groupName)}</p><h3>🏫 الحضور</h3><p>إجمالي الحصص: <b>${r.total}</b> | الحضور: <b>${r.present}</b> | الغياب: <b>${r.absent}</b> | النسبة: <b>${r.att}%</b></p><h3>📝 الامتحانات</h3><table style="width:100%;border-collapse:collapse"><tr><th style="border:1px solid #999;padding:8px">الامتحان</th><th style="border:1px solid #999;padding:8px">التاريخ</th><th style="border:1px solid #999;padding:8px">الدرجة</th><th style="border:1px solid #999;padding:8px">النسبة</th><th style="border:1px solid #999;padding:8px">ملاحظات</th></tr>${r.ex.length?r.ex.map(e=>`<tr><td style="border:1px solid #999;padding:8px">${esc(e.name)}</td><td style="border:1px solid #999;padding:8px">${esc(e.date)}</td><td style="border:1px solid #999;padding:8px">${e.score}/${e.total}</td><td style="border:1px solid #999;padding:8px">${Number(e.percentage||0).toFixed(1)}%</td><td style="border:1px solid #999;padding:8px">${esc(e.note||'—')}</td></tr>`).join(''):'<tr><td colspan="5" style="padding:12px;text-align:center">لا توجد امتحانات مسجلة</td></tr>'}</table><h3>📈 الملخص</h3><p>متوسط درجات الامتحانات: <b>${r.avg}%</b></p><p>التقييم: <b>${r.level}</b></p><p style="text-align:center;margin-top:30px">مع تمنياتنا له بالتوفيق والنجاح ❤️</p></div>`;}
   function wa(r){return `السلام عليكم،%0A%0A📊 تقرير متابعة الطالب: ${encodeURIComponent(r.st.name||'')}%0A%0A👥 المجموعة: ${encodeURIComponent(r.st.groupName||'')}%0A🏫 الحضور: ${r.present} من ${r.total} — نسبة ${r.att}%25%0A❌ الغياب: ${r.absent}%0A%0A📝 الامتحانات:%0A${r.ex.length?r.ex.map(e=>`• ${encodeURIComponent(e.name||'')} — ${e.score}/${e.total} — ${Number(e.percentage||0).toFixed(1)}%25${e.note?` — ${encodeURIComponent(e.note)}`:''}`).join('%0A'):'لا توجد امتحانات مسجلة.'}%0A%0A📈 متوسط الدرجات: ${r.avg}%25%0A⭐ التقييم: ${encodeURIComponent(r.level)}%0A%0Aمع تمنياتنا له بالتوفيق والنجاح ❤️`;}
-  window.showParentReports=async function(){if(!requirePermission('parentReports'))return;const gs=await groups();const month=new Date().toISOString().slice(0,7);area().innerHTML=`<h2>👨‍👩‍👦 تقارير أولياء الأمور</h2><div class="group-card"><h3>📝 درجات امتحانات الطلاب</h3><p>اختر المجموعة ثم الطالب.</p><select id="prGroup" style="width:100%;padding:12px"><option value="">اختر المجموعة</option>${gs.map(g=>`<option value="${esc(g.id)}">${esc(g.name)} — ${esc(g.days||'')} ${esc(g.time||'')}</option>`).join('')}</select><div id="prStudents" style="margin-top:10px"></div><button class="btn-sm btn-add" style="margin-top:12px" onclick="openAllExamStudents()">📝 فتح قسم درجات الامتحانات</button></div><div class="group-card"><h3>📊 تقارير أولياء الأمور</h3><label>الشهر: <input id="prMonth" type="month" value="${month}"></label><button class="btn-sm btn-add" style="margin:8px" onclick="prepareAllParentReports()">📢 تجهيز تقارير جميع الطلاب</button></div>`;document.getElementById('prGroup').onchange=async()=>{const gid=document.getElementById('prGroup').value;const ss=await students();const a=ss.filter(s=>(s.groupIds||[]).includes(gid));document.getElementById('prStudents').innerHTML=a.map(s=>`<button class="btn-sm" style="display:block;width:100%;text-align:right;margin:6px 0" onclick="openExamStudent('${s.id}')">👨‍🎓 ${esc(s.name)} — ${esc(s.code)}</button>`).join('')||'<p>لا يوجد طلاب في المجموعة.</p>';};};
-  window.openAllExamStudents=async function(){const ss=await students();area().innerHTML=`<h2>📝 درجات امتحانات الطلاب</h2><div class="group-card">${ss.map(s=>`<button class="btn-sm" style="display:block;width:100%;text-align:right;margin:6px 0" onclick="openExamStudent('${s.id}')">👨‍🎓 ${esc(s.name)} — ${esc(s.code)}</button>`).join('')}</div><button class="btn-sm" onclick="showParentReports()">⬅️ العودة</button>`;};
+  window.showParentReports=async function(){
+    try{
+      if(!requirePermission('parentReports')){
+        area().innerHTML='<div class="group-card"><h2>⛔ لا توجد صلاحية</h2><p>اطلب من المشرف الأساسي تفعيل صلاحية تقارير أولياء الأمور لهذا الحساب.</p></div>';
+        return;
+      }
+      const gs=await groups();
+      const month=new Date().toISOString().slice(0,7);
+      area().innerHTML=`<h2>👨‍👩‍👦 تقارير أولياء الأمور</h2>
+        <div class="group-card">
+          <h3>📝 درجات امتحانات الطلاب</h3>
+          <p>اختر المجموعة ثم الطالب لإضافة ومراجعة درجات الامتحانات.</p>
+          <select id="prGroup" style="width:100%;padding:12px">
+            <option value="">اختر المجموعة</option>
+            ${gs.map(g=>`<option value="${esc(g.id)}">${esc(g.name||'مجموعة')} — ${esc(g.days||g.day||'')} ${esc(g.time||'')}</option>`).join('')}
+          </select>
+          <div id="prStudents" style="margin-top:10px"></div>
+          <button class="btn-sm btn-add" style="margin-top:12px" onclick="openAllExamStudents()">📝 فتح قسم درجات الامتحانات</button>
+        </div>
+        <div class="group-card">
+          <h3>📊 التقارير الشهرية</h3>
+          <label>الشهر: <input id="prMonth" type="month" value="${month}"></label>
+          <button class="btn-sm btn-add" style="margin:8px" onclick="prepareAllParentReports()">📢 تجهيز تقارير جميع الطلاب</button>
+        </div>`;
+      const select=document.getElementById('prGroup');
+      if(select) select.onchange=async()=>{
+        try{
+          const gid=select.value, ss=await students();
+          const a=ss.filter(st=>(Array.isArray(st.groupIds)?st.groupIds:[]).includes(gid) || st.groupId===gid);
+          document.getElementById('prStudents').innerHTML=a.map(st=>`<button class="btn-sm" style="display:block;width:100%;text-align:right;margin:6px 0" onclick="openExamStudent('${st.id}')">👨‍🎓 ${esc(st.name||'')} — ${esc(st.code||'')}</button>`).join('')||'<p>لا يوجد طلاب في المجموعة.</p>';
+        }catch(e){ console.error(e); document.getElementById('prStudents').innerHTML='<p style="color:#b00">تعذر تحميل الطلاب.</p>'; }
+      };
+    }catch(e){
+      console.error('Parent reports error:',e);
+      area().innerHTML=`<div class="group-card"><h2>⚠️ تعذر فتح تقارير أولياء الأمور</h2><p>حدث خطأ أثناء تحميل البيانات. حاول مرة أخرى.</p><button class="btn-sm btn-add" onclick="showParentReports()">🔄 إعادة المحاولة</button></div>`;
+    }
+  };
+  window.openAllExamStudents=async function(){
+    try{
+      if(!requirePermission('examGrades')){
+        area().innerHTML='<div class="group-card"><h2>⛔ لا توجد صلاحية</h2><p>اطلب من المشرف الأساسي تفعيل صلاحية درجات الامتحانات لهذا الحساب.</p></div>';
+        return;
+      }
+      const ss=await students();
+      area().innerHTML=`<h2>📝 درجات امتحانات الطلاب</h2>
+        <div class="group-card">
+          <p>اختر الطالب لإضافة امتحان أو مراجعة درجاته.</p>
+          <div style="display:grid;gap:8px">
+            ${ss.map(st=>`<button class="btn-sm" style="display:block;width:100%;text-align:right;margin:6px 0" onclick="openExamStudent('${st.id}')">👨‍🎓 ${esc(st.name||'')} — ${esc(st.code||'')}</button>`).join('') || '<p>لا يوجد طلاب.</p>'}
+          </div>
+        </div>
+        <button class="btn-sm" onclick="showParentReports()">⬅️ العودة لتقارير أولياء الأمور</button>`;
+    }catch(e){
+      console.error('Exam grades error:',e);
+      area().innerHTML=`<div class="group-card"><h2>⚠️ تعذر فتح درجات الامتحانات</h2><p>حدث خطأ أثناء تحميل الطلاب.</p><button class="btn-sm btn-add" onclick="openAllExamStudents()">🔄 إعادة المحاولة</button></div>`;
+    }
+  };
   window.openExamStudent=async function(id){const sd=await getDoc(doc(db,'students',id));if(!sd.exists())return;const st=sd.data(),ex=await exams(id);area().innerHTML=`<div class="group-card"><button class="btn-sm" onclick="showParentReports()">⬅️ رجوع</button><h2>📝 درجات امتحانات: ${esc(st.name)}</h2><div style="display:grid;gap:8px;margin:15px 0"><input id="peName" placeholder="اسم الامتحان"><input id="peDate" type="date"><input id="peScore" type="number" min="0" step="0.01" placeholder="درجة الطالب"><input id="peTotal" type="number" min="0.01" step="0.01" placeholder="الدرجة النهائية"><input id="peNote" placeholder="ملاحظات (اختياري)"><button class="btn-sm btn-add" onclick="saveStudentExam('${id}')">➕ حفظ الامتحان</button></div><table style="width:100%;border-collapse:collapse"><tr><th>الامتحان</th><th>التاريخ</th><th>الدرجة</th><th>النسبة</th><th>ملاحظات</th><th></th></tr>${ex.map(e=>`<tr><td>${esc(e.name)}</td><td>${esc(e.date)}</td><td>${e.score}/${e.total}</td><td>${Number(e.percentage||0).toFixed(1)}%</td><td>${esc(e.note||'—')}</td><td><button onclick="deleteStudentExam('${e.id}','${id}')">🗑️</button></td></tr>`).join('')||'<tr><td colspan="6">لا توجد امتحانات</td></tr>'}</table><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:15px"><button class="btn-sm" onclick="previewParentReport('${id}')">👁️ معاينة التقرير</button><button class="btn-sm btn-add" onclick="downloadParentReport('${id}')">⬇️ تحميل PDF</button><button class="btn-sm btn-add" onclick="sendParentWhatsApp('${id}')">📱 فتح WhatsApp</button></div></div>`;};
   window.saveStudentExam=async function(id){const name=document.getElementById('peName').value.trim(),date=document.getElementById('peDate').value,score=Number(document.getElementById('peScore').value),total=Number(document.getElementById('peTotal').value),note=document.getElementById('peNote').value.trim();if(!name||!date||!Number.isFinite(score)||!Number.isFinite(total)||total<=0||score<0||score>total)return alert('⚠️ أدخل بيانات الامتحان والدرجات بشكل صحيح');await addDoc(collection(db,'studentExams'),{studentId:id,name,date,score,total,percentage:Number((score/total*100).toFixed(2)),note,createdAt:serverTimestamp(),createdBy:adminName});openExamStudent(id);};
   window.deleteStudentExam=async function(eid,sid){if(!confirm('حذف درجة الامتحان؟'))return;await deleteDoc(doc(db,'studentExams',eid));openExamStudent(sid);};
