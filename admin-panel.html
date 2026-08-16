@@ -421,6 +421,32 @@
                 gap: 5px;
             }
         }
+
+        .permission-box {
+            display:grid;
+            grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+            gap:8px;
+            background:#f8f9fa;
+            padding:12px;
+            border-radius:10px;
+            margin:10px 0;
+        }
+        .permission-box label { display:flex; gap:7px; align-items:center; font-size:14px; }
+        .status-pill { padding:4px 10px; border-radius:20px; font-size:12px; font-weight:bold; display:inline-block; }
+        .status-present { background:#d4edda; color:#155724; }
+        .status-absent { background:#f8d7da; color:#721c24; }
+        .status-pending { background:#fff3cd; color:#856404; }
+        .group-card, .session-card-new {
+            background:white; border-radius:14px; padding:16px; margin:12px 0;
+            box-shadow:0 2px 10px rgba(0,0,0,.05); border-right:4px solid #3498db;
+        }
+        .attendance-actions { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; }
+        @media print {
+            body * { visibility:hidden !important; }
+            #printAttendanceArea, #printAttendanceArea * { visibility:visible !important; }
+            #printAttendanceArea { position:absolute; left:0; top:0; width:100%; }
+            .no-print { display:none !important; }
+        }
     </style>
 </head>
 <body>
@@ -441,24 +467,26 @@
         <img src="assets/Mohamed.jpg" alt="Admin" class="admin-img">
         <h3>مرحباً بمشرف المنصه</h3>
         <ul>
-            <li onclick="showSection('dashboard')">📊 الرئيسية</li>
-            <li onclick="showSection('students')">👨‍🎓 الطلاب</li>
-            <li onclick="showSection('videos')">🎬 الفيديوهات</li>
-            <li onclick="showSection('books')">📚 الكتب</li>
-            <li onclick="showSection('exams')">📝 الاختبارات</li>
-            <li onclick="showSection('notifications')">🔔 الإشعارات</li>
-            <li onclick="showSection('devices')">📱 طلبات الأجهزة</li>
-            <li onclick="showSection('progress')">📊 تقدم الطلاب</li>
-            <li onclick="showSection('allDevices')">📱 إدارة الأجهزة</li>
-            <li onclick="showSection('liveSettings')">📡 إعدادات البث</li>
-            <li onclick="showSection('reports')">📊 التقارير</li>
-            <li onclick="showSection('badges')">🏅 المكافآت</li>
-            <li onclick="showSection('attendance')">📅 الحضور</li>
-            <li onclick="showSection('leaderboard')">🏆 المتصدرين</li>
-            <li onclick="showSection('advancedStats')">📈 إحصائيات متقدمة</li>
-            <li onclick="showSection('sessions')">🕐 جلسات الطلاب</li>
-            <li onclick="showSection('fees')">💰 المصروفات</li>
-            <li onclick="showSection('dangerZone')" class="danger">⚠️ منطقة الخطر</li>
+            <li onclick="showSection('dashboard')" data-permission="dashboard">📊 الرئيسية</li>
+            <li onclick="showSection('students')" data-permission="students">👨‍🎓 الطلاب</li>
+            <li onclick="showSection('videos')" data-permission="videos">🎬 الفيديوهات</li>
+            <li onclick="showSection('books')" data-permission="books">📚 الكتب</li>
+            <li onclick="showSection('exams')" data-permission="exams">📝 الاختبارات</li>
+            <li onclick="showSection('notifications')" data-permission="notifications">🔔 الإشعارات</li>
+            <li onclick="showSection('devices')" data-permission="devices">📱 طلبات الأجهزة</li>
+            <li onclick="showSection('progress')" data-permission="progress">📊 تقدم الطلاب</li>
+            <li onclick="showSection('allDevices')" data-permission="allDevices">📱 إدارة الأجهزة</li>
+            <li onclick="showSection('liveSettings')" data-permission="liveSettings">📡 إعدادات البث</li>
+            <li onclick="showSection('reports')" data-permission="reports">📊 التقارير</li>
+            <li onclick="showSection('badges')" data-permission="badges">🏅 المكافآت</li>
+            <li onclick="showSection('groups')" data-permission="groups">👥 المجموعات والسنتر</li>
+            <li onclick="showSection('attendance')" data-permission="attendance">📅 حضور السنتر</li>
+            <li onclick="showSection('leaderboard')" data-permission="leaderboard">🏆 المتصدرين</li>
+            <li onclick="showSection('advancedStats')" data-permission="advancedStats">📈 إحصائيات متقدمة</li>
+            <li onclick="showSection('sessions')" data-permission="sessions">🕐 جلسات الطلاب</li>
+            <li onclick="showSection('fees')" data-permission="fees">💰 المصروفات</li>
+            <li onclick="showSection('assistants')" data-primary-only="true">👨‍💼 المشرفون المساعدون</li>
+            <li onclick="showSection('dangerZone')" data-permission="dangerZone" class="danger">⚠️ منطقة الخطر</li>
             <li onclick="logoutAdmin()" style="color:#e74c3c;">🚪 خروج</li>
         </ul>
     </div>
@@ -566,65 +594,382 @@
             return options;
         }
 
+
+        // ============================================
+        // المشرفون المساعدون
+        // ============================================
+        async function hashAssistantPassword(password) {
+            const data = new TextEncoder().encode(password);
+            const hash = await crypto.subtle.digest('SHA-256', data);
+            return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,'0')).join('');
+        }
+
+        const ASSISTANT_PERMISSIONS = [
+            ['dashboard','الرئيسية'],['students','الطلاب'],['groups','المجموعات والسنتر'],
+            ['attendance','حضور السنتر'],['videos','الفيديوهات'],['books','الكتب'],['exams','الاختبارات'],
+            ['notifications','الإشعارات'],['devices','طلبات الأجهزة'],['progress','تقدم الطلاب'],
+            ['allDevices','إدارة الأجهزة'],['liveSettings','إعدادات البث'],['reports','التقارير'],
+            ['badges','المكافآت'],['leaderboard','المتصدرين'],['advancedStats','الإحصائيات'],
+            ['sessions','جلسات الطلاب'],['fees','المصروفات']
+        ];
+
+        window.showAssistantManagement = async function() {
+            if (!isPrimaryAdmin()) return alert('⛔ للمشرف الأساسي فقط');
+            const snap = await getDocs(collection(db,'assistantAdmins'));
+            let html = `<h2>👨‍💼 إدارة المشرفين المساعدين</h2>
+                <p style="color:#777;">أنشئ حسابات مستقلة بكود/اسم مستخدم وكلمة مرور وصلاحيات منفصلة.</p>
+                <div class="filter-bar">
+                    <input id="assistantName" placeholder="اسم المشرف المساعد">
+                    <input id="assistantUsername" placeholder="اسم المستخدم / الكود">
+                    <input id="assistantPassword" type="password" placeholder="كلمة المرور">
+                    <select id="assistantStatus"><option value="active">نشط</option><option value="suspended">موقوف</option></select>
+                </div>
+                <div class="permission-box">${ASSISTANT_PERMISSIONS.map(([k,v])=>`<label><input type="checkbox" class="assistant-perm" value="${k}"> ${v}</label>`).join('')}</div>
+                <button onclick="createAssistant()" class="btn-sm btn-success">➕ إنشاء مشرف مساعد</button>
+                <hr style="margin:20px 0;">
+                <div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse;">
+                <tr><th>الاسم</th><th>اسم المستخدم</th><th>الحالة</th><th>الصلاحيات</th><th>إجراءات</th></tr>`;
+
+            if (snap.empty) {
+                html += `<tr><td colspan="5">لا يوجد مشرفون مساعدون</td></tr>`;
+            } else {
+                snap.forEach(d => {
+                    const a=d.data();
+                    const perms=(a.permissions||[]).map(p=>ASSISTANT_PERMISSIONS.find(x=>x[0]===p)?.[1]||p).join('، ');
+                    html += `<tr>
+                        <td>${escapeHtml(a.name)}</td><td>${escapeHtml(a.username)}</td>
+                        <td><span class="status-pill ${a.status==='active'?'status-present':'status-absent'}">${a.status==='active'?'نشط':'موقوف'}</span></td>
+                        <td style="max-width:300px">${escapeHtml(perms||'لا توجد')}</td>
+                        <td>
+                          <button class="btn-sm btn-warning" onclick="toggleAssistant('${d.id}','${a.status}')">${a.status==='active'?'⛔ إيقاف':'✅ تفعيل'}</button>
+                          <button class="btn-sm btn-danger" onclick="deleteAssistant('${d.id}')">🗑️ حذف</button>
+                        </td></tr>`;
+                });
+            }
+            html += `</table></div>`;
+            document.getElementById('content-area').innerHTML=html;
+        };
+
+        window.createAssistant = async function() {
+            if (!isPrimaryAdmin()) return alert('⛔ للمشرف الأساسي فقط');
+            const name=document.getElementById('assistantName').value.trim();
+            const username=document.getElementById('assistantUsername').value.trim();
+            const password=document.getElementById('assistantPassword').value;
+            const status=document.getElementById('assistantStatus').value;
+            const permissions=[...document.querySelectorAll('.assistant-perm:checked')].map(x=>x.value);
+            if(!name||!username||!password) return alert('⚠️ أكمل بيانات المشرف المساعد');
+            if(!permissions.length) return alert('⚠️ اختر صلاحية واحدة على الأقل');
+            const q=query(collection(db,'assistantAdmins'),where('username','==',username));
+            if(!(await getDocs(q)).empty) return alert('⚠️ اسم المستخدم موجود بالفعل');
+            await addDoc(collection(db,'assistantAdmins'),{
+                name, username, passwordHash:await hashAssistantPassword(password),
+                permissions, status, createdAt:serverTimestamp(), createdBy:'primary'
+            });
+            alert('✅ تم إنشاء المشرف المساعد');
+            showAssistantManagement();
+        };
+
+        window.toggleAssistant = async function(id,status) {
+            if(!isPrimaryAdmin()) return alert('⛔ للمشرف الأساسي فقط');
+            await updateDoc(doc(db,'assistantAdmins',id),{status:status==='active'?'suspended':'active'});
+            showAssistantManagement();
+        };
+
+        window.deleteAssistant = async function(id) {
+            if(!isPrimaryAdmin()) return alert('⛔ للمشرف الأساسي فقط');
+            if(!confirm('حذف حساب المشرف المساعد نهائياً؟')) return;
+            await deleteDoc(doc(db,'assistantAdmins',id));
+            showAssistantManagement();
+        };
+
+        // ============================================
+        // المجموعات / السنتر
+        // ============================================
+        async function getGroups() {
+            const snap=await getDocs(collection(db,'groups'));
+            const groups=[]; snap.forEach(d=>groups.push({id:d.id,...d.data()}));
+            return groups;
+        }
+
+        window.showGroupsManagement = async function() {
+            if(!requirePermission('groups')) return;
+            const groups=await getGroups();
+            await getGrades();
+            let html=`<h2>👥 المجموعات والسنتر</h2>
+                <p style="color:#777;">المجموعة هي حلقة الربط بين الطالب والحصة والحضور.</p>
+                <div class="filter-bar">
+                    <input id="groupName" placeholder="اسم المجموعة">
+                    <input id="groupSubject" placeholder="المادة">
+                    <select id="groupGrade">${getGradeOptions('1')}</select>
+                    <select id="groupMode"><option value="center">🏫 سنتر</option><option value="online">💻 أونلاين</option><option value="private">👤 خاص</option></select>
+                    <input id="groupRoom" placeholder="رقم القاعة / المكان">
+                    <input id="groupDays" placeholder="الأيام مثال: السبت والثلاثاء">
+                    <input id="groupTime" type="time">
+                    <button onclick="addGroup()" class="btn-sm btn-add">➕ إنشاء مجموعة</button>
+                </div>`;
+            if(!groups.length) html+=`<p style="padding:20px;text-align:center;">لا توجد مجموعات حتى الآن</p>`;
+            for(const g of groups){
+                const studentsSnap=await getDocs(query(collection(db,'students'),where('groupIds','array-contains',g.id)));
+                html+=`<div class="group-card">
+                    <h3>${escapeHtml(g.name)} <span class="grade-badge grade-${g.mode==='center'?'1':'custom'}">${g.mode==='center'?'سنتر':g.mode==='online'?'أونلاين':'خاص'}</span></h3>
+                    <p>📚 ${escapeHtml(g.subject||'—')} | الصف: ${escapeHtml(g.grade||'—')} | 👨‍🎓 ${studentsSnap.size} طالب | 🏫 ${escapeHtml(g.room||'—')}</p>
+                    <p>🗓️ ${escapeHtml(g.days||'—')} — ⏰ ${escapeHtml(g.time||'—')}</p>
+                    <button class="btn-sm btn-edit" onclick="manageGroupStudents('${g.id}')">👨‍🎓 طلاب المجموعة</button>
+                    <button class="btn-sm btn-success" onclick="createCenterSession('${g.id}')">📝 تسجيل حصة اليوم</button>
+                    <button class="btn-sm btn-danger" onclick="deleteGroup('${g.id}')">🗑️ حذف</button>
+                </div>`;
+            }
+            document.getElementById('content-area').innerHTML=html;
+        };
+
+        window.addGroup = async function(){
+            if(!requirePermission('groups')) return;
+            const name=document.getElementById('groupName').value.trim();
+            const subject=document.getElementById('groupSubject').value.trim();
+            const grade=document.getElementById('groupGrade').value;
+            const mode=document.getElementById('groupMode').value;
+            const room=document.getElementById('groupRoom').value.trim();
+            const days=document.getElementById('groupDays').value.trim();
+            const time=document.getElementById('groupTime').value;
+            if(!name) return alert('⚠️ أدخل اسم المجموعة');
+            await addDoc(collection(db,'groups'),{name,subject,grade,mode,room,days,time,active:true,createdAt:serverTimestamp()});
+            alert('✅ تم إنشاء المجموعة');
+            showGroupsManagement();
+        };
+
+        window.deleteGroup = async function(groupId){
+            if(!requirePermission('groups')) return;
+            if(!confirm('حذف المجموعة؟ لن يتم حذف الطلاب، لكن سيتم فك ارتباطهم بها.')) return;
+            const studentsSnap=await getDocs(query(collection(db,'students'),where('groupIds','array-contains',groupId)));
+            for(const s of studentsSnap.docs){
+                const ids=s.data().groupIds||[];
+                await updateDoc(s.ref,{groupIds:ids.filter(x=>x!==groupId)});
+            }
+            await deleteDoc(doc(db,'groups',groupId));
+            showGroupsManagement();
+        };
+
+        window.manageGroupStudents = async function(groupId){
+            if(!requirePermission('groups')) return;
+            const groups=await getGroups();
+            const group=groups.find(g=>g.id===groupId);
+            const studentsSnap=await getDocs(collection(db,'students'));
+            let html=`<h2>👨‍🎓 طلاب مجموعة: ${escapeHtml(group?.name||'')}</h2>
+                <p>حدد الطلاب الموجودين فعلياً في هذه المجموعة ثم اضغط حفظ.</p>
+                <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;">
+                <tr><th>اختيار</th><th>الطالب</th><th>الكود</th><th>الصف</th></tr>`;
+            studentsSnap.forEach(d=>{
+                const s=d.data(), checked=(s.groupIds||[]).includes(groupId);
+                html+=`<tr><td><input type="checkbox" class="group-student-check" value="${d.id}" ${checked?'checked':''}></td>
+                    <td>${escapeHtml(s.name)}</td><td>${escapeHtml(s.code)}</td><td>${escapeHtml(s.grade)}</td></tr>`;
+            });
+            html+=`</table></div><br>
+                <button class="btn-sm btn-success" onclick="saveGroupStudents('${groupId}')">💾 حفظ المجموعة</button>
+                <button class="btn-sm" onclick="showGroupsManagement()">🔙 رجوع</button>`;
+            document.getElementById('content-area').innerHTML=html;
+        };
+
+        window.saveGroupStudents = async function(groupId){
+            if(!requirePermission('groups')) return;
+            const studentsSnap=await getDocs(collection(db,'students'));
+            const selected=new Set([...document.querySelectorAll('.group-student-check:checked')].map(x=>x.value));
+            for(const s of studentsSnap.docs){
+                const ids=s.data().groupIds||[];
+                const has=ids.includes(groupId);
+                if(selected.has(s.id) && !has) await updateDoc(s.ref,{groupIds:[...ids,groupId]});
+                if(!selected.has(s.id) && has) await updateDoc(s.ref,{groupIds:ids.filter(x=>x!==groupId)});
+            }
+            alert('✅ تم تحديث طلاب المجموعة');
+            showGroupsManagement();
+        };
+
+        // ============================================
+        // حصص السنتر والحضور
+        // ============================================
+        window.createCenterSession = async function(groupId){
+            if(!requirePermission('attendance')) return;
+            const groups=await getGroups(), group=groups.find(g=>g.id===groupId);
+            if(!group) return alert('المجموعة غير موجودة');
+            const date=prompt('تاريخ الحصة YYYY-MM-DD',new Date().toISOString().split('T')[0]);
+            if(!date) return;
+            const time=prompt('وقت الحصة HH:MM',group.time||'');
+            const topic=prompt('عنوان/موضوع الحصة (اختياري)','حصة');
+            const sessionRef=await addDoc(collection(db,'centerSessions'),{
+                groupId,groupName:group.name,subject:group.subject||'',mode:group.mode||'center',
+                date,time:time||'',topic:topic||'حصة',status:'open',
+                createdAt:serverTimestamp(),createdBy:adminName
+            });
+            const studentsSnap=await getDocs(query(collection(db,'students'),where('groupIds','array-contains',groupId)));
+            for(const s of studentsSnap.docs){
+                const st=s.data();
+                await setDoc(doc(db,'centerAttendance',`${sessionRef.id}_${st.code}`),{
+                    sessionId:sessionRef.id,groupId,groupName:group.name,studentCode:st.code,
+                    studentName:st.name||'',date,status:'absent',markedAt:null,markedBy:null
+                });
+            }
+            alert(`✅ تم إنشاء الحصة وتسجيل ${studentsSnap.size} طالب كغياب مبدئي`);
+            showCenterAttendance();
+        };
+
+        window.showCenterAttendance = async function(){
+            if(!requirePermission('attendance')) return;
+            const groups=await getGroups();
+            const sessionsSnap=await getDocs(collection(db,'centerSessions'));
+            const sessions=[]; sessionsSnap.forEach(d=>sessions.push({id:d.id,...d.data()}));
+            sessions.sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+            let selected=document.getElementById('centerSessionSelect')?.value || sessions[0]?.id || '';
+            let html=`<h2>📅 حضور وغياب السنتر</h2>
+                <div class="filter-bar">
+                  <select id="centerSessionSelect" onchange="showCenterAttendance()">
+                    ${sessions.map(s=>`<option value="${s.id}" ${selected===s.id?'selected':''}>${escapeHtml(s.date)} — ${escapeHtml(s.groupName)} — ${escapeHtml(s.topic||'حصة')}</option>`).join('')}
+                  </select>
+                  <button class="btn-sm btn-add" onclick="showGroupsManagement()">👥 المجموعات</button>
+                  <button class="btn-sm btn-success" onclick="printCenterAttendance()">🖨️ طباعة كشف الحضور</button>
+                  <button class="btn-sm" style="background:#27ae60;color:white" onclick="exportCenterAttendanceExcel()">📥 Excel</button>
+                </div>`;
+            if(!sessions.length){
+                html+=`<div class="group-card"><h3>لا توجد حصص</h3><p>أنشئ مجموعة ثم اضغط "تسجيل حصة اليوم".</p></div>`;
+                document.getElementById('content-area').innerHTML=html; return;
+            }
+            const session=sessions.find(x=>x.id===selected)||sessions[0];
+            const attSnap=await getDocs(query(collection(db,'centerAttendance'),where('sessionId','==',session.id)));
+            const rows=[]; attSnap.forEach(d=>rows.push({id:d.id,...d.data()}));
+            rows.sort((a,b)=>String(a.studentName||'').localeCompare(String(b.studentName||''),'ar'));
+            const present=rows.filter(r=>r.status==='present').length;
+            html+=`<div class="group-card"><h3>📚 ${escapeHtml(session.groupName)} — ${escapeHtml(session.date)}</h3>
+                <p>🕐 ${escapeHtml(session.time||'—')} | ${escapeHtml(session.topic||'حصة')} | حاضر: <b>${present}</b> / ${rows.length}</p>
+                <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;" id="centerAttendanceTable">
+                <tr><th>#</th><th>الطالب</th><th>الكود</th><th>الحالة</th><th>إجراء</th></tr>`;
+            rows.forEach((r,i)=>{
+                html+=`<tr><td>${i+1}</td><td>${escapeHtml(r.studentName)}</td><td>${escapeHtml(r.studentCode)}</td>
+                    <td><span class="status-pill ${r.status==='present'?'status-present':'status-absent'}">${r.status==='present'?'✅ حاضر':'❌ غائب'}</span></td>
+                    <td><button class="btn-sm ${r.status==='present'?'btn-danger':'btn-success'}" onclick="toggleCenterAttendance('${r.id}','${r.status}')">${r.status==='present'?'تسجيل غياب':'تسجيل حضور'}</button></td></tr>`;
+            });
+            html+=`</table></div></div>`;
+            document.getElementById('content-area').innerHTML=html;
+        };
+
+        window.toggleCenterAttendance = async function(attId,status){
+            if(!requirePermission('attendance')) return;
+            await updateDoc(doc(db,'centerAttendance',attId),{
+                status:status==='present'?'absent':'present',
+                markedAt:serverTimestamp(),markedBy:adminName
+            });
+            showCenterAttendance();
+        };
+
+        window.printCenterAttendance = async function(){
+            if(!requirePermission('attendance')) return;
+            const sid=document.getElementById('centerSessionSelect')?.value;
+            if(!sid) return alert('اختر الحصة أولاً');
+            const sessionSnap=await getDoc(doc(db,'centerSessions',sid));
+            if(!sessionSnap.exists()) return alert('الحصة غير موجودة');
+            const session=sessionSnap.data();
+            const attSnap=await getDocs(query(collection(db,'centerAttendance'),where('sessionId','==',sid)));
+            const rows=[]; attSnap.forEach(d=>rows.push(d.data()));
+            rows.sort((a,b)=>String(a.studentName||'').localeCompare(String(b.studentName||''),'ar'));
+            const present=rows.filter(r=>r.status==='present').length;
+            const absent=rows.length-present;
+            const w=window.open('','_blank');
+            w.document.write(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>كشف حضور</title>
+                <style>body{font-family:Tahoma,Arial;padding:30px}h1{text-align:center}table{width:100%;border-collapse:collapse;margin-top:20px}th,td{border:1px solid #333;padding:9px;text-align:center}th{background:#eee}.present{color:green}.absent{color:#c00}.meta{display:flex;justify-content:space-between}</style></head><body>
+                <h1>كشف حضور وغياب</h1><div class="meta"><span>المجموعة: ${escapeHtml(session.groupName)}</span><span>التاريخ: ${escapeHtml(session.date)}</span></div>
+                <p>المادة: ${escapeHtml(session.subject||'—')} | الحصة: ${escapeHtml(session.topic||'—')} | حاضر: ${present} | غائب: ${absent}</p>
+                <table><tr><th>#</th><th>اسم الطالب</th><th>الكود</th><th>الحالة</th></tr>
+                ${rows.map((r,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(r.studentName)}</td><td>${escapeHtml(r.studentCode)}</td><td class="${r.status}">${r.status==='present'?'حاضر':'غائب'}</td></tr>`).join('')}
+                </table><script>window.onload=()=>window.print();<\/script></body></html>`);
+            w.document.close();
+        };
+
+        window.exportCenterAttendanceExcel = async function(){
+            if(!requirePermission('attendance')) return;
+            const sid=document.getElementById('centerSessionSelect')?.value;
+            if(!sid) return alert('اختر الحصة أولاً');
+            await loadXLSX();
+            const session=(await getDoc(doc(db,'centerSessions',sid))).data();
+            const snap=await getDocs(query(collection(db,'centerAttendance'),where('sessionId','==',sid)));
+            const data=[['كشف حضور وغياب','المجموعة','التاريخ','اسم الطالب','الكود','الحالة']];
+            snap.forEach(d=>{const r=d.data();data.push(['حضور وغياب',session.groupName,session.date,r.studentName,r.studentCode,r.status==='present'?'حاضر':'غائب']);});
+            const ws=XLSX.utils.aoa_to_sheet(data), wb=XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb,ws,'الحضور');
+            XLSX.writeFile(wb,`attendance_${session.date}_${session.groupName}.xlsx`);
+        };
+
+        // ============================================
+        // الصلاحيات والمستخدم الحالي
+        // ============================================
+        const adminRole = localStorage.getItem('adminRole') || 'primary';
+        const adminName = localStorage.getItem('adminName') || 'المشرف';
+        let adminPermissions = [];
+        try { adminPermissions = JSON.parse(localStorage.getItem('adminPermissions') || '[]'); } catch(e) { adminPermissions = []; }
+
+        function isPrimaryAdmin() {
+            return adminRole === 'primary';
+        }
+
+        function hasPermission(permission) {
+            return isPrimaryAdmin() || adminPermissions.includes('*') || adminPermissions.includes(permission);
+        }
+
+        function requirePermission(permission) {
+            if (!hasPermission(permission)) {
+                alert('⛔ ليس لديك صلاحية لاستخدام هذا القسم');
+                return false;
+            }
+            return true;
+        }
+
+        function applyAdminPermissions() {
+            document.querySelectorAll('[data-permission]').forEach(el => {
+                el.style.display = hasPermission(el.dataset.permission) ? '' : 'none';
+            });
+            document.querySelectorAll('[data-primary-only]').forEach(el => {
+                el.style.display = isPrimaryAdmin() ? '' : 'none';
+            });
+            const title = document.querySelector('.sidebar h3');
+            if (title) title.textContent = isPrimaryAdmin() ? 'مرحباً بالمشرف الأساسي' : `مرحباً ${adminName}`;
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, ch => ({
+                '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'
+            }[ch]));
+        }
+
         window.showSection = function(section) {
+            const permissionMap = {
+                dashboard:'dashboard', students:'students', videos:'videos', books:'books',
+                exams:'exams', notifications:'notifications', devices:'devices', progress:'progress',
+                allDevices:'allDevices', liveSettings:'liveSettings', reports:'reports', badges:'badges',
+                attendance:'attendance', groups:'groups', leaderboard:'leaderboard',
+                advancedStats:'advancedStats', sessions:'sessions', fees:'fees', dangerZone:'dangerZone'
+            };
+            if (section !== 'assistants' && !requirePermission(permissionMap[section] || section)) return;
+            if (section === 'assistants' && !isPrimaryAdmin()) return alert('⛔ هذا القسم للمشرف الأساسي فقط');
+
             document.getElementById('content-area').innerHTML = `<h2>⏳ جاري التحميل...</h2>`;
             switch (section) {
-                case 'dashboard':
-                    showDashboard();
-                    break;
-                case 'students':
-                    showStudents();
-                    break;
-                case 'videos':
-                    showVideos();
-                    break;
-                case 'books':
-                    showBooks();
-                    break;
-                case 'exams':
-                    showExams();
-                    break;
-                case 'notifications':
-                    showNotifications();
-                    break;
-                case 'devices':
-                    showPendingDevices();
-                    break;
-                case 'progress':
-                    showAllProgress();
-                    break;
-                case 'allDevices':
-                    showAllDevices();
-                    break;
-                case 'liveSettings':
-                    showLiveSettings();
-                    break;
-                case 'reports':
-                    showReports();
-                    break;
-                case 'badges':
-                    showBadgesManagement();
-                    break;
-                case 'attendance':
-                    showAttendanceReport();
-                    break;
-                case 'leaderboard':
-                    showLeaderboard();
-                    break;
-                case 'advancedStats':
-                    showAdvancedStats();
-                    break;
-                case 'sessions':
-                    showAllSessions();
-                    break;
-                case 'fees':
-                    showFeesManagement();
-                    break;
-                case 'dangerZone':
-                    showDangerZone();
-                    break;
-                default:
-                    showDashboard();
+                case 'dashboard': showDashboard(); break;
+                case 'students': showStudents(); break;
+                case 'videos': showVideos(); break;
+                case 'books': showBooks(); break;
+                case 'exams': showExams(); break;
+                case 'notifications': showNotifications(); break;
+                case 'devices': showPendingDevices(); break;
+                case 'progress': showAllProgress(); break;
+                case 'allDevices': showAllDevices(); break;
+                case 'liveSettings': showLiveSettings(); break;
+                case 'reports': showReports(); break;
+                case 'badges': showBadgesManagement(); break;
+                case 'attendance': showCenterAttendance(); break;
+                case 'groups': showGroupsManagement(); break;
+                case 'assistants': showAssistantManagement(); break;
+                case 'leaderboard': showLeaderboard(); break;
+                case 'advancedStats': showAdvancedStats(); break;
+                case 'sessions': showAllSessions(); break;
+                case 'fees': showFeesManagement(); break;
+                case 'dangerZone': showDangerZone(); break;
+                default: showDashboard();
             }
         };
 
@@ -1296,6 +1641,7 @@
                 phone,
                 parentPhone,
                 grade: grade,
+                groupIds: [],
                 status: 'inactive',
                 suspendMessage: '',
                 deviceIds: [],
@@ -3228,9 +3574,17 @@
         // LOGOUT
         // ============================================
         window.logoutAdmin = function() {
-            localStorage.removeItem('adminLoggedIn');
+            ['adminLoggedIn','adminRole','adminId','adminName','adminPermissions'].forEach(k => localStorage.removeItem(k));
             window.location.href = 'index.html';
         };
+
+        // ============================================
+        // حماية لوحة المشرف وتطبيق الصلاحيات
+        // ============================================
+        if (localStorage.getItem('adminLoggedIn') !== 'true') {
+            window.location.href = 'admin-login.html';
+        }
+        applyAdminPermissions();
 
         // ============================================
         // جلب الصفوف عند بدء التحميل

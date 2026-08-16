@@ -468,6 +468,7 @@
             <li onclick="loadSection('badges')">🏅 الشارات والمكافآت</li>
             <li onclick="loadSection('leaderboard')">🏆 لوحة المتصدرين</li>
             <li onclick="loadSection('myProgress')">📊 تقدمي</li>
+            <li onclick="loadSection('centerAttendance')">📅 حضوري في السنتر</li>
         </ul>
         <button onclick="logoutStudent()" style="margin-top:20px; background:#e74c3c; color:white; border:none; padding:10px; border-radius:8px; cursor:pointer; width:100%; font-size:16px;">🚪 خروج</button>
     </div>
@@ -1411,6 +1412,45 @@
                 }
             }
             
+            // ============================================
+            // حضور السنتر
+            // ============================================
+            else if (section === 'centerAttendance') {
+                try {
+                    const attSnap = await getDocs(query(
+                        collection(db,'centerAttendance'),
+                        where('studentCode','==',code)
+                    ));
+                    const groupsSnap = await getDocs(collection(db,'groups'));
+                    const groupMap = {};
+                    groupsSnap.forEach(d => groupMap[d.id] = d.data());
+
+                    const rows = [];
+                    attSnap.forEach(d => rows.push(d.data()));
+                    rows.sort((a,b) => String(b.date||'').localeCompare(String(a.date||'')));
+
+                    let present = rows.filter(r=>r.status==='present').length;
+                    let html = `<h2>📅 حضوري في السنتر</h2>
+                        <div class="dashboard-stats">
+                          <div class="stat-card"><div class="icon">📚</div><div class="number">${rows.length}</div><div class="label">إجمالي الحصص</div></div>
+                          <div class="stat-card"><div class="icon">✅</div><div class="number">${present}</div><div class="label">حضور</div></div>
+                          <div class="stat-card"><div class="icon">❌</div><div class="number">${rows.length-present}</div><div class="label">غياب</div></div>
+                        </div>
+                        <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;background:white;">
+                        <tr><th>التاريخ</th><th>المجموعة</th><th>الحصة</th><th>الحالة</th></tr>`;
+                    if (!rows.length) html += `<tr><td colspan="4">لا يوجد سجل حضور للسنتر حتى الآن</td></tr>`;
+                    rows.forEach(r => {
+                        html += `<tr><td>${r.date||'—'}</td><td>${r.groupName||groupMap[r.groupId]?.name||'—'}</td>
+                            <td>${r.topic||'حصة'}</td><td>${r.status==='present'?'✅ حاضر':'❌ غائب'}</td></tr>`;
+                    });
+                    html += `</table></div>`;
+                    container.innerHTML = html;
+                } catch(e) {
+                    console.error(e);
+                    container.innerHTML = `<p style="color:red">حدث خطأ في تحميل حضور السنتر</p>`;
+                }
+            }
+
             // ============================================
             // الشارات والمكافآت
             // ============================================
