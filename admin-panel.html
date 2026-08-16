@@ -481,6 +481,7 @@
             <li onclick="window.showSection('badges')" data-permission="badges">🏅 المكافآت</li>
             <li onclick="showSection('groups')" data-permission="groups">👥 المجموعات والسنتر</li>
             <li onclick="window.showSection('attendance')" data-permission="attendance">📅 حضور السنتر</li>
+            <li onclick="window.showSection('parentReports')" data-permission="parentReports">👨‍👩‍👦 تقارير أولياء الأمور</li>
             <li onclick="window.showSection('leaderboard')" data-permission="leaderboard">🏆 المتصدرين</li>
             <li onclick="window.showSection('advancedStats')" data-permission="advancedStats">📈 إحصائيات متقدمة</li>
             <li onclick="window.showSection('sessions')" data-permission="sessions">🕐 جلسات الطلاب</li>
@@ -3741,6 +3742,229 @@
         await getGrades();
         await window.showSection('dashboard');
     </script>
+
+<!-- ====== درجات الامتحانات + تقارير أولياء الأمور ====== -->
+<script>
+(function(){
+  if(window.__parentReportsComplete) return;
+  window.__parentReportsComplete=true;
+
+  const escPR=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const area=()=>document.getElementById('content-area');
+
+  async function studentsPR(){
+    const q=await getDocs(collection(db,'students')); const a=[];
+    q.forEach(d=>a.push({id:d.id,...d.data()})); return a;
+  }
+  async function groupsPR(){
+    const q=await getDocs(collection(db,'groups')); const a=[];
+    q.forEach(d=>a.push({id:d.id,...d.data()})); return a;
+  }
+  async function examsPR(studentId){
+    const q=await getDocs(query(collection(db,'studentExams'),where('studentId','==',studentId)));
+    const a=[]; q.forEach(d=>a.push({id:d.id,...d.data()}));
+    a.sort((x,y)=>String(y.date||'').localeCompare(String(x.date||''))); return a;
+  }
+  async function attendancePR(studentId){
+    let present=0,absent=0;
+    try{
+      const q=await getDocs(query(collection(db,'centerAttendance'),where('studentCode','==',String(window.__prStudentCode||''))));
+      q.forEach(d=>{const x=d.data(); if(String(x.studentCode||'')===String(window.__prStudentCode||'')){x.status==='present'?present++:absent++;}});
+    }catch(e){}
+    // Fallback: query by studentId if future records include it.
+    try{
+      const q=await getDocs(query(collection(db,'centerAttendance'),where('studentId','==',studentId)));
+      q.forEach(d=>{const x=d.data(); x.status==='present'?present++:absent++;});
+    }catch(e){}
+    return {present,absent,total:present+absent};
+  }
+
+  window.showParentReports=async function(){
+    if(typeof requirePermission==='function' && !requirePermission('parentReports')) return;
+    const gs=await groupsPR();
+    area().innerHTML=`
+      <h2>👨‍👩‍👦 تقارير أولياء الأمور ودرجات الامتحانات</h2>
+      <div class="group-card">
+        <h3>📝 درجات امتحانات الطلاب</h3>
+        <p>اختر المجموعة ثم الطالب.</p>
+        <select id="prGroup" style="width:100%;padding:12px;margin:10px 0">
+          <option value="">اختر المجموعة</option>
+          ${gs.map(g=>`<option value="${escPR(g.id)}">${escPR(g.name||'مجموعة')} — ${escPR(g.days||g.day||'')} — ${escPR(g.time||'')}</option>`).join('')}
+        </select>
+        <div id="prStudentList"></div>
+      </div>
+      <div class="group-card">
+        <h3>📢 التقارير الشهرية</h3>
+        <p>التقرير يجمع بيانات الطالب والحضور ودرجات الامتحانات المسجلة.</p>
+        <button class="btn-sm btn-add" onclick="showAllParentReports()">📋 تقارير جميع الطلاب</button>
+      </div>`;
+    document.getElementById('prGroup').onchange=loadPRStudents;
+  };
+
+  async function loadPRStudents(){
+    const gid=document.getElementById('prGroup').value, box=document.getElementById('prStudentList');
+    if(!gid){box.innerHTML='';return;}
+    const ss=await studentsPR();
+    const arr=ss.filter(x=>(Array.isArray(x.groupIds)?x.groupIds:[]).includes(gid));
+    box.innerHTML=arr.length?arr.map(x=>`
+      <button class="btn-sm" style="width:100%;text-align:right;margin:6px 0"
+        onclick="openExamStudent('${x.id}')">👨‍🎓 ${escPR(x.name||'طالب')} — ${escPR(x.code||'')}</button>`).join('')
+      :'<p>لا يوجد طلاب في هذه المجموعة.</p>';
+  }
+
+  window.openExamStudent=async function(id){
+    const sd=await getDoc(doc(db,'students',id)); if(!sd.exists()) return;
+    const st=sd.data(), ex=await examsPR(id);
+    const avg=ex.length?(ex.reduce((a,e)=>a+Number(e.percentage||0),0)/ex.length).toFixed(1):'—';
+    area().innerHTML=`
+      <div class="group-card">
+        <button class="btn-sm" onclick="showParentReports()">⬅️ رجوع</button>
+        <h2>📝 درجات امتحانات: ${escPR(st.name||'')}</h2>
+        <div style="display:grid;gap:8px;margin:15px 0">
+          <input id="prExamName" placeholder="اسم الامتحان">
+          <input id="prExamDate" type="date">
+          <input id="prExamScore" type="number" min="0" step="0.01" placeholder="درجة الطالب">
+          <input id="prExamTotal" type="number" min="0.01" step="0.01" placeholder="الدرجة النهائية">
+          <input id="prExamNote" placeholder="ملاحظات (اختياري)">
+          <button class="btn-sm btn-add" onclick="saveStudentExam('${id}')">💾 حفظ الامتحان</button>
+        </div>
+        <p>📊 متوسط النسب المسجلة: <b>${avg}%</b></p>
+        <div style="overflow:auto">
+        <table style="width:100%;border-collapse:collapse">
+          <tr><th>الامتحان</th><th>التاريخ</th><th>الدرجة</th><th>النسبة</th><th>الملاحظات</th><th>إجراء</th></tr>
+          ${ex.length?ex.map(e=>`<tr>
+            <td>${escPR(e.name)}</td><td>${escPR(e.date)}</td><td>${e.score}/${e.total}</td>
+            <td>${Number(e.percentage||0).toFixed(1)}%</td><td>${escPR(e.note||'—')}</td>
+            <td><button class="btn-sm btn-danger" onclick="deleteStudentExam('${e.id}','${id}')">🗑️</button></td>
+          </tr>`).join(''):'<tr><td colspan="6">لا توجد امتحانات مسجلة</td></tr>'}
+        </table></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:15px">
+          <button class="btn-sm" onclick="previewParentReport('${id}')">👁️ معاينة التقرير</button>
+          <button class="btn-sm btn-add" onclick="downloadParentReport('${id}')">⬇️ تحميل PDF</button>
+          <button class="btn-sm btn-add" onclick="sendParentWhatsApp('${id}')">📱 إرسال عبر WhatsApp</button>
+          <button class="btn-sm" onclick="sendParentAutomatic('${id}')">🤖 إرسال تلقائي</button>
+        </div>
+      </div>`;
+  };
+
+  window.saveStudentExam=async function(studentId){
+    const name=document.getElementById('prExamName').value.trim();
+    const date=document.getElementById('prExamDate').value;
+    const score=Number(document.getElementById('prExamScore').value);
+    const total=Number(document.getElementById('prExamTotal').value);
+    const note=document.getElementById('prExamNote').value.trim();
+    if(!name||!date||!Number.isFinite(score)||!Number.isFinite(total)||total<=0||score<0||score>total)
+      return alert('⚠️ أدخل بيانات الامتحان والدرجات بشكل صحيح');
+    await addDoc(collection(db,'studentExams'),{
+      studentId,name,date,score,total,percentage:Number((score/total*100).toFixed(2)),
+      note:note||'',createdAt:serverTimestamp(),createdBy:typeof adminName!=='undefined'?adminName:'admin'
+    });
+    alert('✅ تم حفظ درجة الامتحان');
+    openExamStudent(studentId);
+  };
+
+  window.deleteStudentExam=async function(id,studentId){
+    if(!confirm('هل تريد حذف درجة هذا الامتحان؟'))return;
+    await deleteDoc(doc(db,'studentExams',id));
+    openExamStudent(studentId);
+  };
+
+  async function buildReport(studentId){
+    const sd=await getDoc(doc(db,'students',studentId)); if(!sd.exists()) throw new Error('الطالب غير موجود');
+    const st=sd.data(), ex=await examsPR(studentId);
+    let present=0,absent=0;
+    try{
+      const q=await getDocs(query(collection(db,'centerAttendance'),where('studentCode','==',String(st.code||''))));
+      q.forEach(d=>d.data().status==='present'?present++:absent++);
+    }catch(e){}
+    const total=present+absent, att=total?(present/total*100).toFixed(1):'—';
+    const avg=ex.length?(ex.reduce((a,e)=>a+Number(e.percentage||0),0)/ex.length).toFixed(1):'—';
+    const level=avg==='—'?'لا توجد درجات':Number(avg)>=90?'ممتاز':Number(avg)>=80?'جيد جدًا':Number(avg)>=65?'جيد':'يحتاج متابعة';
+    return {st,ex,present,absent,total,att,avg,level};
+  }
+
+  function reportHTML(r){
+    const {st,ex,present,absent,total,att,avg,level}=r;
+    return `<div id="prPrintable" dir="rtl" style="background:#fff;color:#111;padding:28px;font-family:Tahoma,Arial,sans-serif;max-width:850px;margin:auto">
+      <h1 style="text-align:center">📊 تقرير متابعة الطالب الشهري</h1>
+      <hr>
+      <p><b>الطالب:</b> ${escPR(st.name||'—')}</p>
+      <p><b>الكود:</b> ${escPR(st.code||'—')}</p>
+      <p><b>الصف:</b> ${escPR(st.grade||'—')}</p>
+      <p><b>هاتف ولي الأمر:</b> ${escPR(st.parentPhone||'—')}</p>
+      <h3>🏫 الحضور</h3>
+      <p>إجمالي الحصص المسجلة: <b>${total}</b> | الحضور: <b>${present}</b> | الغياب: <b>${absent}</b> | النسبة: <b>${att}%</b></p>
+      <h3>📝 الامتحانات</h3>
+      <table style="width:100%;border-collapse:collapse">
+        <tr><th style="border:1px solid #ddd;padding:8px">الامتحان</th><th style="border:1px solid #ddd;padding:8px">التاريخ</th><th style="border:1px solid #ddd;padding:8px">الدرجة</th><th style="border:1px solid #ddd;padding:8px">النسبة</th><th style="border:1px solid #ddd;padding:8px">ملاحظات</th></tr>
+        ${ex.length?ex.map(e=>`<tr><td style="border:1px solid #ddd;padding:8px">${escPR(e.name)}</td><td style="border:1px solid #ddd;padding:8px">${escPR(e.date)}</td><td style="border:1px solid #ddd;padding:8px">${e.score}/${e.total}</td><td style="border:1px solid #ddd;padding:8px">${Number(e.percentage||0).toFixed(1)}%</td><td style="border:1px solid #ddd;padding:8px">${escPR(e.note||'—')}</td></tr>`).join(''):'<tr><td colspan="5" style="padding:12px;text-align:center">لا توجد امتحانات مسجلة</td></tr>'}
+      </table>
+      <h3>📈 الملخص</h3>
+      <p>متوسط درجات الامتحانات: <b>${avg}%</b></p>
+      <p>التقييم: <b>${level}</b></p>
+      <p style="margin-top:30px;text-align:center">مع تمنياتنا للطالب بالتوفيق والنجاح ❤️</p>
+    </div>`;
+  }
+
+  window.previewParentReport=async function(studentId){
+    const r=await buildReport(studentId);
+    const w=window.open('','_blank');
+    if(!w)return alert('اسمح بالنوافذ المنبثقة لعرض التقرير');
+    w.document.write(`<!doctype html><html lang="ar"><head><meta charset="utf-8"><title>تقرير ولي الأمر</title></head><body>${reportHTML(r)}</body></html>`);
+    w.document.close();
+  };
+
+  window.downloadParentReport=async function(studentId){
+    try{
+      await loadPDF();
+      const r=await buildReport(studentId);
+      const holder=document.createElement('div'); holder.innerHTML=reportHTML(r);
+      const el=holder.firstElementChild; document.body.appendChild(el);
+      await html2pdf().set({margin:8,filename:`parent_report_${r.st.code||r.st.name}.pdf`,image:{type:'jpeg',quality:.95},html2canvas:{scale:2},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}}).from(el).save();
+      el.remove();
+    }catch(e){console.error(e);alert('تعذر إنشاء ملف PDF');}
+  };
+
+  function waText(r){
+    const {st,ex,present,absent,total,att,avg,level}=r;
+    return `السلام عليكم،%0A%0A📊 تقرير متابعة الطالب ${st.name||''}%0A%0A🏫 الحضور:%0Aإجمالي الحصص: ${total}%0A✅ الحضور: ${present}%0A❌ الغياب: ${absent}%0A📈 نسبة الحضور: ${att}%25%0A%0A📝 الامتحانات:%0A${ex.length?ex.map(e=>`• ${e.name} — ${e.date} — ${e.score}/${e.total} (${Number(e.percentage||0).toFixed(1)}%25)${e.note?` — ${e.note}`:''}`).join('%0A'):'لا توجد امتحانات مسجلة.'}%0A%0A📈 متوسط الدرجات: ${avg}%25%0A⭐ التقييم: ${level}%0A%0Aمع تمنياتنا له بالتوفيق والنجاح ❤️`;
+  }
+
+  window.sendParentWhatsApp=async function(studentId){
+    const r=await buildReport(studentId);
+    const phone=String(r.st.parentPhone||'').replace(/[^\d]/g,'');
+    if(!phone)return alert('⚠️ لا يوجد رقم ولي أمر مسجل لهذا الطالب');
+    window.open(`https://wa.me/${phone}?text=${waText(r)}`,'_blank');
+  };
+
+  window.sendParentAutomatic=async function(){
+    alert('🤖 الإرسال التلقائي جاهز من ناحية الواجهة، وسيتم تفعيله بعد ربط WhatsApp Business API. لم يتم وضع أي مفتاح API داخل ملفات المنصة حفاظًا على أمان الحساب.');
+  };
+
+  window.showAllParentReports=async function(){
+    const ss=await studentsPR();
+    area().innerHTML=`<h2>📢 التقارير الشهرية لجميع الطلاب</h2>
+      <div class="group-card">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:15px">
+          <button class="btn-sm btn-add" onclick="bulkAutomaticWhatsApp()">🤖 إرسال تلقائي للجميع</button>
+        </div>
+        ${ss.map(x=>`<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;padding:10px;border-bottom:1px solid #ddd">
+          <span>👨‍🎓 ${escPR(x.name||'')} — ${escPR(x.parentPhone||'لا يوجد رقم')}</span>
+          <div>
+            <button class="btn-sm" onclick="previewParentReport('${x.id}')">👁️</button>
+            <button class="btn-sm" onclick="downloadParentReport('${x.id}')">⬇️ PDF</button>
+            <button class="btn-sm btn-add" onclick="sendParentWhatsApp('${x.id}')">📱 واتساب</button>
+          </div>
+        </div>`).join('')}
+      </div>`;
+  };
+
+  window.bulkAutomaticWhatsApp=function(){
+    alert('🤖 زر الإرسال الجماعي التلقائي جاهز، وسيعمل بعد ربط WhatsApp Business API. لا يتم إرسال رسائل جماعية تلقائيًا عبر WhatsApp العادي.');
+  };
+
+})();
+</script>
 </body>
 </html>
 
