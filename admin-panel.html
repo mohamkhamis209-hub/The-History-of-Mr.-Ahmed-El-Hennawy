@@ -3721,8 +3721,16 @@
         await getGrades();
         await window.showSection('dashboard');
     </script>
-<script>
+<script type="module">
+import { db, collection, addDoc, getDocs, deleteDoc, doc, query, where, getDoc, serverTimestamp } from './js/firebase-config.js';
 (function(){
+  const hasPerm=(p)=>{
+    try{
+      if(localStorage.getItem('adminRole')==='primary') return true;
+      const a=JSON.parse(localStorage.getItem('adminPermissions')||'[]');
+      return a.includes('*') || a.includes(p);
+    }catch(e){return true;}
+  };
   const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const area=()=>document.getElementById('content-area');
   async function students(){const q=await getDocs(collection(db,'students'));const a=[];q.forEach(d=>a.push({id:d.id,...d.data()}));return a;}
@@ -3742,7 +3750,7 @@
   function wa(r){return `السلام عليكم،%0A%0A📊 تقرير متابعة الطالب: ${encodeURIComponent(r.st.name||'')}%0A%0A👥 المجموعة: ${encodeURIComponent(r.st.groupName||'')}%0A🏫 الحضور: ${r.present} من ${r.total} — نسبة ${r.att}%25%0A❌ الغياب: ${r.absent}%0A%0A📝 الامتحانات:%0A${r.ex.length?r.ex.map(e=>`• ${encodeURIComponent(e.name||'')} — ${e.score}/${e.total} — ${Number(e.percentage||0).toFixed(1)}%25${e.note?` — ${encodeURIComponent(e.note)}`:''}`).join('%0A'):'لا توجد امتحانات مسجلة.'}%0A%0A📈 متوسط الدرجات: ${r.avg}%25%0A⭐ التقييم: ${encodeURIComponent(r.level)}%0A%0Aمع تمنياتنا له بالتوفيق والنجاح ❤️`;}
   window.showParentReports=async function(){
     try{
-      if(!requirePermission('parentReports')){
+      if(!hasPerm('parentReports')){
         area().innerHTML='<div class="group-card"><h2>⛔ لا توجد صلاحية</h2><p>اطلب من المشرف الأساسي تفعيل صلاحية تقارير أولياء الأمور لهذا الحساب.</p></div>';
         return;
       }
@@ -3779,7 +3787,7 @@
   };
   window.openAllExamStudents=async function(){
     try{
-      if(!requirePermission('examGrades')){
+      if(!hasPerm('examGrades')){
         area().innerHTML='<div class="group-card"><h2>⛔ لا توجد صلاحية</h2><p>اطلب من المشرف الأساسي تفعيل صلاحية درجات الامتحانات لهذا الحساب.</p></div>';
         return;
       }
