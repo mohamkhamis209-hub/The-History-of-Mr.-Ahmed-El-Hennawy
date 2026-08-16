@@ -503,7 +503,7 @@
     <script src="js/device.js" type="module"></script>
     <script type="module">
         import {
-            db, storage, ref, uploadBytes, getDownloadURL,
+            db, storage, ref, uploadBytes, getDownloadURL, listAll, deleteObject,
             collection, addDoc, getDocs, deleteDoc, doc, updateDoc,
             query, where, getDoc, setDoc, serverTimestamp
         } from './js/firebase-config.js';
@@ -3360,6 +3360,7 @@
                         <button onclick="deleteAllLeaderboard()" class="btn-sm btn-danger" style="padding:12px 30px;">🏆 حذف المتصدرين</button>
                         <button onclick="deleteAllFees()" class="btn-sm btn-danger" style="padding:12px 30px;">💰 محو جميع المصروفات</button>
                         <button onclick="deleteAllGrades()" class="btn-sm btn-danger" style="padding:12px 30px;">📚 محو جميع الصفوف</button>
+                        <button onclick="deleteEverything()" class="btn-sm btn-danger" style="padding:14px 32px; font-weight:bold; border:2px solid #8b0000; background:#8b0000;">🔥 حذف كل شيء — إعادة ضبط كاملة</button>
                     </div>
                 </div>
                 <div style="margin-top:20px; padding:20px; background:#fff8e7; border-radius:15px; border:1px solid #f39c12;">
@@ -3557,6 +3558,118 @@
                 showDangerZone();
             } catch (error) {
                 alert('❌ حدث خطأ: ' + error.message);
+            }
+        };
+
+        // ============================================
+        // RESET EVERYTHING
+        // ============================================
+        async function deleteCollectionAll(collectionName) {
+            const snap = await getDocs(collection(db, collectionName));
+            let count = 0;
+            for (const item of snap.docs) {
+                await deleteDoc(item.ref);
+                count++;
+            }
+            return count;
+        }
+
+        async function deleteStorageTree(storageRef) {
+            const result = await listAll(storageRef);
+            for (const item of result.items) {
+                await deleteObject(item);
+            }
+            for (const prefix of result.prefixes) {
+                await deleteStorageTree(prefix);
+            }
+        }
+
+        window.deleteEverything = async function() {
+            const first = confirm(
+                '🚨 تحذير خطير جداً!\n\n' +
+                'زر «حذف كل شيء» سيمسح بيانات المشروع بالكامل من قاعدة البيانات، ' +
+                'وسيمسح الملفات الموجودة في Firebase Storage إن وُجدت.\n\n' +
+                'بعد التنفيذ سيصبح النظام كأنه جديد: لا طلاب، لا محتوى، لا حضور، لا جلسات، لا مصروفات ولا صفوف.\n\n' +
+                'هل تريد المتابعة؟'
+            );
+            if (!first) return;
+
+            const confirmation = prompt(
+                '⚠️ تأكيد نهائي\n\n' +
+                'اكتب بالضبط: حذف كل شيء\n\n' +
+                'لن يتم التنفيذ إذا كتبت أي شيء آخر.'
+            );
+            if (confirmation !== 'حذف كل شيء') {
+                alert('❌ تم إلغاء العملية.');
+                return;
+            }
+
+            const collectionsToClear = [
+                'students',
+                'videos',
+                'books',
+                'exams',
+                'notifications',
+                'progress',
+                'attendance',
+                'sessions',
+                'leaderboard',
+                'fees',
+                'grades',
+                'pendingDevices'
+            ];
+
+            const originalText = document.getElementById('content-area').innerHTML;
+            document.getElementById('content-area').innerHTML = `
+                <div style="text-align:center; padding:50px 20px;">
+                    <div style="font-size:55px;">⏳</div>
+                    <h2 style="color:#e74c3c;">جاري إعادة ضبط النظام بالكامل...</h2>
+                    <p style="color:#777; margin-top:10px;">لا تغلق الصفحة حتى تنتهي العملية.</p>
+                </div>`;
+
+            let totalDeleted = 0;
+            const errors = [];
+
+            try {
+                for (const collectionName of collectionsToClear) {
+                    try {
+                        totalDeleted += await deleteCollectionAll(collectionName);
+                    } catch (error) {
+                        errors.push(collectionName + ': ' + error.message);
+                    }
+                }
+
+                // حذف كل الملفات من Firebase Storage إن كانت هناك ملفات.
+                try {
+                    await deleteStorageTree(ref(storage));
+                } catch (error) {
+                    errors.push('Firebase Storage: ' + error.message);
+                }
+
+                // تنظيف بيانات الجلسة المحلية من هذا المتصفح.
+                localStorage.clear();
+                sessionStorage.clear();
+
+                if (errors.length) {
+                    alert(
+                        '⚠️ تمت محاولة إعادة الضبط، لكن حدثت أخطاء في بعض الأجزاء.\n\n' +
+                        'تم حذف ' + totalDeleted + ' سجل.\n\n' +
+                        errors.join('\n')
+                    );
+                } else {
+                    alert(
+                        '✅ تم حذف كل شيء بنجاح.\n\n' +
+                        'النظام الآن في حالة البداية وكأنك لسه عامل المشروع ولم تضف أي بيانات.'
+                    );
+                }
+
+                // بعد المسح، ارجع لصفحة تسجيل دخول المشرف.
+                window.location.href = 'admin-login.html';
+            } catch (error) {
+                console.error('خطأ في إعادة ضبط النظام:', error);
+                document.getElementById('content-area').innerHTML = originalText;
+                alert('❌ فشلت عملية إعادة الضبط: ' + error.message);
+                showDangerZone();
             }
         };
 
