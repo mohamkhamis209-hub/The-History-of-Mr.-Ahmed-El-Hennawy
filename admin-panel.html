@@ -666,20 +666,20 @@
                 permissions, status, createdAt:serverTimestamp(), createdBy:'primary'
             });
             alert('✅ تم إنشاء المشرف المساعد');
-            showAssistantManagement();
+            window.showAssistantManagement();
         };
 
         window.toggleAssistant = async function(id,status) {
             if(!isPrimaryAdmin()) return alert('⛔ للمشرف الأساسي فقط');
             await updateDoc(doc(db,'assistantAdmins',id),{status:status==='active'?'suspended':'active'});
-            showAssistantManagement();
+            window.showAssistantManagement();
         };
 
         window.deleteAssistant = async function(id) {
             if(!isPrimaryAdmin()) return alert('⛔ للمشرف الأساسي فقط');
             if(!confirm('حذف حساب المشرف المساعد نهائياً؟')) return;
             await deleteDoc(doc(db,'assistantAdmins',id));
-            showAssistantManagement();
+            window.showAssistantManagement();
         };
 
         // ============================================
@@ -734,7 +734,7 @@
             if(!name) return alert('⚠️ أدخل اسم المجموعة');
             await addDoc(collection(db,'groups'),{name,subject,grade,mode,room,days,time,active:true,createdAt:serverTimestamp()});
             alert('✅ تم إنشاء المجموعة');
-            showGroupsManagement();
+            window.showGroupsManagement();
         };
 
         window.deleteGroup = async function(groupId){
@@ -746,7 +746,7 @@
                 await updateDoc(s.ref,{groupIds:ids.filter(x=>x!==groupId)});
             }
             await deleteDoc(doc(db,'groups',groupId));
-            showGroupsManagement();
+            window.showGroupsManagement();
         };
 
         window.manageGroupStudents = async function(groupId){
@@ -780,7 +780,7 @@
                 if(!selected.has(s.id) && has) await updateDoc(s.ref,{groupIds:ids.filter(x=>x!==groupId)});
             }
             alert('✅ تم تحديث طلاب المجموعة');
-            showGroupsManagement();
+            window.showGroupsManagement();
         };
 
         // ============================================
@@ -808,7 +808,7 @@
                 });
             }
             alert(`✅ تم إنشاء الحصة وتسجيل ${studentsSnap.size} طالب كغياب مبدئي`);
-            showCenterAttendance();
+            window.showCenterAttendance();
         };
 
         window.showCenterAttendance = async function(){
@@ -855,7 +855,7 @@
                 status:status==='present'?'absent':'present',
                 markedAt:serverTimestamp(),markedBy:adminName
             });
-            showCenterAttendance();
+            window.showCenterAttendance();
         };
 
         window.printCenterAttendance = async function(){
@@ -950,25 +950,25 @@
             document.getElementById('content-area').innerHTML = `<h2>⏳ جاري التحميل...</h2>`;
             switch (section) {
                 case 'dashboard': showDashboard(); break;
-                case 'students': showStudents(); break;
-                case 'videos': showVideos(); break;
-                case 'books': showBooks(); break;
-                case 'exams': showExams(); break;
-                case 'notifications': showNotifications(); break;
-                case 'devices': showPendingDevices(); break;
-                case 'progress': showAllProgress(); break;
-                case 'allDevices': showAllDevices(); break;
-                case 'liveSettings': showLiveSettings(); break;
-                case 'reports': showReports(); break;
-                case 'badges': showBadgesManagement(); break;
-                case 'attendance': showCenterAttendance(); break;
-                case 'groups': showGroupsManagement(); break;
-                case 'assistants': showAssistantManagement(); break;
-                case 'leaderboard': showLeaderboard(); break;
-                case 'advancedStats': showAdvancedStats(); break;
-                case 'sessions': showAllSessions(); break;
-                case 'fees': showFeesManagement(); break;
-                case 'dangerZone': showDangerZone(); break;
+                case 'students': window.showStudents(); break;
+                case 'videos': window.showVideos(); break;
+                case 'books': window.showBooks(); break;
+                case 'exams': window.showExams(); break;
+                case 'notifications': window.showNotifications(); break;
+                case 'devices': window.showPendingDevices(); break;
+                case 'progress': window.showAllProgress(); break;
+                case 'allDevices': window.showAllDevices(); break;
+                case 'liveSettings': window.showLiveSettings(); break;
+                case 'reports': window.showReports(); break;
+                case 'badges': window.showBadgesManagement(); break;
+                case 'attendance': window.showCenterAttendance(); break;
+                case 'groups': window.showGroupsManagement(); break;
+                case 'assistants': window.showAssistantManagement(); break;
+                case 'leaderboard': window.showLeaderboard(); break;
+                case 'advancedStats': window.showAdvancedStats(); break;
+                case 'sessions': window.showAllSessions(); break;
+                case 'fees': window.showFeesManagement(); break;
+                case 'dangerZone': window.showDangerZone(); break;
                 default: showDashboard();
             }
         };
@@ -1198,7 +1198,7 @@
                                 ${getGradeOptions(gradeFilter)}
                             </select>
                             <input type="date" id="filterAttendanceDate" value="${dateFilter}" onchange="showAttendanceReport()">
-                            <button onclick="document.getElementById('filterAttendanceDate').value=''; showAttendanceReport();" class="btn-sm btn-clear">✖️ إلغاء الفلترة</button>
+                            <button onclick="document.getElementById('filterAttendanceDate').value=''; window.showAttendanceReport();" class="btn-sm btn-clear">✖️ إلغاء الفلترة</button>
                         </div>
                         <div style="overflow-x:auto;">
                         <table border="1" cellpadding="10" style="width:100%; border-collapse:collapse; background:white;">
@@ -1291,7 +1291,7 @@
                                 ${getGradeOptions(gradeFilter)}
                             </select>
                             <input type="date" id="filterSessionsDate" value="${dateFilter}" onchange="showAllSessions()">
-                            <button onclick="document.getElementById('filterSessionsDate').value=''; showAllSessions();" class="btn-sm btn-clear">✖️ إلغاء الفلترة</button>
+                            <button onclick="document.getElementById('filterSessionsDate').value=''; window.showAllSessions();" class="btn-sm btn-clear">✖️ إلغاء الفلترة</button>
                         </div>
                         <div style="margin-top:20px;">`;
 
@@ -1467,7 +1467,7 @@
                 }
 
                 alert('✅ تم تحديث لوحة المتصدرين بنجاح');
-                showLeaderboard();
+                window.showLeaderboard();
             } catch (error) {
                 console.error(error);
                 alert('❌ حدث خطأ في التحديث');
@@ -1650,7 +1650,7 @@
                 registeredAt: new Date()
             });
             alert(`✅ تم إضافة ${name} بالكود ${code}`);
-            showStudents();
+            window.showStudents();
         };
 
         // إضافة صف دراسي جديد
@@ -1679,7 +1679,7 @@
                 document.getElementById('newGradeName').value = '';
                 document.getElementById('newGradeCode').value = '';
                 await getGrades(); // تحديث الكاش
-                showStudents();
+                window.showStudents();
             } catch (error) {
                 console.error('خطأ في إضافة الصف:', error);
                 alert('❌ حدث خطأ: ' + error.message);
@@ -1706,7 +1706,7 @@
                 await deleteDoc(doc(db, 'grades', gradeId));
                 alert('✅ تم حذف الصف بنجاح');
                 await getGrades(); // تحديث الكاش
-                showStudents();
+                window.showStudents();
             } catch (error) {
                 console.error('خطأ في حذف الصف:', error);
                 alert('❌ حدث خطأ: ' + error.message);
@@ -1726,7 +1726,7 @@
                 });
                 alert('✅ تم تحديث اسم الصف بنجاح');
                 await getGrades(); // تحديث الكاش
-                showStudents();
+                window.showStudents();
             } catch (error) {
                 console.error('خطأ في تعديل الصف:', error);
                 alert('❌ حدث خطأ: ' + error.message);
@@ -1849,8 +1849,8 @@
             document.getElementById('content-area').innerHTML = html;
         };
 
-        window.searchStudents = function() { showStudents(); };
-        window.clearSearch = function() { document.getElementById('searchStudent').value = ''; showStudents(); };
+        window.searchStudents = function() { window.showStudents(); };
+        window.clearSearch = function() { document.getElementById('searchStudent').value = ''; window.showStudents(); };
 
         // ============================================
         // STUDENT SESSIONS (لطالب واحد)
@@ -1912,7 +1912,7 @@
                 await updateLeaderboardManual();
 
                 alert('تم الحذف وإعادة ترتيب المتصدرين');
-                showStudents();
+                window.showStudents();
             } catch (error) {
                 console.error('خطأ في الحذف:', error);
                 alert('❌ حدث خطأ: ' + error.message);
@@ -1928,7 +1928,7 @@
                 await updateDoc(d.ref, { status: 'suspended', suspendMessage: msg });
             });
             alert('تم تعليق الحساب');
-            showStudents();
+            window.showStudents();
         };
 
         // ============================================
@@ -2195,7 +2195,7 @@
                 addedAt: new Date()
             });
             alert('✅ تمت الإضافة');
-            showVideos();
+            window.showVideos();
         };
 
         window.endLiveStream = async function(videoId) {
@@ -2208,15 +2208,15 @@
                     isLiveEnded: true
                 });
                 alert('✅ تم إنهاء البث وتحويله إلى فيديو عادي');
-                showVideos();
+                window.showVideos();
             } catch (error) {
                 console.error('خطأ في إنهاء البث:', error);
                 alert('❌ حدث خطأ في إنهاء البث');
             }
         };
 
-        window.searchVideos = function() { showVideos(); };
-        window.clearVideoSearch = function() { document.getElementById('searchVideo').value = ''; showVideos(); };
+        window.searchVideos = function() { window.showVideos(); };
+        window.clearVideoSearch = function() { document.getElementById('searchVideo').value = ''; window.showVideos(); };
 
         window.showVideos = async function() {
             await getGrades();
@@ -2334,11 +2334,11 @@
 
             await addDoc(collection(db, 'books'), { title, url, grade, addedAt: new Date() });
             alert('✅ تمت الإضافة');
-            showBooks();
+            window.showBooks();
         };
 
-        window.searchBooks = function() { showBooks(); };
-        window.clearBookSearch = function() { document.getElementById('searchBook').value = ''; showBooks(); };
+        window.searchBooks = function() { window.showBooks(); };
+        window.clearBookSearch = function() { document.getElementById('searchBook').value = ''; window.showBooks(); };
 
         window.showBooks = async function() {
             await getGrades();
@@ -2419,11 +2419,11 @@
             if (!title || !content) return alert('املأ البيانات');
             await addDoc(collection(db, 'exams'), { title, type, content, grade, addedAt: new Date() });
             alert('✅ تمت الإضافة');
-            showExams();
+            window.showExams();
         };
 
-        window.searchExams = function() { showExams(); };
-        window.clearExamSearch = function() { document.getElementById('searchExam').value = ''; showExams(); };
+        window.searchExams = function() { window.showExams(); };
+        window.clearExamSearch = function() { document.getElementById('searchExam').value = ''; window.showExams(); };
 
         window.showExams = async function() {
             await getGrades();
@@ -2518,11 +2518,11 @@
                 sentAt: new Date()
             });
             alert('✅ تم إرسال الإشعار');
-            showNotifications();
+            window.showNotifications();
         };
 
-        window.searchNotifications = function() { showNotifications(); };
-        window.clearNotifSearch = function() { document.getElementById('searchNotif').value = ''; showNotifications(); };
+        window.searchNotifications = function() { window.showNotifications(); };
+        window.clearNotifSearch = function() { document.getElementById('searchNotif').value = ''; window.showNotifications(); };
 
         window.showNotifications = async function() {
             await getGrades();
@@ -2591,8 +2591,8 @@
         // ============================================
         // PENDING DEVICES
         // ============================================
-        window.searchDevices = function() { showPendingDevices(); };
-        window.clearDeviceSearch = function() { document.getElementById('searchDevice').value = ''; showPendingDevices(); };
+        window.searchDevices = function() { window.showPendingDevices(); };
+        window.clearDeviceSearch = function() { document.getElementById('searchDevice').value = ''; window.showPendingDevices(); };
 
         window.showPendingDevices = async function() {
             await getGrades();
@@ -2657,7 +2657,7 @@
             const studentSnap = await getDocs(q);
             if (studentSnap.empty) {
                 alert('❌ لم يتم العثور على الطالب');
-                showPendingDevices();
+                window.showPendingDevices();
                 return;
             }
 
@@ -2679,13 +2679,13 @@
             } else {
                 alert('⚠️ هذا الجهاز معتمد بالفعل');
             }
-            showPendingDevices();
+            window.showPendingDevices();
         };
 
         window.rejectDevice = async function(docId) {
             await updateDoc(doc(db, 'pendingDevices', docId), { status: 'rejected' });
             alert('❌ تم رفض الجهاز');
-            showPendingDevices();
+            window.showPendingDevices();
         };
 
         // ============================================
@@ -2734,14 +2734,14 @@
             }
             await setDoc(doc(db, 'settings', 'live'), { url: url, updatedAt: new Date() });
             alert('✅ تم حفظ رابط البث');
-            showLiveSettings();
+            window.showLiveSettings();
         };
 
         window.clearLiveUrl = async function() {
             if (!confirm('هل تريد حذف رابط البث؟')) return;
             await setDoc(doc(db, 'settings', 'live'), { url: '' });
             alert('🗑️ تم حذف رابط البث');
-            showLiveSettings();
+            window.showLiveSettings();
         };
 
         // ============================================
@@ -3069,10 +3069,10 @@
             document.getElementById('content-area').innerHTML = html;
         };
 
-        window.searchFees = function() { showFeesManagement(); };
+        window.searchFees = function() { window.showFeesManagement(); };
         window.clearFeesSearch = function() { 
             document.getElementById('searchFeesStudent').value = ''; 
-            showFeesManagement(); 
+            window.showFeesManagement(); 
         };
 
         window.showAddPayment = function(studentCode) {
@@ -3106,7 +3106,7 @@
                 });
                 
                 alert('✅ تم تسجيل الدفعة بنجاح');
-                showFeesManagement();
+                window.showFeesManagement();
             } catch (error) {
                 console.error('خطأ في إضافة الدفعة:', error);
                 alert('❌ حدث خطأ');
@@ -3125,7 +3125,7 @@
             try {
                 await deleteDoc(doc(db, 'fees', paymentId));
                 alert('✅ تم حذف الدفعة');
-                showFeesManagement();
+                window.showFeesManagement();
             } catch (error) {
                 console.error('خطأ في حذف الدفعة:', error);
                 alert('❌ حدث خطأ');
@@ -3151,7 +3151,7 @@
                     feesAmount: numAmount
                 });
                 alert('✅ تم تعيين المبلغ المستحق');
-                showFeesManagement();
+                window.showFeesManagement();
             } catch (error) {
                 console.error('خطأ في تعيين المبلغ:', error);
                 alert('❌ حدث خطأ');
@@ -3384,7 +3384,7 @@
                     count++;
                 }
                 alert(`✅ تم حذف ${count} طالب بنجاح`);
-                showDangerZone();
+                window.showDangerZone();
             } catch (error) {
                 alert('❌ حدث خطأ: ' + error.message);
             }
@@ -3401,7 +3401,7 @@
                     count++;
                 }
                 alert(`✅ تم حذف ${count} فيديو بنجاح`);
-                showDangerZone();
+                window.showDangerZone();
             } catch (error) {
                 alert('❌ حدث خطأ: ' + error.message);
             }
@@ -3418,7 +3418,7 @@
                     count++;
                 }
                 alert(`✅ تم حذف ${count} كتاب بنجاح`);
-                showDangerZone();
+                window.showDangerZone();
             } catch (error) {
                 alert('❌ حدث خطأ: ' + error.message);
             }
@@ -3435,7 +3435,7 @@
                     count++;
                 }
                 alert(`✅ تم حذف ${count} اختبار بنجاح`);
-                showDangerZone();
+                window.showDangerZone();
             } catch (error) {
                 alert('❌ حدث خطأ: ' + error.message);
             }
@@ -3452,7 +3452,7 @@
                     count++;
                 }
                 alert(`✅ تم حذف ${count} إشعار بنجاح`);
-                showDangerZone();
+                window.showDangerZone();
             } catch (error) {
                 alert('❌ حدث خطأ: ' + error.message);
             }
@@ -3469,7 +3469,7 @@
                     count++;
                 }
                 alert(`✅ تم حذف ${count} سجل تقدم بنجاح`);
-                showDangerZone();
+                window.showDangerZone();
             } catch (error) {
                 alert('❌ حدث خطأ: ' + error.message);
             }
@@ -3486,7 +3486,7 @@
                     count++;
                 }
                 alert(`✅ تم حذف ${count} سجل حضور بنجاح`);
-                showDangerZone();
+                window.showDangerZone();
             } catch (error) {
                 alert('❌ حدث خطأ: ' + error.message);
             }
@@ -3503,7 +3503,7 @@
                     count++;
                 }
                 alert(`✅ تم حذف ${count} جلسة بنجاح`);
-                showDangerZone();
+                window.showDangerZone();
             } catch (error) {
                 alert('❌ حدث خطأ: ' + error.message);
             }
@@ -3521,7 +3521,7 @@
                     count++;
                 }
                 alert(`✅ تم حذف ${count} سجل متصدرين بنجاح`);
-                showDangerZone();
+                window.showDangerZone();
             } catch (error) {
                 alert('❌ حدث خطأ: ' + error.message);
             }
@@ -3538,7 +3538,7 @@
                     count++;
                 }
                 alert(`✅ تم حذف ${count} سجل مصروفات بنجاح`);
-                showDangerZone();
+                window.showDangerZone();
             } catch (error) {
                 alert('❌ حدث خطأ: ' + error.message);
             }
@@ -3555,7 +3555,7 @@
                     count++;
                 }
                 alert(`✅ تم حذف ${count} صف بنجاح`);
-                showDangerZone();
+                window.showDangerZone();
             } catch (error) {
                 alert('❌ حدث خطأ: ' + error.message);
             }
@@ -3669,7 +3669,7 @@
                 console.error('خطأ في إعادة ضبط النظام:', error);
                 document.getElementById('content-area').innerHTML = originalText;
                 alert('❌ فشلت عملية إعادة الضبط: ' + error.message);
-                showDangerZone();
+                window.showDangerZone();
             }
         };
 
