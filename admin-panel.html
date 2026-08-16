@@ -607,7 +607,7 @@
 
         const ASSISTANT_PERMISSIONS = [
             ['dashboard','الرئيسية'],['students','الطلاب'],['groups','المجموعات والسنتر'],
-            ['attendance','حضور السنتر'],['videos','الفيديوهات'],['books','الكتب'],['exams','الاختبارات'],
+            ['attendance','حضور السنتر'],['parentReports','تقارير أولياء الأمور'],['videos','الفيديوهات'],['books','الكتب'],['exams','الاختبارات'],
             ['notifications','الإشعارات'],['devices','طلبات الأجهزة'],['progress','تقدم الطلاب'],
             ['allDevices','إدارة الأجهزة'],['liveSettings','إعدادات البث'],['reports','التقارير'],
             ['badges','المكافآت'],['leaderboard','المتصدرين'],['advancedStats','الإحصائيات'],
@@ -972,7 +972,7 @@
                 dashboard:'dashboard', students:'students', videos:'videos', books:'books',
                 exams:'exams', notifications:'notifications', devices:'devices', progress:'progress',
                 allDevices:'allDevices', liveSettings:'liveSettings', reports:'reports', badges:'badges',
-                attendance:'attendance', groups:'groups', leaderboard:'leaderboard',
+                attendance:'attendance', groups:'groups', parentReports:'parentReports', leaderboard:'leaderboard',
                 advancedStats:'advancedStats', sessions:'sessions', fees:'fees', dangerZone:'dangerZone'
             };
             if (section !== 'assistants' && !requirePermission(permissionMap[section] || section)) return;
@@ -993,6 +993,7 @@
                 case 'reports': window.showReports(); break;
                 case 'badges': window.showBadgesManagement(); break;
                 case 'attendance': window.showCenterAttendance(); break;
+                case 'parentReports': window.showParentReports(); break;
                 case 'groups': window.showGroupsManagement(); break;
                 case 'assistants': window.showAssistantManagement(); break;
                 case 'leaderboard': window.showLeaderboard(); break;
@@ -3783,7 +3784,11 @@
     if(typeof requirePermission==='function' && !requirePermission('parentReports')) return;
     const gs=await groupsPR();
     area().innerHTML=`
-      <h2>👨‍👩‍👦 تقارير أولياء الأمور ودرجات الامتحانات</h2>
+      <h2>👨‍👩‍👦 تقارير أولياء الأمور</h2>
+      <div class="group-card">
+        <h3>📝 درجات امتحانات الطلاب</h3>
+        <p>إضافة ومراجعة درجات الامتحانات: اسم الامتحان، التاريخ، درجة الطالب، الدرجة النهائية، والنسبة تلقائيًا.</p>
+      </div>
       <div class="group-card">
         <h3>📝 درجات امتحانات الطلاب</h3>
         <p>اختر المجموعة ثم الطالب.</p>
@@ -3792,6 +3797,7 @@
           ${gs.map(g=>`<option value="${escPR(g.id)}">${escPR(g.name||'مجموعة')} — ${escPR(g.days||g.day||'')} — ${escPR(g.time||'')}</option>`).join('')}
         </select>
         <div id="prStudentList"></div>
+        <button class="btn-sm btn-add" style="margin-top:12px" onclick="openAllExamStudents()">📝 فتح قسم درجات الامتحانات</button>
       </div>
       <div class="group-card">
         <h3>📢 التقارير الشهرية</h3>
@@ -3811,6 +3817,19 @@
         onclick="openExamStudent('${x.id}')">👨‍🎓 ${escPR(x.name||'طالب')} — ${escPR(x.code||'')}</button>`).join('')
       :'<p>لا يوجد طلاب في هذه المجموعة.</p>';
   }
+
+  window.openAllExamStudents=async function(){
+    const ss=await studentsPR();
+    area().innerHTML=`<h2>📝 درجات امتحانات الطلاب</h2>
+      <div class="group-card">
+        <p>اختر الطالب لإضافة امتحان أو تعديل/حذف درجاته.</p>
+        <div style="display:grid;gap:8px">
+        ${ss.map(x=>`<button class="btn-sm" style="width:100%;text-align:right"
+          onclick="openExamStudent('${x.id}')">👨‍🎓 ${escPR(x.name||'طالب')} — ${escPR(x.code||'')}</button>`).join('')}
+        </div>
+      </div>
+      <button class="btn-sm" onclick="showParentReports()">⬅️ العودة لتقارير أولياء الأمور</button>`;
+  };
 
   window.openExamStudent=async function(id){
     const sd=await getDoc(doc(db,'students',id)); if(!sd.exists()) return;
