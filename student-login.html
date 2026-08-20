@@ -171,6 +171,7 @@ footer{background:#11182f;color:#cbd1df;text-align:center;padding:26px 15px;font
  <a href="#courses">الكورسات</a>
  <a href="#about">عن المنصة</a>
  <a href="#contact">اتصل بنا</a>
+ <a href="admin-login.html">الحساب — دخول المشرف</a>
  <button class="primary" id="drawerStart">ابدأ الآن مجانًا</button>
  <a href="https://wa.me/201275001442?text=%D8%A7%D9%84%D8%B3%D9%84%D8%A7%D9%85%20%D8%B9%D9%84%D9%8A%D9%83%D9%85%D8%8C%20%D8%A3%D8%B1%D9%8A%D8%AF%20%D8%A7%D9%84%D8%AA%D9%88%D8%A7%D8%B5%D9%84%20%D9%85%D8%B9%20%D8%A7%D9%84%D9%85%D8%B4%D8%B1%D9%81%20%D9%84%D9%84%D8%AD%D8%B5%D9%88%D9%84%20%D8%B9%D9%84%D9%89%20%D9%83%D9%88%D8%AF%20%D8%A7%D9%84%D8%B7%D8%A7%D9%84%D8%A8" target="_blank">💬 تواصل معنا على واتساب</a>
 </aside>
@@ -178,12 +179,12 @@ footer{background:#11182f;color:#cbd1df;text-align:center;padding:26px 15px;font
 <section class="hero" id="home">
  <div class="hero-inner">
   <div class="pill">⭐ منصة تعليمية متكاملة</div>
-  <h1>التاريخ يبدأ مع <span>مستر أحمد الحناوي</span></h1>
+  <h1>التعليم يبدأ مع <span>مستر أحمد الحناوي</span></h1>
   <p class="hero-sub">حصصك، فيديوهاتك، كتبك، امتحاناتك ومتابعتك التعليمية... كل شيء في مكان واحد.</p>
 
   <div class="teacher-stage">
    <img class="teacher" src="assets/mr-transparent.png" alt="مستر أحمد الحناوي">
-   <div class="float-card f1"><span class="dot">🎓</span><span><b>شرح مميز</b>محتوى تعليميspan></div>
+   <div class="float-card f1"><span class="dot">🎓</span><span><b>شرح مميز</b>محتوى تعليمي</span></div>
    <div class="float-card f2"><span class="dot">▶</span><span><b>فيديوهات</b>الحصة مسجلة</span></div>
    <div class="float-card f3"><span class="dot">✓</span><span><b>امتحانات</b>قياس مستواك</span></div>
    <div class="float-card f4"><span class="dot">📚</span><span><b>كتب</b>مذكرات وأسئلة</span></div>
@@ -221,7 +222,7 @@ footer{background:#11182f;color:#cbd1df;text-align:center;padding:26px 15px;font
 
 <section class="section" id="about">
  <div class="section-inner">
-  <div class="kicker">المنصه والسنتر</div>
+  <div class="kicker">إنجازاتنا</div>
   <h2>نظام واحد... منصة واحدة</h2>
   <p>المنصة مصممة لتكمل تجربة الطالب داخل السنتر وتوفر له المحتوى والمتابعة بعد الحصة.</p>
  </div>
@@ -268,7 +269,8 @@ footer{background:#11182f;color:#cbd1df;text-align:center;padding:26px 15px;font
   <div style="display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0">👤 طلب إنشاء حساب</h3><button id="closeModal" style="border:0;background:#f1f2f7;border-radius:10px;width:38px;height:38px;font-size:20px">×</button></div>
   <p style="font-size:12px;color:#81889c;line-height:1.8">اكتب بياناتك وسيتم فتح WhatsApp برسالة جاهزة للمشرف.</p>
   <input id="requestName" placeholder="الاسم بالكامل" style="width:100%;height:50px;border:1px solid #e0e3eb;border-radius:13px;padding:0 12px;margin-bottom:9px">
-  <input id="requestPhone" placeholder="رقم الطالب أو ولي الأمر" style="width:100%;height:50px;border:1px solid #e0e3eb;border-radius:13px;padding:0 12px;margin-bottom:9px">
+  <input id="requestPhone" placeholder="رقم الطالب" type="tel" style="width:100%;height:50px;border:1px solid #e0e3eb;border-radius:13px;padding:0 12px;margin-bottom:9px">
+  <input id="parentPhone" placeholder="رقم ولي الأمر" type="tel" style="width:100%;height:50px;border:1px solid #e0e3eb;border-radius:13px;padding:0 12px;margin-bottom:9px">
   <textarea id="requestNotes" placeholder="ملاحظات (اختياري)" style="width:100%;height:85px;border:1px solid #e0e3eb;border-radius:13px;padding:10px 12px;margin-bottom:9px;resize:vertical"></textarea>
   <button id="sendRequest" style="width:100%;height:52px;border:0;border-radius:14px;background:#18a765;color:#fff;font-weight:900">💬 إرسال الطلب عبر WhatsApp</button>
  </div>
@@ -309,9 +311,13 @@ modal.onclick=e=>{if(e.target===modal)closeModal()};
 document.getElementById('sendRequest').onclick=()=>{
  const name=document.getElementById('requestName').value.trim();
  const phone=document.getElementById('requestPhone').value.trim();
+ const parentPhone=document.getElementById('parentPhone').value.trim();
  const notes=document.getElementById('requestNotes').value.trim();
- if(!name||!phone){alert('من فضلك اكتب الاسم ورقم التواصل.');return}
- const text=`السلام عليكم، أريد طلب إنشاء حساب في منصة مستر أحمد الحناوي.\n\nالاسم: ${name}\nرقم التواصل: ${phone}${notes?'\nملاحظات: '+notes:''}`;
+ if(!name||!phone||!parentPhone){
+   alert('من فضلك اكتب اسم الطالب ورقم الطالب ورقم ولي الأمر.');
+   return;
+ }
+ const text=`السلام عليكم، أريد طلب إنشاء حساب في منصة مستر أحمد الحناوي.\n\nاسم الطالب: ${name}\nرقم الطالب: ${phone}\nرقم ولي الأمر: ${parentPhone}${notes?'\nملاحظات: '+notes:''}`;
  window.open(wa(text),'_blank');
 };
 

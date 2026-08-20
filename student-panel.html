@@ -496,6 +496,7 @@
         <h4>المنصة التعليمية</h4>
         <ul>
             <li onclick="loadSection('dashboard')">📊 الرئيسية</li>
+            <li onclick="loadSection('founder')">👤 عن مؤسس المنصة</li>
             <li onclick="loadSection('videos')">🎬 الفيديوهات</li>
             <li onclick="loadSection('books')">📚 الكتب</li>
             <li onclick="loadSection('exams')">📝 الاختبارات</li>
@@ -1147,7 +1148,28 @@
         // ============================================
         // تحميل الأقسام
         // ============================================
+        function showFounderSection() {
+            const content = document.getElementById('student-content');
+            content.innerHTML = `
+              <div style="max-width:900px;margin:0 auto;">
+                <div style="background:linear-gradient(135deg,#171b3b,#4d43a8);border-radius:28px;padding:30px;color:#fff;text-align:center;box-shadow:0 18px 45px rgba(0,0,0,.16);">
+                  <img src="assets/mo.jpg" alt="م. محمد خميس" style="width:150px;height:150px;border-radius:50%;object-fit:cover;border:5px solid rgba(255,255,255,.9);box-shadow:0 12px 30px rgba(0,0,0,.25);background:#fff;">
+                  <h1 style="margin:18px 0 8px;font-size:30px;">م. محمد خميس</h1>
+                  <div style="display:inline-block;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);padding:9px 18px;border-radius:999px;font-weight:800;">محلل أمن سيبراني</div>
+                </div>
+                <div style="background:#fff;border-radius:24px;padding:28px;margin-top:20px;box-shadow:0 10px 30px rgba(0,0,0,.07);line-height:2;color:#444;">
+                  <h2 style="margin-top:0;color:#252b52;">نبذة عن مؤسس المنصة</h2>
+                  <p>م. محمد خميس هو مؤسس ومطور منصة مستر أحمد الحناوي، ويعمل على تطوير الحلول التقنية والأنظمة التعليمية الرقمية، مع اهتمام بمجال الأمن السيبراني وحماية الأنظمة والبيانات.</p>
+                  <p style="margin-bottom:0;">الهدف من المنصة هو جمع الحصة والشرح والمتابعة والاختبارات والدرجات في نظام تعليمي واحد يساعد الطالب على متابعة مستواه بشكل مستمر.</p>
+                </div>
+              </div>`;
+        }
+
         window.loadSection = async function(section) {
+            if (section === 'founder') {
+                showFounderSection();
+                return;
+            }
             const container = document.getElementById('student-content');
             container.innerHTML = `<h2>⏳ جاري التحميل...</h2>`;
 
