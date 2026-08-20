@@ -3,443 +3,103 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>منصة مستر أحمد الحناوي | دخول الطالب</title>
+<title>منصة مستر أحمد الحناوي</title>
 <link rel="stylesheet" href="css/style.css">
-
 <style>
-*{box-sizing:border-box}
-body{
-    margin:0;
-    min-height:100vh;
-    font-family:Tahoma,Arial,sans-serif;
-    background:
-      radial-gradient(circle at 15% 15%, rgba(31,111,235,.16), transparent 30%),
-      radial-gradient(circle at 85% 80%, rgba(245,181,35,.13), transparent 32%),
-      linear-gradient(135deg,#07111f,#101d30 55%,#08111e);
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    padding:22px;
-    overflow-x:hidden;
-}
-.login-shell{
-    width:min(460px,100%);
-    position:relative;
-}
-.glow{
-    position:absolute;
-    width:180px;height:180px;
-    border-radius:50%;
-    background:rgba(245,181,35,.12);
-    filter:blur(45px);
-    top:-55px;right:-45px;
-    pointer-events:none;
-}
-.card{
-    position:relative;
-    background:rgba(255,255,255,.97);
-    border:1px solid rgba(255,255,255,.55);
-    border-radius:28px;
-    padding:30px 24px 24px;
-    box-shadow:0 24px 70px rgba(0,0,0,.35);
-    text-align:center;
-    overflow:hidden;
-}
-.top-line{
-    width:80px;height:4px;
-    border-radius:20px;
-    background:linear-gradient(90deg,#e7ad27,#ffd967);
-    margin:0 auto 18px;
-}
-.logo-wrap{
-    width:128px;height:128px;
-    margin:0 auto 17px;
-    border-radius:50%;
-    padding:5px;
-    background:linear-gradient(135deg,#2b9bd7,#f0b52f);
-    box-shadow:0 12px 28px rgba(0,0,0,.18);
-}
-.logo-wrap img{
-    width:100%;height:100%;
-    object-fit:cover;
-    border-radius:50%;
-    display:block;
-}
-h1{
-    margin:0;
-    color:#172438;
-    font-size:27px;
-    line-height:1.35;
-    font-weight:800;
-}
-.subtitle{
-    margin:8px 0 22px;
-    color:#707b88;
-    font-size:14px;
-}
-.input-wrap{position:relative;margin-bottom:12px}
-.input-icon{
-    position:absolute;
-    right:16px;
-    top:50%;
-    transform:translateY(-50%);
-    font-size:20px;
-}
-#studentCode{
-    width:100%;
-    height:58px;
-    border:1px solid #d9dee6;
-    border-radius:16px;
-    padding:0 50px 0 16px;
-    outline:none;
-    font-size:17px;
-    color:#172438;
-    background:#f8fafc;
-    transition:.2s;
-}
-#studentCode:focus{
-    border-color:#2b8ed1;
-    box-shadow:0 0 0 4px rgba(43,142,209,.12);
-    background:white;
-}
-.primary-btn,.secondary-btn,.whatsapp-btn{
-    width:100%;
-    min-height:54px;
-    border:0;
-    border-radius:16px;
-    font-size:17px;
-    font-weight:800;
-    cursor:pointer;
-    transition:transform .18s,box-shadow .18s,filter .18s;
-}
-.primary-btn{
-    color:white;
-    background:linear-gradient(135deg,#253b52,#314b66);
-    box-shadow:0 10px 22px rgba(37,59,82,.22);
-}
-.primary-btn:hover,.secondary-btn:hover,.whatsapp-btn:hover{
-    transform:translateY(-2px);
-    filter:brightness(1.03);
-}
-.secondary-btn{
-    color:#1f4666;
-    background:#edf5fb;
-    border:1px solid #cfe2f1;
-}
-.whatsapp-btn{
-    color:white;
-    background:linear-gradient(135deg,#168b4c,#20b866);
-    text-decoration:none;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    gap:8px;
-}
-.divider{
-    display:flex;
-    align-items:center;
-    gap:10px;
-    color:#9aa4af;
-    font-size:12px;
-    margin:18px 0 12px;
-}
-.divider:before,.divider:after{
-    content:"";
-    height:1px;
-    background:#e5e9ee;
-    flex:1;
-}
-#student-error{
-    min-height:20px;
-    margin:8px 0 0;
-    color:#d53a3a;
-    font-size:14px;
-}
-.help{
-    margin:18px 0 0;
-    color:#8a939e;
-    font-size:12px;
-    line-height:1.7;
-}
-.modal{
-    display:none;
-    position:fixed;
-    inset:0;
-    z-index:1000;
-    background:rgba(3,9,17,.72);
-    backdrop-filter:blur(5px);
-    align-items:center;
-    justify-content:center;
-    padding:18px;
-}
-.modal.show{display:flex}
-.modal-card{
-    width:min(440px,100%);
-    background:white;
-    border-radius:24px;
-    padding:24px;
-    box-shadow:0 25px 70px rgba(0,0,0,.35);
-}
-.modal-head{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:10px;
-    margin-bottom:18px;
-}
-.modal-head h2{margin:0;color:#172438;font-size:22px}
-.close{
-    border:0;
-    background:#eef2f6;
-    width:38px;height:38px;
-    border-radius:12px;
-    cursor:pointer;
-    font-size:20px;
-}
-.form-input{
-    width:100%;
-    height:52px;
-    margin-bottom:11px;
-    border:1px solid #d9dee6;
-    border-radius:14px;
-    padding:0 15px;
-    font-size:15px;
-    outline:none;
-}
-.form-input:focus{
-    border-color:#2b8ed1;
-    box-shadow:0 0 0 4px rgba(43,142,209,.1);
-}
-textarea.form-input{
-    height:90px;
-    padding-top:13px;
-    resize:vertical;
-}
-.request-msg{
-    min-height:20px;
-    font-size:13px;
-    margin:4px 0 10px;
-}
-@media(max-width:430px){
-    .card{padding:25px 17px 20px;border-radius:23px}
-    .logo-wrap{width:112px;height:112px}
-    h1{font-size:23px}
-}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%}
+body{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:18px;font-family:Tahoma,Arial,sans-serif;background:radial-gradient(circle at 15% 15%,rgba(39,157,216,.18),transparent 30%),radial-gradient(circle at 85% 85%,rgba(242,184,45,.15),transparent 30%),linear-gradient(135deg,#06101d,#13273c 55%,#07111d)}
+.card{width:min(450px,100%);background:rgba(255,255,255,.98);border-radius:28px;padding:30px 22px 24px;text-align:center;box-shadow:0 25px 70px rgba(0,0,0,.4);position:relative;overflow:hidden}
+.card:before{content:"";position:absolute;top:0;left:0;right:0;height:5px;background:linear-gradient(90deg,#239bd8,#f1b62e,#239bd8)}
+.logo{width:130px!important;height:130px!important;object-fit:cover;border-radius:50%;display:block;margin:5px auto 17px;padding:4px;background:linear-gradient(135deg,#239bd8,#f1b62e);box-shadow:0 12px 30px rgba(0,0,0,.2)}
+h1{margin:0;color:#172438;font-size:25px;line-height:1.45;font-weight:800}.sub{margin:7px 0 21px;color:#7b8590;font-size:14px}
+.code{position:relative;margin-bottom:11px}.code span{position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:20px}
+#studentCode{width:100%;height:57px;border:1px solid #d9dee5;border-radius:16px;background:#f8fafc;outline:none;padding:0 50px 0 14px;font-size:17px;font-family:inherit}
+#studentCode:focus{background:#fff;border-color:#2998d3;box-shadow:0 0 0 4px rgba(41,152,211,.12)}
+button,a{font-family:inherit}.login,.request,.wa{width:100%;min-height:54px;border-radius:16px;font-size:17px;font-weight:800;cursor:pointer;transition:.18s}
+.login{border:0;color:#fff;background:linear-gradient(135deg,#263d54,#34506b);box-shadow:0 10px 22px rgba(38,61,84,.22)}
+.request{border:1px solid #cfe3f1;color:#1d4e70;background:#edf6fb}.wa{border:0;color:#fff;background:linear-gradient(135deg,#148c4c,#21b968);text-decoration:none;display:flex;align-items:center;justify-content:center;gap:8px}
+.login:hover,.request:hover,.wa:hover{transform:translateY(-2px)}
+.err{min-height:20px;color:#d43a3a;font-size:14px;margin:8px 0 0}.divider{display:flex;align-items:center;gap:10px;color:#9aa3ad;font-size:12px;margin:17px 0 11px}.divider:before,.divider:after{content:"";height:1px;background:#e4e8ed;flex:1}
+.note{margin:15px 0 0;color:#8b949e;font-size:12px;line-height:1.8}.admin-link{display:inline-block;margin-top:14px;color:#6d7885;font-size:12px;text-decoration:none}
+.modal{position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(0,0,0,.75);backdrop-filter:blur(5px)}.modal.show{display:flex}
+.modal-card{width:min(430px,100%);background:#fff;border-radius:24px;padding:23px;box-shadow:0 25px 70px rgba(0,0,0,.4)}
+.head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}.head h2{margin:0;color:#172438;font-size:21px}.close{width:38px;height:38px;border:0;border-radius:12px;background:#eef2f6;font-size:21px;cursor:pointer}
+.input{width:100%;height:51px;margin-bottom:11px;padding:0 14px;border:1px solid #d9dee5;border-radius:14px;outline:none;font-family:inherit;font-size:15px}.input:focus{border-color:#2998d3}
+textarea.input{height:88px;padding-top:12px;resize:vertical}.small{font-size:12px;color:#7c8792;line-height:1.7;margin:0 0 12px}.send{width:100%;min-height:52px;border:0;border-radius:15px;background:#168e4e;color:#fff;font-size:16px;font-weight:800;cursor:pointer}
+@media(max-width:430px){.card{padding:26px 16px 20px;border-radius:23px}.logo{width:112px!important;height:112px!important}h1{font-size:22px}}
 </style>
 </head>
-
 <body>
-<div class="login-shell">
-    <div class="glow"></div>
-
-    <div class="card">
-        <div class="top-line"></div>
-
-        <div class="logo-wrap">
-            <img src="assets/logo.jpg" alt="مستر أحمد الحناوي">
-        </div>
-
-        <h1>أهلاً بكم في منصة مستر أحمد الحناوي</h1>
-        <p class="subtitle">سجّل دخولك باستخدام كود الطالب الخاص بك</p>
-
-        <div class="input-wrap">
-            <span class="input-icon">🔑</span>
-            <input type="text" id="studentCode" placeholder="أدخل كود الطالب" autocomplete="off">
-        </div>
-
-        <button class="primary-btn" onclick="studentLogin()">دخول</button>
-        <p id="student-error"></p>
-
-        <div class="divider">أو</div>
-
-        <button class="secondary-btn" onclick="openRequestModal()">🆕 طلب إنشاء حساب</button>
-
-        <a class="whatsapp-btn" id="whatsappBtn" href="#" target="_blank" rel="noopener">
-            <span>💬</span>
-            <span>تواصل مع المشرف عبر WhatsApp</span>
-        </a>
-
-        <p class="help">
-            ليس لديك كود؟ يمكنك إرسال طلب إنشاء حساب، أو التواصل مباشرة مع المشرف للحصول على المساعدة.
-        </p>
-    </div>
+<div class="card">
+<img src="assets/logo.jpg" class="logo" alt="مستر أحمد الحناوي">
+<h1>أهلاً بكم في منصة مستر أحمد الحناوي</h1>
+<p class="sub">سجّل دخولك باستخدام كود الطالب الخاص بك</p>
+<div class="code"><span>🔑</span><input id="studentCode" type="text" placeholder="أدخل كود الطالب" autocomplete="off"></div>
+<button class="login" id="loginBtn">دخول</button>
+<div id="student-error" class="err"></div>
+<div class="divider">ليس لديك كود؟</div>
+<button class="request" id="requestBtn">🆕 طلب إنشاء حساب</button>
+<div style="height:10px"></div>
+<a id="whatsappBtn" class="wa" target="_blank" rel="noopener">💬 تواصل مع المشرف عبر WhatsApp</a>
+<p class="note">للحصول على كود الدخول أو الاستفسار عن المنصة، تواصل مع المشرف.</p>
+<a class="admin-link" href="admin-login.html">🔐 دخول المشرف</a>
 </div>
 
-<!-- طلب إنشاء حساب -->
-<div class="modal" id="requestModal">
-    <div class="modal-card">
-        <div class="modal-head">
-            <h2>🆕 طلب إنشاء حساب</h2>
-            <button class="close" onclick="closeRequestModal()">×</button>
-        </div>
-
-        <input class="form-input" id="requestName" placeholder="الاسم بالكامل">
-        <input class="form-input" id="requestPhone" inputmode="tel" placeholder="رقم الطالب أو ولي الأمر">
-        <textarea class="form-input" id="requestNotes" placeholder="ملاحظات (اختياري)"></textarea>
-
-        <div class="request-msg" id="requestMsg"></div>
-
-        <button class="primary-btn" id="sendRequestBtn" onclick="sendAccountRequest()">
-            إرسال طلب إنشاء الحساب
-        </button>
-    </div>
-</div>
+<div id="modal" class="modal">
+<div class="modal-card">
+<div class="head"><h2>🆕 طلب إنشاء حساب</h2><button class="close" id="closeBtn">×</button></div>
+<p class="small">اكتب بياناتك وسيتم فتح WhatsApp برسالة جاهزة لإرسال طلبك للمشرف.</p>
+<input id="name" class="input" placeholder="الاسم بالكامل">
+<input id="phone" class="input" type="tel" placeholder="رقم الطالب أو ولي الأمر">
+<textarea id="notes" class="input" placeholder="ملاحظات (اختياري)"></textarea>
+<button class="send" id="sendBtn">💬 إرسال طلب إنشاء الحساب عبر WhatsApp</button>
+</div></div>
 
 <script type="module">
-import {
-    db, collection, query, where, getDocs, addDoc, updateDoc
-} from './js/firebase-config.js';
+import { db, collection, query, where, getDocs, addDoc, updateDoc } from './js/firebase-config.js';
 import { getDeviceId } from './js/device.js';
 
-/* WhatsApp المشرف */
-const WHATSAPP_NUMBER = '201558812897';
-const whatsappText = encodeURIComponent(
-    'السلام عليكم، أريد الحصول على كود الدخول إلى منصة مستر أحمد الحناوي.'
-);
-document.getElementById('whatsappBtn').href =
-    `https://wa.me/${WHATSAPP_NUMBER}?text=${whatsappText}`;
+const WHATSAPP='201558812897';
+const wa=(text)=>`https://wa.me/${WHATSAPP}?text=${encodeURIComponent(text)}`;
+document.getElementById('whatsappBtn').href=wa('السلام عليكم، أريد الحصول على كود الدخول إلى منصة مستر أحمد الحناوي.');
 
-window.openRequestModal = function(){
-    document.getElementById('requestModal').classList.add('show');
-    setTimeout(() => document.getElementById('requestName').focus(), 100);
+const modal=document.getElementById('modal');
+document.getElementById('requestBtn').onclick=()=>modal.classList.add('show');
+document.getElementById('closeBtn').onclick=()=>modal.classList.remove('show');
+modal.onclick=e=>{if(e.target===modal)modal.classList.remove('show')};
+
+document.getElementById('sendBtn').onclick=()=>{
+ const name=document.getElementById('name').value.trim(), phone=document.getElementById('phone').value.trim(), notes=document.getElementById('notes').value.trim();
+ if(!name||!phone){alert('من فضلك اكتب الاسم ورقم التواصل.');return}
+ const text=`السلام عليكم، أريد طلب إنشاء حساب في منصة مستر أحمد الحناوي.\n\nالاسم: ${name}\nرقم التواصل: ${phone}${notes?'\nملاحظات: '+notes:''}`;
+ window.open(wa(text),'_blank');
 };
 
-window.closeRequestModal = function(){
-    document.getElementById('requestModal').classList.remove('show');
-};
-
-window.sendAccountRequest = async function(){
-    const name = document.getElementById('requestName').value.trim();
-    const phone = document.getElementById('requestPhone').value.trim();
-    const notes = document.getElementById('requestNotes').value.trim();
-    const msg = document.getElementById('requestMsg');
-    const btn = document.getElementById('sendRequestBtn');
-
-    if (!name || !phone) {
-        msg.style.color = '#d53a3a';
-        msg.textContent = 'من فضلك اكتب الاسم ورقم التواصل.';
-        return;
-    }
-
-    btn.disabled = true;
-    btn.style.opacity = '.65';
-    msg.style.color = '#536273';
-    msg.textContent = 'جاري إرسال الطلب...';
-
-    try {
-        await addDoc(collection(db, 'accountRequests'), {
-            name,
-            phone,
-            notes: notes || '',
-            status: 'pending',
-            createdAt: new Date()
-        });
-
-        msg.style.color = '#168b4c';
-        msg.textContent = '✅ تم إرسال طلبك بنجاح، وسيتم التواصل معك.';
-        document.getElementById('requestName').value = '';
-        document.getElementById('requestPhone').value = '';
-        document.getElementById('requestNotes').value = '';
-    } catch (error) {
-        console.error('Account request error:', error);
-        msg.style.color = '#d53a3a';
-        msg.textContent = 'تعذر إرسال الطلب حاليًا. يمكنك التواصل مع المشرف عبر WhatsApp.';
-    } finally {
-        btn.disabled = false;
-        btn.style.opacity = '1';
-    }
-};
-
-window.studentLogin = async function() {
-    const codeInput = document.getElementById('studentCode');
-    const errorEl = document.getElementById('student-error');
-    const code = codeInput.value.trim();
-
-    errorEl.textContent = '';
-
-    if (!code) {
-        errorEl.textContent = 'من فضلك أدخل كود الطالب.';
-        codeInput.focus();
-        return;
-    }
-
-    try {
-        const q = query(collection(db, 'students'), where('code', '==', code));
-        const snap = await getDocs(q);
-
-        if (snap.empty) {
-            errorEl.textContent = 'كود غير صحيح، تأكد من الكود وحاول مرة أخرى.';
-            return;
-        }
-
-        const docRef = snap.docs[0];
-        const data = docRef.data();
-
-        if (data.status === 'suspended') {
-            alert(`⛔ حسابك معلق: ${data.suspendMessage || 'يرجى التواصل مع المشرف.'}`);
-            return;
-        }
-
-        const currentDevice = getDeviceId();
-        const deviceIds = data.deviceIds || [];
-
-        if (!deviceIds.includes(currentDevice)) {
-            const pendingQuery = query(
-                collection(db, 'pendingDevices'),
-                where('studentCode', '==', code),
-                where('deviceId', '==', currentDevice),
-                where('status', '==', 'pending')
-            );
-
-            const pendingSnap = await getDocs(pendingQuery);
-
-            if (!pendingSnap.empty) {
-                alert('⏳ يوجد طلب معلق لهذا الجهاز بالفعل، انتظر موافقة المشرف.');
-                return;
-            }
-
-            await addDoc(collection(db, 'pendingDevices'), {
-                studentCode: code,
-                deviceId: currentDevice,
-                status: 'pending',
-                requestedAt: new Date(),
-                grade: data.grade || 'all'
-            });
-
-            alert('📱 تم إرسال طلب الجهاز الجديد للمشرف، انتظر الموافقة.');
-            return;
-        }
-
-        const updates = { lastLogin: new Date() };
-
-        if (!data.firstLogin) {
-            updates.firstLogin = new Date();
-            updates.status = 'active';
-        } else if (data.status === 'inactive') {
-            updates.status = 'active';
-        }
-
-        await updateDoc(docRef.ref, updates);
-
-        localStorage.setItem('studentCode', code);
-        localStorage.setItem('studentGrade', data.grade || 'all');
-        localStorage.setItem('studentName', data.name || '');
-
-        window.location.href = 'student-panel.html';
-
-    } catch (error) {
-        console.error('Student login error:', error);
-        errorEl.textContent = 'حدث خطأ أثناء تسجيل الدخول. حاول مرة أخرى.';
-    }
-};
-
-document.getElementById('studentCode').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') window.studentLogin();
-});
-
-document.getElementById('requestModal').addEventListener('click', (e) => {
-    if (e.target.id === 'requestModal') window.closeRequestModal();
-});
+async function studentLogin(){
+ const code=document.getElementById('studentCode').value.trim(), err=document.getElementById('student-error');
+ err.textContent='';
+ if(!code){err.textContent='من فضلك أدخل كود الطالب';return}
+ try{
+  const q=query(collection(db,'students'),where('code','==',code)), snap=await getDocs(q);
+  if(snap.empty){err.textContent='كود غير صحيح';return}
+  const docRef=snap.docs[0], data=docRef.data();
+  if(data.status==='suspended'){alert(`⛔ حسابك معلق: ${data.suspendMessage||'يرجى التواصل مع المشرف.'}`);return}
+  const device=getDeviceId(), ids=data.deviceIds||[];
+  if(!ids.includes(device)){
+   const pq=query(collection(db,'pendingDevices'),where('studentCode','==',code),where('deviceId','==',device),where('status','==','pending'));
+   if(!(await getDocs(pq)).empty){alert('⏳ يوجد طلب معلق لهذا الجهاز بالفعل، انتظر موافقة المشرف.');return}
+   await addDoc(collection(db,'pendingDevices'),{studentCode:code,deviceId:device,status:'pending',requestedAt:new Date(),grade:data.grade||'all'});
+   alert('📱 تم إرسال طلب جهاز جديد للمشرف، انتظر الموافقة');return;
+  }
+  const updates={lastLogin:new Date()};
+  if(!data.firstLogin){updates.firstLogin=new Date();updates.status='active'}else if(data.status==='inactive')updates.status='active';
+  await updateDoc(docRef.ref,updates);
+  localStorage.setItem('studentCode',code);localStorage.setItem('studentGrade',data.grade||'all');localStorage.setItem('studentName',data.name||'');
+  location.href='student-panel.html';
+ }catch(e){console.error(e);err.textContent='حدث خطأ أثناء تسجيل الدخول. حاول مرة أخرى.'}
+}
+document.getElementById('loginBtn').onclick=studentLogin;
+document.getElementById('studentCode').onkeydown=e=>{if(e.key==='Enter')studentLogin()};
 </script>
 </body>
 </html>
