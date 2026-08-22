@@ -505,7 +505,7 @@
     <script src="js/device.js" type="module"></script>
     <script type="module">
         import {
-            db, storage, ref, uploadBytes, getDownloadURL, listAll, deleteObject,
+            db, storage, ensureFirebaseAuth, ref, uploadBytes, getDownloadURL, listAll, deleteObject,
             collection, addDoc, getDocs, deleteDoc, doc, updateDoc,
             query, where, getDoc, setDoc, serverTimestamp
         } from './js/firebase-config.js';
@@ -2747,12 +2747,18 @@
                 const file = fileInput.files[0];
                 mediaType = file.type.startsWith('video/') ? 'video' : 'image';
                 try {
-                    const storageRef = ref(storage, `notifications/${Date.now()}_${file.name}`);
-                    await uploadBytes(storageRef, file);
+                    // لازم يكون المستخدم موثقًا في Firebase قبل الرفع إلى Storage.
+                    await ensureFirebaseAuth();
+                    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+                    const storageRef = ref(storage, `notifications/${Date.now()}_${safeName}`);
+                    await uploadBytes(storageRef, file, { contentType: file.type });
                     mediaUrl = await getDownloadURL(storageRef);
                 } catch (error) {
-                    console.warn('⚠️ فشل رفع الملف:', error);
-                    alert('⚠️ تم إرسال الإشعار بدون الملف');
+                    console.error('❌ فشل رفع مرفق الإشعار:', error);
+                    const code = error?.code || 'unknown';
+                    const message = error?.message || 'خطأ غير معروف';
+                    alert(`❌ لم يتم رفع الملف.\n\n${code}\n${message}\n\nإذا كان الخطأ storage/unauthorized أو auth/operation-not-allowed، فعّل Anonymous Authentication واضبط صلاحيات Firebase Storage.`);
+                    return;
                 }
             }
 
