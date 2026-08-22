@@ -1,4 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
 import { 
     getFirestore, collection, addDoc, getDocs, deleteDoc, 
     doc, updateDoc, query, where, getDoc, setDoc, serverTimestamp 
@@ -20,9 +21,32 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const storage = getStorage(app);
+const auth = getAuth(app);
+
+// تأكد من وجود جلسة Firebase موثقة قبل التعامل مع Storage.
+let authReadyPromise;
+function ensureFirebaseAuth() {
+  if (auth.currentUser) return Promise.resolve(auth.currentUser);
+  if (!authReadyPromise) {
+    authReadyPromise = new Promise((resolve, reject) => {
+      const unsub = onAuthStateChanged(auth, async (user) => {
+        if (user) { unsub(); resolve(user); return; }
+        try {
+          const cred = await signInAnonymously(auth);
+          unsub();
+          resolve(cred.user);
+        } catch (e) {
+          unsub();
+          reject(e);
+        }
+      }, reject);
+    });
+  }
+  return authReadyPromise;
+}
 
 export { 
-    db, storage, ref, uploadBytes, getDownloadURL, listAll, deleteObject,
+    db, storage, auth, ensureFirebaseAuth, ref, uploadBytes, getDownloadURL, listAll, deleteObject,
     collection, addDoc, getDocs, deleteDoc, doc, updateDoc, 
     query, where, getDoc, setDoc, serverTimestamp
 };
