@@ -1463,31 +1463,209 @@
             // ============================================
             // الاختبارات
             // ============================================
+
             else if (section === 'exams') {
+                container.innerHTML = `<h2>⏳ جاري تحميل الاختبارات...</h2>`;
                 try {
                     const q = query(collection(db, 'exams'), where('grade', 'in', [studentGrade, 'all']));
                     const snap = await getDocs(q);
+
                     let html = `<h2>📝 الاختبارات</h2>`;
-                    if (snap.empty) html += `<p>لا توجد اختبارات حالياً</p>`;
-                    snap.forEach(d => {
+                    if (snap.empty) {
+                        html += `<div style="background:white;border-radius:15px;padding:30px;text-align:center;color:#777;">لا توجد اختبارات حالياً</div>`;
+                    }
+
+                    for (const d of snap.docs) {
                         const data = d.data();
-                        html += `<div style="border:1px solid #e0e0e0; padding:20px; margin:20px 0; border-radius:15px; background:white;">
-                                    <h3>${data.title}</h3>
-                                    <p><strong>النوع:</strong> ${data.type}</p>
-                                    <div style="background:#f9f9f9; padding:15px; border-radius:10px; margin-top:10px;">
-                                        ${data.type === 'image' ? `<img src="${data.content}" width="100%" style="border-radius:10px;">` : 
-                                          data.type === 'video' ? `<video controls controlsList="nodownload" src="${data.content}" width="100%" style="border-radius:10px;"></video>` : 
-                                          `<p style="font-size:18px;">${data.content}</p>`}
-                                    </div>
+                        const examId = d.id;
+
+                        // الاختبارات الجديدة التفاعلية
+                        if (Array.isArray(data.questions)) {
+                            let answersSnap;
+                            try {
+                                answersSnap = await getDocs(query(
+                                    collection(db, 'examAnswers'),
+                                    where('examId', '==', examId),
+                                    where('studentCode', '==', code)
+                                ));
+                            } catch (e) {
+                                answersSnap = { empty:true, docs:[] };
+                            }
+
+                            const previous = answersSnap.docs?.[0]?.data?.() || null;
+                            const reveal = data.answerReveal || 'instant';
+
+                            html += `<div style="border:1px solid #e0e0e0;padding:20px;margin:20px 0;border-radius:15px;background:white;box-shadow:0 2px 10px rgba(0,0,0,.04);">
+                                <h3 style="margin-top:0;">📝 ${data.title || 'اختبار'}</h3>
+                                <p style="color:#777;">عدد الأسئلة: ${data.questions.length}</p>`;
+
+                            data.questions.forEach((qst, qi) => {
+                                const savedAnswer = previous?.answers ? previous.answers[String(qi)] : undefined;
+                                const locked = savedAnswer !== undefined && savedAnswer !== null;
+                                const typeText = qst.type === 'mcq' ? 'اختيار من متعدد' :
+                                                 qst.type === 'truefalse' ? 'صح أو خطأ' : 'علل / بما تفسر';
+
+                                let answerControl = '';
+                                if (qst.type === 'mcq') {
+                                    answerControl = (qst.options || []).map((op, oi) =>
+                                        `<label style="display:block;padding:10px;margin:7px 0;border:1px solid #ddd;border-radius:10px;cursor:${locked?'default':'pointer'};">
+                                            <input type="radio" name="exam_${examId}_${qi}" value="${oi}" ${String(savedAnswer)===String(oi)?'checked':''} ${locked?'disabled':''}>
+                                            ${esc(op)}
+                                        </label>`).join('');
+                                } else if (qst.type === 'truefalse') {
+                                    answerControl = `
+                                        <label style="display:inline-block;padding:10px;margin-left:8px;border:1px solid #ddd;border-radius:10px;">
+                                            <input type="radio" name="exam_${examId}_${qi}" value="true" ${String(savedAnswer)==='true'?'checked':''} ${locked?'disabled':''}> صح
+                                        </label>
+                                        <label style="display:inline-block;padding:10px;border:1px solid #ddd;border-radius:10px;">
+                                            <input type="radio" name="exam_${examId}_${qi}" value="false" ${String(savedAnswer)==='false'?'checked':''} ${locked?'disabled':''}> خطأ
+                                        </label>`;
+                                } else {
+                                    answerControl = `<textarea id="answer_${examId}_${qi}" ${locked?'disabled':''} placeholder="اكتب إجابتك..." style="width:100%;min-height:110px;padding:12px;border:1px solid #ddd;border-radius:10px;">${locked?esc(String(savedAnswer)):''}</textarea>`;
+                                }
+
+                                const canReveal = previous && isExamRevealReady(previous.submittedAt, reveal);
+                                let feedback = '';
+                                if (locked && previous) {
+                                    if (reveal === 'never') {
+                                        feedback = `<div style="margin-top:10px;padding:10px;border-radius:9px;background:#f7f7f7;color:#777;">🔒 لن تظهر نتيجة هذا السؤال.</div>`;
+                                    } else if (!canReveal) {
+                                        feedback = `<div style="margin-top:10px;padding:10px;border-radius:9px;background:#fff8e8;color:#8a6500;">⏳ سيتم إظهار نتيجة الإجابة حسب الوقت الذي حدده المشرف.</div>`;
+                                    } else if (qst.type === 'mcq') {
+                                        const ok = Number(savedAnswer) === Number(qst.correct);
+                                        feedback = `<div style="margin-top:10px;padding:10px;border-radius:9px;background:${ok?'#eaf8ef':'#fff0f0'};color:${ok?'#218838':'#c0392b'};font-weight:800;">${ok?'✅ إجابتك صحيحة':'❌ إجابتك غير صحيحة'}<br>الإجابة الصحيحة: ${esc(qst.options?.[Number(qst.correct)] || '')}</div>`;
+                                    } else if (qst.type === 'truefalse') {
+                                        const ok = String(savedAnswer) === String(qst.correct);
+                                        feedback = `<div style="margin-top:10px;padding:10px;border-radius:9px;background:${ok?'#eaf8ef':'#fff0f0'};color:${ok?'#218838':'#c0392b'};font-weight:800;">${ok?'✅ إجابتك صحيحة':'❌ إجابتك غير صحيحة'}<br>الإجابة الصحيحة: ${qst.correct === 'true' ? 'صح' : 'خطأ'}</div>`;
+                                    } else {
+                                        feedback = `<div style="margin-top:10px;padding:10px;border-radius:9px;background:#f3f6ff;color:#4056a1;">✍️ تم إرسال إجابتك للمشرف للتصحيح.</div>`;
+                                    }
+                                }
+
+                                html += `<div style="margin-top:18px;padding:16px;border:1px solid #eee;border-radius:12px;background:#fafafa;">
+                                    <div style="font-weight:800;margin-bottom:8px;">${qi+1}. ${esc(qst.text)}</div>
+                                    <small style="color:#888;">${typeText}</small>
+                                    <div style="margin-top:10px;">${answerControl}</div>
+                                    ${locked ? '<span style="display:inline-block;margin-top:8px;color:#777;">🔐 تم إرسال الإجابة</span>' :
+                                        `<button class="btn-sm btn-add" style="margin-top:10px;" onclick="submitSingleExamAnswer('${examId}', ${qi})">📤 إرسال الإجابة</button>`}
+                                    ${feedback}
                                 </div>`;
-                    });
+                            });
+
+                            html += `</div>`;
+                        } else {
+                            // دعم الاختبارات القديمة كما هي
+                            html += `<div style="border:1px solid #e0e0e0; padding:20px; margin:20px 0; border-radius:15px; background:white;">
+                                <h3>${esc(data.title || 'اختبار')}</h3>
+                                <p><strong>النوع:</strong> ${esc(data.type || '')}</p>
+                                <div style="background:#f9f9f9; padding:15px; border-radius:10px; margin-top:10px;">
+                                    ${data.type === 'image' ? `<img src="${esc(data.content || '')}" width="100%" style="border-radius:10px;">` :
+                                      data.type === 'video' ? `<video controls controlsList="nodownload" src="${esc(data.content || '')}" width="100%" style="border-radius:10px;"></video>` :
+                                      `<p style="font-size:18px;">${esc(data.content || '')}</p>`}
+                                </div>
+                            </div>`;
+                        }
+                    }
+
                     container.innerHTML = html;
                 } catch (error) {
                     console.error('خطأ في تحميل الاختبارات:', error);
                     container.innerHTML = `<p style="color:red;">حدث خطأ في تحميل الاختبارات</p>`;
                 }
             }
-            
+
+
+            // حساب هل حان وقت ظهور النتيجة
+            function isExamRevealReady(submittedAt, reveal) {
+                if (reveal === 'instant') return true;
+                if (reveal === 'never') return false;
+                let t = submittedAt?.toDate ? submittedAt.toDate().getTime() : new Date(submittedAt || 0).getTime();
+                if (!t) return false;
+                const delay = reveal === '24h' ? 24*60*60*1000 : reveal === '3d' ? 3*24*60*60*1000 : 0;
+                return Date.now() >= t + delay;
+            }
+
+            window.submitSingleExamAnswer = async function(examId, questionIndex) {
+                try {
+                    const examSnap = await getDoc(doc(db, 'exams', examId));
+                    if (!examSnap.exists()) return alert('الاختبار غير موجود');
+                    const exam = examSnap.data();
+                    const question = exam.questions?.[questionIndex];
+                    if (!question) return alert('السؤال غير موجود');
+
+                    let value = null;
+                    if (question.type === 'text') {
+                        value = document.getElementById(`answer_${examId}_${questionIndex}`)?.value?.trim() || '';
+                    } else {
+                        const selected = document.querySelector(`input[name="exam_${examId}_${questionIndex}"]:checked`);
+                        value = selected ? selected.value : null;
+                    }
+
+                    if (value === null || value === '') return alert('اختر أو اكتب إجابتك أولاً');
+
+                    const existingQ = query(
+                        collection(db, 'examAnswers'),
+                        where('examId', '==', examId),
+                        where('studentCode', '==', code)
+                    );
+                    const existingSnap = await getDocs(existingQ);
+
+                    let answerDoc = null;
+                    if (!existingSnap.empty) {
+                        answerDoc = existingSnap.docs[0];
+                    }
+
+                    let answers = {};
+                    let autoCorrect = 0;
+                    let autoTotal = 0;
+                    let submittedAt = new Date();
+
+                    if (answerDoc) {
+                        const old = answerDoc.data();
+                        answers = {...(old.answers || {})};
+                        submittedAt = old.submittedAt || submittedAt;
+                    }
+                    answers[String(questionIndex)] = value;
+
+                    // حساب التصحيح الآلي لكل ما تم إرساله
+                    (exam.questions || []).forEach((qst, i) => {
+                        const a = answers[String(i)];
+                        if (a === undefined || a === null) return;
+                        if (qst.type === 'mcq') {
+                            autoTotal++;
+                            if (Number(a) === Number(qst.correct)) autoCorrect++;
+                        } else if (qst.type === 'truefalse') {
+                            autoTotal++;
+                            if (String(a) === String(qst.correct)) autoCorrect++;
+                        }
+                    });
+
+                    const payload = {
+                        examId,
+                        examTitle: exam.title || '',
+                        studentCode: code,
+                        studentName: studentName || localStorage.getItem('studentName') || 'طالب',
+                        studentGrade,
+                        answers,
+                        autoCorrect,
+                        autoTotal,
+                        submittedAt
+                    };
+
+                    if (answerDoc) {
+                        await updateDoc(answerDoc.ref, payload);
+                    } else {
+                        await addDoc(collection(db, 'examAnswers'), payload);
+                    }
+
+                    alert('✅ تم إرسال إجابتك للمشرف');
+                    loadSection('exams');
+                } catch (e) {
+                    console.error('خطأ في إرسال الإجابة:', e);
+                    alert('❌ حدث خطأ أثناء إرسال الإجابة');
+                }
+            };
+
             // ============================================
             // الإشعارات
             // ============================================

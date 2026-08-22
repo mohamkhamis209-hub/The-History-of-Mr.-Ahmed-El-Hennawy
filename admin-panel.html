@@ -2438,76 +2438,284 @@
         // ============================================
         // EXAMS
         // ============================================
+
+        // ============================================
+        // نظام الاختبارات المتطور
+        // أنواع الأسئلة: اختيار من متعدد / صح أو خطأ / علل أو بما تفسر
+        // ============================================
+        window.__examQuestions = [];
+
+        window.resetExamBuilder = function() {
+            window.__examQuestions = [];
+            const list = document.getElementById('examQuestionsList');
+            if (list) list.innerHTML = '<p style="color:#888;">لم تتم إضافة أسئلة بعد.</p>';
+        };
+
+        window.renderExamQuestions = function() {
+            const list = document.getElementById('examQuestionsList');
+            if (!list) return;
+            if (!window.__examQuestions.length) {
+                list.innerHTML = '<p style="color:#888;">لم تتم إضافة أسئلة بعد.</p>';
+                return;
+            }
+            list.innerHTML = window.__examQuestions.map((q, i) => {
+                const typeText = q.type === 'mcq' ? 'اختيار من متعدد' :
+                                 q.type === 'truefalse' ? 'صح أو خطأ' : 'علل / بما تفسر';
+                const options = q.type === 'mcq'
+                    ? `<div style="margin-top:8px;">${q.options.map((o,j)=>`<span style="display:inline-block;padding:6px 10px;margin:3px;border-radius:8px;background:${j===q.correct?'#e8f7ee':'#f3f4f6'};">${j===q.correct?'✅ ':''}${esc(o)}</span>`).join('')}</div>`
+                    : q.type === 'truefalse'
+                        ? `<div style="margin-top:8px;">الإجابة الصحيحة: <b>${q.correct === 'true' ? 'صح' : 'خطأ'}</b></div>`
+                        : `<div style="margin-top:8px;">إجابة نموذجية: <b>${esc(q.correctText || 'سيتم تصحيحها يدويًا')}</b></div>`;
+                return `<div style="border:1px solid #ddd;border-radius:12px;padding:14px;margin:10px 0;background:#fff;">
+                    <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;">
+                        <b>${i+1}. ${esc(q.text)}</b>
+                        <button class="btn-sm btn-danger" onclick="removeExamQuestion(${i})">🗑️ حذف</button>
+                    </div>
+                    <small style="color:#666;">${typeText}</small>
+                    ${options}
+                </div>`;
+            }).join('');
+        };
+
+        window.removeExamQuestion = function(index) {
+            window.__examQuestions.splice(index, 1);
+            window.renderExamQuestions();
+        };
+
+        window.addExamQuestion = function() {
+            const text = document.getElementById('newQuestionText')?.value.trim();
+            const type = document.getElementById('newQuestionType')?.value;
+            if (!text) return alert('اكتب نص السؤال أولاً');
+
+            let q = { text, type, options: [], correct: null, correctText: '' };
+
+            if (type === 'mcq') {
+                const options = [
+                    document.getElementById('opt1')?.value.trim(),
+                    document.getElementById('opt2')?.value.trim(),
+                    document.getElementById('opt3')?.value.trim(),
+                    document.getElementById('opt4')?.value.trim()
+                ];
+                if (options.some(x => !x)) return alert('اكتب الاختيارات الأربعة');
+                const correct = Number(document.getElementById('mcqCorrect')?.value);
+                q.options = options;
+                q.correct = correct;
+            } else if (type === 'truefalse') {
+                q.correct = document.getElementById('tfCorrect')?.value;
+            } else {
+                q.correctText = document.getElementById('modelAnswer')?.value.trim() || '';
+            }
+
+            window.__examQuestions.push(q);
+            document.getElementById('newQuestionText').value = '';
+            if (document.getElementById('opt1')) ['opt1','opt2','opt3','opt4'].forEach(id => document.getElementById(id).value = '');
+            if (document.getElementById('modelAnswer')) document.getElementById('modelAnswer').value = '';
+            window.renderExamQuestions();
+        };
+
         window.addExam = async function() {
             const title = document.getElementById('exTitle').value.trim();
-            const type = document.getElementById('exType').value;
-            const content = document.getElementById('exContent').value.trim();
             const grade = document.getElementById('exGrade').value;
-            if (!title || !content) return alert('املأ البيانات');
-            await addDoc(collection(db, 'exams'), { title, type, content, grade, addedAt: new Date() });
-            alert('✅ تمت الإضافة');
+            const reveal = document.getElementById('exReveal').value;
+
+            if (!title) return alert('اكتب عنوان الاختبار');
+            if (!window.__examQuestions.length) return alert('أضف سؤالاً واحداً على الأقل');
+
+            await addDoc(collection(db, 'exams'), {
+                title,
+                grade,
+                questions: window.__examQuestions,
+                answerReveal: reveal,
+                structured: true,
+                addedAt: new Date()
+            });
+
+            alert('✅ تم إنشاء الاختبار وحفظ الأسئلة وإعداد ظهور الإجابات');
+            window.__examQuestions = [];
             window.showExams();
         };
 
         window.searchExams = function() { window.showExams(); };
-        window.clearExamSearch = function() { document.getElementById('searchExam').value = ''; window.showExams(); };
+        window.clearExamSearch = function() {
+            const el = document.getElementById('searchExam');
+            if (el) el.value = '';
+            window.showExams();
+        };
+
+        window.viewExamAnswers = async function(examId) {
+            try {
+                const examSnap = await getDoc(doc(db, 'exams', examId));
+                if (!examSnap.exists()) return alert('الاختبار غير موجود');
+                const exam = examSnap.data();
+
+                const snap = await getDocs(query(collection(db, 'examAnswers'), where('examId', '==', examId)));
+                let rows = [];
+                snap.forEach(d => rows.push({id:d.id, ...d.data()}));
+                rows.sort((a,b) => String(b.submittedAt?.toDate?.() || b.submittedAt || '').localeCompare(String(a.submittedAt?.toDate?.() || a.submittedAt || '')));
+
+                let html = `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+                    <h2>👀 إجابات الطلاب — ${esc(exam.title || '')}</h2>
+                    <button class="btn-sm btn-search" onclick="showExams()">↩️ رجوع للاختبارات</button>
+                </div>`;
+
+                if (!rows.length) {
+                    html += `<div class="group-card"><p>لا توجد إجابات لهذا الاختبار حتى الآن.</p></div>`;
+                } else {
+                    html += rows.map((a, idx) => {
+                        const answers = a.answers || {};
+                        const questions = exam.questions || [];
+                        const details = questions.map((q, qi) => {
+                            const ans = answers[String(qi)];
+                            const answerText = q.type === 'mcq'
+                                ? (ans === null || ans === undefined ? '—' : (q.options?.[Number(ans)] || ans))
+                                : q.type === 'truefalse'
+                                    ? (ans === 'true' ? 'صح' : ans === 'false' ? 'خطأ' : '—')
+                                    : (ans || '—');
+
+                            let status = '';
+                            if (q.type === 'mcq' && ans !== undefined && ans !== null) {
+                                status = Number(ans) === Number(q.correct)
+                                    ? '<span style="color:#27ae60;font-weight:800;">✅ صحيحة</span>'
+                                    : '<span style="color:#e74c3c;font-weight:800;">❌ خاطئة</span>';
+                            } else if (q.type === 'truefalse' && ans !== undefined && ans !== null) {
+                                status = String(ans) === String(q.correct)
+                                    ? '<span style="color:#27ae60;font-weight:800;">✅ صحيحة</span>'
+                                    : '<span style="color:#e74c3c;font-weight:800;">❌ خاطئة</span>';
+                            } else if (q.type === 'text') {
+                                status = '<span style="color:#f39c12;font-weight:800;">✍️ تصحيح يدوي</span>';
+                            }
+
+                            return `<div style="padding:12px;border-top:1px solid #eee;">
+                                <b>${qi+1}. ${esc(q.text)}</b>
+                                <div style="margin-top:6px;">إجابة الطالب: <span style="white-space:pre-wrap;">${esc(String(answerText))}</span> ${status}</div>
+                                ${q.type === 'text' && q.correctText ? `<div style="margin-top:5px;color:#666;">الإجابة النموذجية: ${esc(q.correctText)}</div>` : ''}
+                            </div>`;
+                        }).join('');
+
+                        const submitted = a.submittedAt?.toDate ? a.submittedAt.toDate().toLocaleString('ar-EG') : (a.submittedAt || '—');
+                        return `<div style="border:1px solid #ddd;border-radius:14px;background:#fff;padding:16px;margin:14px 0;">
+                            <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+                                <h3 style="margin:0;">👤 ${esc(a.studentName || 'طالب')}</h3>
+                                <span>🔑 الكود: <b>${esc(a.studentCode || '—')}</b></span>
+                            </div>
+                            <small style="color:#777;">وقت الإرسال: ${esc(submitted)}</small>
+                            <div style="margin-top:8px;">النتيجة الآلية: <b>${Number(a.autoCorrect || 0)}</b> / ${Number(a.autoTotal || 0)}</div>
+                            ${details}
+                        </div>`;
+                    }).join('');
+                }
+
+                document.getElementById('content-area').innerHTML = html;
+            } catch (e) {
+                console.error(e);
+                document.getElementById('content-area').innerHTML = '<p style="color:red;">حدث خطأ أثناء تحميل إجابات الطلاب.</p>';
+            }
+        };
 
         window.showExams = async function() {
             await getGrades();
             const gradeFilter = document.getElementById('filterExamGrade')?.value || 'all';
             const searchTerm = document.getElementById('searchExam')?.value?.trim()?.toLowerCase() || '';
 
-            let q;
-            if (gradeFilter === 'all') {
-                q = collection(db, 'exams');
-            } else {
-                q = query(collection(db, 'exams'), where('grade', '==', gradeFilter));
-            }
+            let q = gradeFilter === 'all'
+                ? collection(db, 'exams')
+                : query(collection(db, 'exams'), where('grade', '==', gradeFilter));
+
             const snap = await getDocs(q);
-
             let exams = [];
-            snap.forEach(d => {
-                const data = d.data();
-                exams.push({ id: d.id, ...data });
-            });
+            snap.forEach(d => exams.push({ id:d.id, ...d.data() }));
 
-            if (searchTerm) {
-                exams = exams.filter(e =>
-                    e.title && e.title.toLowerCase().includes(searchTerm)
-                );
-            }
+            if (searchTerm) exams = exams.filter(e => (e.title || '').toLowerCase().includes(searchTerm));
 
             let html = `<h2>📝 الاختبارات</h2>
-                        <div class="filter-bar">
-                            <input id="exTitle" placeholder="عنوان الاختبار">
-                            <select id="exType"><option value="text">نص</option><option value="image">صورة</option><option value="video">فيديو</option></select>
-                            <input id="exContent" placeholder="نص السؤال أو الرابط" style="flex:2; min-width:200px;">
-                            <select id="exGrade">
-                                ${getGradeOptions('all')}
-                            </select>
-                            <button onclick="addExam()" class="btn-sm btn-add">➕ إضافة</button>
-                        </div>
-                        <div class="filter-bar">
-                            <select id="filterExamGrade" onchange="showExams()">
-                                ${getGradeOptions(gradeFilter)}
-                            </select>
-                            <input id="searchExam" class="search-box" placeholder="🔍 بحث بالعنوان..." value="${searchTerm}">
-                            <button onclick="searchExams()" class="btn-sm btn-search">🔍 بحث</button>
-                            <button onclick="clearExamSearch()" class="btn-sm btn-clear">✖️ إلغاء</button>
-                        </div>`;
-            if (exams.length === 0) html += `<p>لا يوجد اختبارات</p>`;
+                <div class="filter-bar" style="display:block;">
+                    <input id="exTitle" placeholder="عنوان الاختبار" style="width:100%;margin-bottom:8px;">
+                    <select id="exGrade" style="width:100%;margin-bottom:8px;">${getGradeOptions('all')}</select>
+                    <select id="exReveal" style="width:100%;margin-bottom:8px;">
+                        <option value="instant">⚡ ظهور النتيجة فور الإجابة</option>
+                        <option value="24h">🕐 ظهور النتيجة بعد 24 ساعة</option>
+                        <option value="3d">📅 ظهور النتيجة بعد 3 أيام</option>
+                        <option value="never">🔒 عدم إظهار الإجابة للطالب</option>
+                    </select>
+
+                    <div style="background:#f8f9fa;border-radius:12px;padding:14px;margin-top:10px;">
+                        <h3 style="margin-top:0;">➕ إضافة سؤال</h3>
+                        <textarea id="newQuestionText" placeholder="اكتب السؤال هنا..." style="width:100%;min-height:80px;padding:10px;border-radius:8px;border:1px solid #ddd;"></textarea>
+                        <select id="newQuestionType" onchange="renderQuestionTypeFields()" style="width:100%;margin-top:8px;">
+                            <option value="mcq">🔘 اختيار من متعدد</option>
+                            <option value="truefalse">✅❌ صح أو خطأ</option>
+                            <option value="text">✍️ علل / بما تفسر</option>
+                        </select>
+                        <div id="questionTypeFields"></div>
+                        <button onclick="addExamQuestion()" class="btn-sm btn-add" style="margin-top:10px;">➕ إضافة السؤال للاختبار</button>
+                    </div>
+
+                    <div id="examQuestionsList" style="margin-top:12px;"></div>
+                    <button onclick="addExam()" class="btn-sm btn-success" style="margin-top:10px;">💾 حفظ الاختبار</button>
+                </div>
+
+                <div class="filter-bar">
+                    <select id="filterExamGrade" onchange="showExams()">${getGradeOptions(gradeFilter)}</select>
+                    <input id="searchExam" class="search-box" placeholder="🔍 بحث بالعنوان..." value="${esc(searchTerm)}">
+                    <button onclick="searchExams()" class="btn-sm btn-search">🔍 بحث</button>
+                    <button onclick="clearExamSearch()" class="btn-sm btn-clear">✖️ إلغاء</button>
+                </div>`;
+
+            if (!exams.length) html += '<p>لا توجد اختبارات حالياً.</p>';
+
             exams.forEach(e => {
-                const isCustom = cachedGrades.some(g => g.code === e.grade);
-                const gradeText = isCustom ? (cachedGrades.find(g => g.code === e.grade)?.name || e.grade) :
-                    (e.grade === 'all' ? 'للجميع' : e.grade === '1' ? 'أولى ث' : e.grade === '2' ? 'ثانية ث' : e.grade === '3' ? 'ثالثة ث' : e.grade || '—');
-                html += `<div style="border:1px solid #ddd; padding:15px; margin:15px 0; border-radius:10px; background:white;">
-                            <h4>${e.title} <span class="grade-badge ${isCustom ? 'grade-custom' : (e.grade || 'all')}">${gradeText}</span></h4>
-                            <p><strong>النوع:</strong> ${e.type}</p>
-                            <p><strong>المحتوى:</strong> ${e.content}</p>
-                            <button onclick="deleteItem('exams','${e.id}')" class="btn-sm" style="background:#e74c3c; color:white;">🗑️ حذف</button>
-                        </div>`;
+                const isStructured = Array.isArray(e.questions);
+                const revealText = e.answerReveal === 'instant' ? 'فورًا' :
+                                   e.answerReveal === '24h' ? 'بعد 24 ساعة' :
+                                   e.answerReveal === '3d' ? 'بعد 3 أيام' :
+                                   e.answerReveal === 'never' ? 'لن تظهر للطالب' : 'قديم';
+
+                const gradeText = cachedGrades.some(g => g.code === e.grade)
+                    ? (cachedGrades.find(g => g.code === e.grade)?.name || e.grade)
+                    : (e.grade === 'all' ? 'للجميع' : e.grade === '1' ? 'أولى ث' : e.grade === '2' ? 'ثانية ث' : e.grade === '3' ? 'ثالثة ث' : e.grade || '—');
+
+                html += `<div style="border:1px solid #ddd;padding:15px;margin:15px 0;border-radius:10px;background:white;">
+                    <h4>${esc(e.title || 'اختبار')} <span class="grade-badge grade-custom">${esc(gradeText)}</span></h4>
+                    <p><strong>الأسئلة:</strong> ${isStructured ? e.questions.length : 'قديم'}</p>
+                    <p><strong>ظهور الإجابة:</strong> ${revealText}</p>
+                    ${isStructured ? '<p style="color:#27ae60;">✅ اختبار تفاعلي</p>' : '<p style="color:#888;">اختبار قديم محفوظ كما هو.</p>'}
+                    ${isStructured ? `<button onclick="viewExamAnswers('${e.id}')" class="btn-sm btn-search">👀 مشاهدة إجابات الطلاب</button>` : ''}
+                    <button onclick="deleteItem('exams','${e.id}')" class="btn-sm btn-danger">🗑️ حذف</button>
+                </div>`;
             });
+
             document.getElementById('content-area').innerHTML = html;
+            window.renderQuestionTypeFields();
+            window.renderExamQuestions();
+        };
+
+        window.renderQuestionTypeFields = function() {
+            const type = document.getElementById('newQuestionType')?.value || 'mcq';
+            const box = document.getElementById('questionTypeFields');
+            if (!box) return;
+
+            if (type === 'mcq') {
+                box.innerHTML = `
+                    <input id="opt1" placeholder="الاختيار الأول" style="width:100%;margin-top:8px;">
+                    <input id="opt2" placeholder="الاختيار الثاني" style="width:100%;margin-top:8px;">
+                    <input id="opt3" placeholder="الاختيار الثالث" style="width:100%;margin-top:8px;">
+                    <input id="opt4" placeholder="الاختيار الرابع" style="width:100%;margin-top:8px;">
+                    <select id="mcqCorrect" style="width:100%;margin-top:8px;">
+                        <option value="0">الإجابة الصحيحة: الاختيار الأول</option>
+                        <option value="1">الإجابة الصحيحة: الاختيار الثاني</option>
+                        <option value="2">الإجابة الصحيحة: الاختيار الثالث</option>
+                        <option value="3">الإجابة الصحيحة: الاختيار الرابع</option>
+                    </select>`;
+            } else if (type === 'truefalse') {
+                box.innerHTML = `
+                    <select id="tfCorrect" style="width:100%;margin-top:8px;">
+                        <option value="true">الإجابة الصحيحة: صح</option>
+                        <option value="false">الإجابة الصحيحة: خطأ</option>
+                    </select>`;
+            } else {
+                box.innerHTML = `
+                    <textarea id="modelAnswer" placeholder="الإجابة النموذجية (اختياري — للمشرف)" style="width:100%;min-height:90px;margin-top:8px;"></textarea>`;
+            }
         };
 
         // ============================================
