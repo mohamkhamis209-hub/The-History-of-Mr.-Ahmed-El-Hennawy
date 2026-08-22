@@ -2613,80 +2613,91 @@
         };
 
         window.showExams = async function() {
-            await getGrades();
-            const gradeFilter = document.getElementById('filterExamGrade')?.value || 'all';
-            const searchTerm = document.getElementById('searchExam')?.value?.trim()?.toLowerCase() || '';
+            const area = document.getElementById('content-area');
+            try {
+                // لا نعتمد على استعلام where حتى لا تتوقف الصفحة بسبب مشكلة صلاحيات/فهرس.
+                await getGrades();
+                const gradeFilter = document.getElementById('filterExamGrade')?.value || 'all';
+                const searchTerm = document.getElementById('searchExam')?.value?.trim()?.toLowerCase() || '';
 
-            let q = gradeFilter === 'all'
-                ? collection(db, 'exams')
-                : query(collection(db, 'exams'), where('grade', '==', gradeFilter));
+                const snap = await getDocs(collection(db, 'exams'));
+                let exams = [];
+                snap.forEach(d => exams.push({ id: d.id, ...d.data() }));
 
-            const snap = await getDocs(q);
-            let exams = [];
-            snap.forEach(d => exams.push({ id:d.id, ...d.data() }));
+                if (gradeFilter !== 'all') {
+                    exams = exams.filter(e => String(e.grade || 'all') === String(gradeFilter));
+                }
+                if (searchTerm) {
+                    exams = exams.filter(e => String(e.title || '').toLowerCase().includes(searchTerm));
+                }
 
-            if (searchTerm) exams = exams.filter(e => (e.title || '').toLowerCase().includes(searchTerm));
-
-            let html = `<h2>📝 الاختبارات</h2>
-                <div class="filter-bar" style="display:block;">
-                    <input id="exTitle" placeholder="عنوان الاختبار" style="width:100%;margin-bottom:8px;">
-                    <select id="exGrade" style="width:100%;margin-bottom:8px;">${getGradeOptions('all')}</select>
-                    <select id="exReveal" style="width:100%;margin-bottom:8px;">
-                        <option value="instant">⚡ ظهور النتيجة فور الإجابة</option>
-                        <option value="24h">🕐 ظهور النتيجة بعد 24 ساعة</option>
-                        <option value="3d">📅 ظهور النتيجة بعد 3 أيام</option>
-                        <option value="never">🔒 عدم إظهار الإجابة للطالب</option>
-                    </select>
-
-                    <div style="background:#f8f9fa;border-radius:12px;padding:14px;margin-top:10px;">
-                        <h3 style="margin-top:0;">➕ إضافة سؤال</h3>
-                        <textarea id="newQuestionText" placeholder="اكتب السؤال هنا..." style="width:100%;min-height:80px;padding:10px;border-radius:8px;border:1px solid #ddd;"></textarea>
-                        <select id="newQuestionType" onchange="renderQuestionTypeFields()" style="width:100%;margin-top:8px;">
-                            <option value="mcq">🔘 اختيار من متعدد</option>
-                            <option value="truefalse">✅❌ صح أو خطأ</option>
-                            <option value="text">✍️ علل / بما تفسر</option>
+                let html = `<h2>📝 الاختبارات</h2>
+                    <div class="filter-bar" style="display:block;">
+                        <input id="exTitle" placeholder="عنوان الاختبار" style="width:100%;margin-bottom:8px;">
+                        <select id="exGrade" style="width:100%;margin-bottom:8px;">${getGradeOptions('all')}</select>
+                        <select id="exReveal" style="width:100%;margin-bottom:8px;">
+                            <option value="instant">⚡ ظهور النتيجة فور الإجابة</option>
+                            <option value="24h">🕐 ظهور النتيجة بعد 24 ساعة</option>
+                            <option value="3d">📅 ظهور النتيجة بعد 3 أيام</option>
+                            <option value="never">🔒 عدم إظهار الإجابة للطالب</option>
                         </select>
-                        <div id="questionTypeFields"></div>
-                        <button onclick="addExamQuestion()" class="btn-sm btn-add" style="margin-top:10px;">➕ إضافة السؤال للاختبار</button>
+
+                        <div style="background:#f8f9fa;border-radius:12px;padding:14px;margin-top:10px;">
+                            <h3 style="margin-top:0;">➕ إضافة سؤال</h3>
+                            <textarea id="newQuestionText" placeholder="اكتب السؤال هنا..." style="width:100%;min-height:80px;padding:10px;border-radius:8px;border:1px solid #ddd;"></textarea>
+                            <select id="newQuestionType" onchange="renderQuestionTypeFields()" style="width:100%;margin-top:8px;">
+                                <option value="mcq">🔘 اختيار من متعدد</option>
+                                <option value="truefalse">✅❌ صح أو خطأ</option>
+                                <option value="text">✍️ علل / بما تفسر</option>
+                            </select>
+                            <div id="questionTypeFields"></div>
+                            <button onclick="addExamQuestion()" class="btn-sm btn-add" style="margin-top:10px;">➕ إضافة السؤال للاختبار</button>
+                        </div>
+
+                        <div id="examQuestionsList" style="margin-top:12px;"></div>
+                        <button onclick="addExam()" class="btn-sm btn-success" style="margin-top:10px;">💾 حفظ الاختبار</button>
                     </div>
 
-                    <div id="examQuestionsList" style="margin-top:12px;"></div>
-                    <button onclick="addExam()" class="btn-sm btn-success" style="margin-top:10px;">💾 حفظ الاختبار</button>
-                </div>
+                    <div class="filter-bar">
+                        <select id="filterExamGrade" onchange="showExams()">${getGradeOptions(gradeFilter)}</select>
+                        <input id="searchExam" class="search-box" placeholder="🔍 بحث بالعنوان..." value="${esc(searchTerm)}">
+                        <button onclick="searchExams()" class="btn-sm btn-search">🔍 بحث</button>
+                        <button onclick="clearExamSearch()" class="btn-sm btn-clear">✖️ إلغاء</button>
+                    </div>`;
 
-                <div class="filter-bar">
-                    <select id="filterExamGrade" onchange="showExams()">${getGradeOptions(gradeFilter)}</select>
-                    <input id="searchExam" class="search-box" placeholder="🔍 بحث بالعنوان..." value="${esc(searchTerm)}">
-                    <button onclick="searchExams()" class="btn-sm btn-search">🔍 بحث</button>
-                    <button onclick="clearExamSearch()" class="btn-sm btn-clear">✖️ إلغاء</button>
+                if (!exams.length) html += '<p>لا توجد اختبارات حالياً.</p>';
+
+                exams.forEach(e => {
+                    const isStructured = Array.isArray(e.questions);
+                    const revealText = e.answerReveal === 'instant' ? 'فورًا' :
+                                       e.answerReveal === '24h' ? 'بعد 24 ساعة' :
+                                       e.answerReveal === '3d' ? 'بعد 3 أيام' :
+                                       e.answerReveal === 'never' ? 'لن تظهر للطالب' : 'قديم';
+                    const gradeText = cachedGrades.some(g => g.code === e.grade)
+                        ? (cachedGrades.find(g => g.code === e.grade)?.name || e.grade)
+                        : (e.grade === 'all' ? 'للجميع' : e.grade === '1' ? 'أولى ث' : e.grade === '2' ? 'ثانية ث' : e.grade === '3' ? 'ثالثة ث' : e.grade || '—');
+
+                    html += `<div style="border:1px solid #ddd;padding:15px;margin:15px 0;border-radius:10px;background:white;">
+                        <h4>${esc(e.title || 'اختبار')} <span class="grade-badge grade-custom">${esc(gradeText)}</span></h4>
+                        <p><strong>الأسئلة:</strong> ${isStructured ? e.questions.length : 'قديم'}</p>
+                        <p><strong>ظهور الإجابة:</strong> ${revealText}</p>
+                        ${isStructured ? '<p style="color:#27ae60;">✅ اختبار تفاعلي</p>' : '<p style="color:#888;">اختبار قديم محفوظ كما هو.</p>'}
+                        ${isStructured ? `<button onclick="viewExamAnswers('${e.id}')" class="btn-sm btn-search">👀 مشاهدة إجابات الطلاب</button>` : ''}
+                        <button onclick="deleteItem('exams','${e.id}')" class="btn-sm btn-danger">🗑️ حذف</button>
+                    </div>`;
+                });
+
+                area.innerHTML = html;
+                window.renderQuestionTypeFields();
+                window.renderExamQuestions();
+            } catch (error) {
+                console.error('خطأ في تحميل قسم الاختبارات:', error);
+                area.innerHTML = `<div class="group-card" style="border-right:4px solid #e74c3c;">
+                    <h2>⚠️ تعذر تحميل الاختبارات</h2>
+                    <p>حصلت مشكلة أثناء الاتصال ببيانات الاختبارات.</p>
+                    <button class="btn-sm btn-search" onclick="showExams()">🔄 إعادة المحاولة</button>
                 </div>`;
-
-            if (!exams.length) html += '<p>لا توجد اختبارات حالياً.</p>';
-
-            exams.forEach(e => {
-                const isStructured = Array.isArray(e.questions);
-                const revealText = e.answerReveal === 'instant' ? 'فورًا' :
-                                   e.answerReveal === '24h' ? 'بعد 24 ساعة' :
-                                   e.answerReveal === '3d' ? 'بعد 3 أيام' :
-                                   e.answerReveal === 'never' ? 'لن تظهر للطالب' : 'قديم';
-
-                const gradeText = cachedGrades.some(g => g.code === e.grade)
-                    ? (cachedGrades.find(g => g.code === e.grade)?.name || e.grade)
-                    : (e.grade === 'all' ? 'للجميع' : e.grade === '1' ? 'أولى ث' : e.grade === '2' ? 'ثانية ث' : e.grade === '3' ? 'ثالثة ث' : e.grade || '—');
-
-                html += `<div style="border:1px solid #ddd;padding:15px;margin:15px 0;border-radius:10px;background:white;">
-                    <h4>${esc(e.title || 'اختبار')} <span class="grade-badge grade-custom">${esc(gradeText)}</span></h4>
-                    <p><strong>الأسئلة:</strong> ${isStructured ? e.questions.length : 'قديم'}</p>
-                    <p><strong>ظهور الإجابة:</strong> ${revealText}</p>
-                    ${isStructured ? '<p style="color:#27ae60;">✅ اختبار تفاعلي</p>' : '<p style="color:#888;">اختبار قديم محفوظ كما هو.</p>'}
-                    ${isStructured ? `<button onclick="viewExamAnswers('${e.id}')" class="btn-sm btn-search">👀 مشاهدة إجابات الطلاب</button>` : ''}
-                    <button onclick="deleteItem('exams','${e.id}')" class="btn-sm btn-danger">🗑️ حذف</button>
-                </div>`;
-            });
-
-            document.getElementById('content-area').innerHTML = html;
-            window.renderQuestionTypeFields();
-            window.renderExamQuestions();
+            }
         };
 
         window.renderQuestionTypeFields = function() {
