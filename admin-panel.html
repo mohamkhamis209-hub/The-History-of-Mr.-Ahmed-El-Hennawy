@@ -505,7 +505,7 @@
     <script src="js/device.js" type="module"></script>
     <script type="module">
         import {
-            db, storage, ensureFirebaseAuth, ref, uploadBytes, getDownloadURL, listAll, deleteObject,
+            db, storage, auth, ensureAnonymousAuth, ref, uploadBytes, getDownloadURL, listAll, deleteObject,
             collection, addDoc, getDocs, deleteDoc, doc, updateDoc,
             query, where, getDoc, setDoc, serverTimestamp
         } from './js/firebase-config.js';
@@ -2746,18 +2746,29 @@
             if (fileInput.files.length > 0) {
                 const file = fileInput.files[0];
                 mediaType = file.type.startsWith('video/') ? 'video' : 'image';
+
+                // Firebase Storage لا يسمح بالرفع من لوحة المشرف إذا لم يكن هناك مستخدم Firebase موثّق.
+                // نستخدم تسجيل الدخول المجهول حتى لا يتأثر نظام دخول المشرف الحالي.
                 try {
-                    // لازم يكون المستخدم موثقًا في Firebase قبل الرفع إلى Storage.
-                    await ensureFirebaseAuth();
+                    if (!auth.currentUser) {
+                        await ensureAnonymousAuth();
+                    }
+
                     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
                     const storageRef = ref(storage, `notifications/${Date.now()}_${safeName}`);
-                    await uploadBytes(storageRef, file, { contentType: file.type });
+                    await uploadBytes(storageRef, file, {
+                        contentType: file.type,
+                        cacheControl: 'public,max-age=3600'
+                    });
                     mediaUrl = await getDownloadURL(storageRef);
                 } catch (error) {
-                    console.error('❌ فشل رفع مرفق الإشعار:', error);
-                    const code = error?.code || 'unknown';
-                    const message = error?.message || 'خطأ غير معروف';
-                    alert(`❌ لم يتم رفع الملف.\n\n${code}\n${message}\n\nإذا كان الخطأ storage/unauthorized أو auth/operation-not-allowed، فعّل Anonymous Authentication واضبط صلاحيات Firebase Storage.`);
+                    console.error('❌ فشل رفع ملف الإشعار:', error);
+                    const code = error?.code || '';
+                    if (code.includes('unauthorized') || code.includes('permission-denied')) {
+                        alert('❌ تم رفض رفع الملف من Firebase Storage. فعّل Anonymous في Firebase Authentication وتأكد أن Storage Rules تسمح للمستخدم الموثّق برفع ملفات notifications/.');
+                    } else {
+                        alert(`❌ فشل رفع الملف: ${error?.message || 'خطأ غير معروف'}`);
+                    }
                     return;
                 }
             }
