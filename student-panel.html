@@ -496,7 +496,6 @@
         <h4>المنصة التعليمية</h4>
         <ul>
             <li onclick="loadSection('dashboard')">📊 الرئيسية</li>
-            <li onclick="loadSection('founder')" style="font-weight:800;">👤 عن مؤسس المنصة</li>
             <li onclick="loadSection('videos')">🎬 الفيديوهات</li>
             <li onclick="loadSection('books')">📚 الكتب</li>
             <li onclick="loadSection('exams')">📝 الاختبارات</li>
@@ -506,7 +505,9 @@
             <li onclick="loadSection('leaderboard')">🏆 لوحة المتصدرين</li>
             <li onclick="loadSection('myProgress')">📊 تقدمي</li>
             <li onclick="loadSection('centerAttendance')">📅 حضوري في السنتر</li>
+            <li onclick="openQuestionModal()">💬 عندي سؤال</li>
         </ul>
+        <li onclick="loadSection('founder')" style="font-weight:800;">👤 عن مؤسس المنصة</li>
         <button onclick="logoutStudent()" style="margin-top:20px; background:#e74c3c; color:white; border:none; padding:10px; border-radius:8px; cursor:pointer; width:100%; font-size:16px;">🚪 خروج</button>
     </div>
 
@@ -524,6 +525,31 @@
     <div class="content" id="student-content">
         <p style="font-size:18px; color:#666;">اختر ما تريد من القائمة الجانبية</p>
     </div>
+
+    <style>
+      #questionFab{position:fixed;right:22px;bottom:22px;width:58px;height:58px;border:0;border-radius:50%;background:#25D366;color:#fff;font-size:25px;cursor:pointer;z-index:9998;box-shadow:0 8px 25px rgba(0,0,0,.22);transition:.2s;}
+      #questionFab:hover{transform:scale(1.06);}
+      #questionModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center;padding:18px;}
+      #questionModal .question-card{width:min(520px,100%);background:#fff;border-radius:22px;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.25);direction:rtl;}
+      #questionModal textarea{width:100%;min-height:150px;resize:vertical;border:1px solid #ddd;border-radius:14px;padding:14px;font:inherit;outline:none;}
+      #questionModal .question-actions{display:flex;gap:10px;margin-top:14px;}
+      #questionModal button{border:0;border-radius:12px;padding:12px 18px;font:inherit;font-weight:800;cursor:pointer;}
+      #questionSendBtn{background:#25D366;color:#fff;flex:1;}
+      #questionCloseBtn{background:#eee;color:#333;}
+      @media(max-width:600px){#questionFab{right:15px;bottom:15px;width:54px;height:54px;}#questionModal .question-card{padding:18px;}}
+    </style>
+    <div id="questionModal" onclick="if(event.target===this) closeQuestionModal()">
+      <div class="question-card">
+        <h2 style="margin:0 0 8px;color:#252b52;">💬 عندي سؤال</h2>
+        <p style="margin:0 0 14px;color:#777;line-height:1.8;">اكتب سؤالك وسيتم فتح واتساب للمشرف مع اسمك وكودك تلقائيًا.</p>
+        <textarea id="studentQuestion" maxlength="1000" placeholder="اكتب سؤالك هنا..."></textarea>
+        <div class="question-actions">
+          <button id="questionSendBtn" onclick="sendStudentQuestion()">📱 إرسال على واتساب</button>
+          <button id="questionCloseBtn" onclick="closeQuestionModal()">إلغاء</button>
+        </div>
+      </div>
+    </div>
+    <button id="questionFab" onclick="openQuestionModal()" aria-label="عندي سؤال" title="عندي سؤال">💬</button>
 
     <script src="js/firebase-config.js" type="module"></script>
     <script type="module">
@@ -1165,6 +1191,40 @@
               </div>`;
         }
 
+        // ============================================
+        // سؤال الطالب عبر واتساب
+        // ============================================
+        const SUPERVISOR_WHATSAPP = '201275001442'; // نفس رقم التواصل القديم
+
+        window.openQuestionModal = function() {
+            const modal = document.getElementById('questionModal');
+            const input = document.getElementById('studentQuestion');
+            if (!modal || !input) return;
+            modal.style.display = 'flex';
+            setTimeout(() => input.focus(), 50);
+        };
+
+        window.closeQuestionModal = function() {
+            const modal = document.getElementById('questionModal');
+            if (modal) modal.style.display = 'none';
+        };
+
+        window.sendStudentQuestion = function() {
+            const input = document.getElementById('studentQuestion');
+            const question = (input?.value || '').trim();
+            const name = localStorage.getItem('studentName') || 'طالب';
+            const code = localStorage.getItem('studentCode') || 'غير معروف';
+            if (!question) { alert('⚠️ اكتب سؤالك أولاً'); input?.focus(); return; }
+            if (!/^20\d{10}$/.test(SUPERVISOR_WHATSAPP)) {
+                alert('⚠️ لم يتم ضبط رقم واتساب المشرف بعد. ضع الرقم في SUPERVISOR_WHATSAPP داخل الكود.');
+                return;
+            }
+            const message = `🎓 سؤال من طالب\n👤 الاسم: ${name}\n🔑 الكود: ${code}\n\n💬 السؤال:\n${question}`;
+            window.open(`https://wa.me/${SUPERVISOR_WHATSAPP}?text=${encodeURIComponent(message)}`, '_blank');
+            input.value = '';
+            closeQuestionModal();
+        };
+
         window.loadSection = async function(section) {
             if (section === 'founder') {
                 showFounderSection();
@@ -1258,17 +1318,6 @@
                             </div>
                         </div>
                         
-                        <div onclick="loadSection('founder')" style="background:linear-gradient(135deg,#171b3b,#4d43a8); padding:22px; border-radius:20px; box-shadow:0 10px 30px rgba(35,25,100,.18); margin-top:20px; color:white; cursor:pointer; display:flex; align-items:center; gap:18px; flex-wrap:wrap;">
-                            <img src="assets/mo.jpg" alt="م. محمد خميس" style="width:86px;height:86px;border-radius:50%;object-fit:cover;border:4px solid rgba(255,255,255,.9);background:#fff;">
-                            <div style="flex:1;min-width:220px;">
-                                <div style="font-size:12px;opacity:.8;margin-bottom:5px;">👤 عن مؤسس المنصة</div>
-                                <h3 style="margin:0 0 5px;font-size:22px;">م. محمد خميس</h3>
-                                <div style="font-weight:800;margin-bottom:6px;">محلل أمن سيبراني</div>
-                                <div style="font-size:13px;opacity:.88;line-height:1.7;">مؤسس ومطور المنصة والحلول التقنية الخاصة بها.</div>
-                            </div>
-                            <div style="background:#fff;color:#40369b;padding:10px 15px;border-radius:12px;font-weight:900;">عرض النبذة ←</div>
-                        </div>
-
                         <div style="background:white; padding:20px; border-radius:15px; box-shadow:0 2px 10px rgba(0,0,0,0.05); margin-top:20px;">
                             <h3>📈 تقدمك</h3>
                             <div style="margin-top:15px;">
@@ -1276,6 +1325,21 @@
                                 <div style="background:#eee; border-radius:10px; height:15px; overflow:hidden;">
                                     <div style="background:#3498db; height:15px; border-radius:10px; width:${totalVideos > 0 ? (watched/totalVideos)*100 : 0}%;"></div>
                                 </div>
+                            </div>
+                        </div>
+
+                        <!-- نبذة مؤسس المنصة: موجودة في الرئيسية أيضًا مع الحفاظ على قسمها المستقل -->
+                        <div style="margin-top:25px; background:linear-gradient(135deg,#171b3b,#4d43a8); border-radius:24px; padding:25px; color:#fff; box-shadow:0 12px 35px rgba(0,0,0,.14);">
+                            <div style="display:flex; align-items:center; gap:18px; flex-wrap:wrap;">
+                                <img src="assets/mo.jpg" alt="م. محمد خميس" style="width:95px;height:95px;border-radius:50%;object-fit:cover;border:4px solid rgba(255,255,255,.9);background:#fff;">
+                                <div style="flex:1;min-width:220px;">
+                                    <h2 style="margin:0 0 6px;">👤 نبذة عن مؤسس المنصة</h2>
+                                    <div style="font-weight:800;opacity:.9;">م. محمد خميس — محلل أمن سيبراني</div>
+                                </div>
+                            </div>
+                            <div style="margin-top:18px;line-height:2;font-size:16px;">
+                                <p style="margin:0 0 8px;">م. محمد خميس هو مؤسس ومطور منصة مستر أحمد الحناوي، ويعمل على تطوير الحلول التقنية والأنظمة التعليمية الرقمية، مع اهتمام بمجال الأمن السيبراني وحماية الأنظمة والبيانات.</p>
+                                <p style="margin:0;">الهدف من المنصة هو جمع الحصة والشرح والمتابعة والاختبارات والدرجات في نظام تعليمي واحد يساعد الطالب على متابعة مستواه بشكل مستمر.</p>
                             </div>
                         </div>
                     `;
