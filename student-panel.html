@@ -505,9 +505,9 @@
             <li onclick="loadSection('leaderboard')">🏆 لوحة المتصدرين</li>
             <li onclick="loadSection('myProgress')">📊 تقدمي</li>
             <li onclick="loadSection('centerAttendance')">📅 حضوري في السنتر</li>
+            <li onclick="loadSection('founder')" style="font-weight:800;">👤 عن مؤسس المنصة</li>
             <li onclick="openQuestionModal()">💬 عندي سؤال</li>
         </ul>
-        <li onclick="loadSection('founder')" style="font-weight:800;">👤 عن مؤسس المنصة</li>
         <button onclick="logoutStudent()" style="margin-top:20px; background:#e74c3c; color:white; border:none; padding:10px; border-radius:8px; cursor:pointer; width:100%; font-size:16px;">🚪 خروج</button>
     </div>
 
@@ -1327,21 +1327,6 @@
                                 </div>
                             </div>
                         </div>
-
-                        <!-- نبذة مؤسس المنصة: موجودة في الرئيسية أيضًا مع الحفاظ على قسمها المستقل -->
-                        <div style="margin-top:25px; background:linear-gradient(135deg,#171b3b,#4d43a8); border-radius:24px; padding:25px; color:#fff; box-shadow:0 12px 35px rgba(0,0,0,.14);">
-                            <div style="display:flex; align-items:center; gap:18px; flex-wrap:wrap;">
-                                <img src="assets/mo.jpg" alt="م. محمد خميس" style="width:95px;height:95px;border-radius:50%;object-fit:cover;border:4px solid rgba(255,255,255,.9);background:#fff;">
-                                <div style="flex:1;min-width:220px;">
-                                    <h2 style="margin:0 0 6px;">👤 نبذة عن مؤسس المنصة</h2>
-                                    <div style="font-weight:800;opacity:.9;">م. محمد خميس — محلل أمن سيبراني</div>
-                                </div>
-                            </div>
-                            <div style="margin-top:18px;line-height:2;font-size:16px;">
-                                <p style="margin:0 0 8px;">م. محمد خميس هو مؤسس ومطور منصة مستر أحمد الحناوي، ويعمل على تطوير الحلول التقنية والأنظمة التعليمية الرقمية، مع اهتمام بمجال الأمن السيبراني وحماية الأنظمة والبيانات.</p>
-                                <p style="margin:0;">الهدف من المنصة هو جمع الحصة والشرح والمتابعة والاختبارات والدرجات في نظام تعليمي واحد يساعد الطالب على متابعة مستواه بشكل مستمر.</p>
-                            </div>
-                        </div>
                     `;
                     container.innerHTML = html;
                 } catch (error) {
@@ -2015,6 +2000,34 @@
         updatePointsDisplay(studentCode);
         loadSection('dashboard');
     </script>
+
+
+<script id="section-navigation-bridge">
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.sidebar li[onclick*="loadSection("]').forEach(function (item) {
+        const match = item.getAttribute('onclick')?.match(/loadSection\(['"]([^'"]+)['"]\)/);
+        if (!match) return;
+        const section = match[1];
+        item.removeAttribute('onclick');
+        item.addEventListener('click', function () {
+            if (typeof window.loadSection === 'function') {
+                window.loadSection(section).catch(function (err) {
+                    console.error('خطأ في فتح القسم:', err);
+                    const c = document.getElementById('student-content');
+                    if (c) c.innerHTML =
+                        '<div style="padding:30px;text-align:center">' +
+                        '<h2>⚠️ تعذر فتح القسم</h2>' +
+                        '<p style="color:#777">حدث خطأ أثناء تحميل القسم. حاول مرة أخرى.</p>' +
+                        '<button onclick="location.reload()" style="padding:10px 18px;border:0;border-radius:8px;cursor:pointer">🔄 إعادة المحاولة</button>' +
+                        '</div>';
+                });
+            } else {
+                console.error('loadSection غير متاحة');
+            }
+        });
+    });
+});
+</script>
 
 <!-- PLATFORM PROTECTION LAYER -->
 <style>
