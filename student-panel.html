@@ -551,6 +551,30 @@
     </div>
     <button id="questionFab" onclick="openQuestionModal()" aria-label="عندي سؤال" title="عندي سؤال">💬</button>
 
+    <!-- ============================================ -->
+    <!-- جسور عامة لأزرار HTML خارج نطاق module -->
+    <!-- ============================================ -->
+    <script>
+        window.loadSection = function(section) {
+            if (window._moduleLoadSection) {
+                return window._moduleLoadSection(section);
+            }
+            console.warn('الوحدة لم تكتمل تحميلها بعد، حاول مرة أخرى');
+            return Promise.resolve();
+        };
+
+        window.logoutStudent = function() {
+            if (window._moduleLogout) {
+                return window._moduleLogout();
+            }
+
+            localStorage.removeItem('studentCode');
+            localStorage.removeItem('studentGrade');
+            localStorage.removeItem('studentName');
+            window.location.href = 'student-login.html';
+        };
+    </script>
+
     <script src="js/firebase-config.js" type="module"></script>
     <script type="module">
         import { 
@@ -1225,7 +1249,7 @@
             closeQuestionModal();
         };
 
-        window.loadSection = async function(section) {
+        async function loadSection(section) {
             if (section === 'founder') {
                 showFounderSection();
                 return;
@@ -1984,13 +2008,19 @@
         // ============================================
         // تسجيل الخروج
         // ============================================
-        window.logoutStudent = function() {
+        function logoutStudent() {
             recordLogout();
             localStorage.removeItem('studentCode');
             localStorage.removeItem('studentGrade');
             localStorage.removeItem('studentName');
             window.location.href = 'student-login.html';
-        };
+        }
+
+        // ============================================
+        // تصدير الدوال الداخلية إلى الجسور العامة
+        // ============================================
+        window._moduleLoadSection = loadSection;
+        window._moduleLogout = logoutStudent;
 
         // ============================================
         // بداية التحميل
