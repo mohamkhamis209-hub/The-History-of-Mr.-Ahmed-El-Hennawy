@@ -6,11 +6,21 @@
     <title>لوحة الطالب</title>
     <link rel="stylesheet" href="css/style.css">
     <script src="https://www.youtube.com/iframe_api"></script>
-    
+
     <!-- ============================================ -->
     <!-- حماية ضد نسخ الروابط والمحتوى                -->
     <!-- ============================================ -->
     <script>
+        // منع فتح الروابط في نوافذ جديدة
+document.addEventListener('click', function(e) {
+    const target = e.target;
+    if (target.tagName === 'A' && target.getAttribute('target') === '_blank') {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+    }
+}, true);
+        
         // 1. منع قائمة النقر بزر الماوس الأيمن
         document.addEventListener('contextmenu', function(e) {
             e.preventDefault();
