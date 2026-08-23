@@ -1545,122 +1545,82 @@ document.addEventListener('click', function(e) {
             }
             
             // ============================================
-            // الكتب - نسخة تدعم أي رابط درايف
-            // ============================================
-            else if (section === 'books') {
-                try {
-                    const q = query(collection(db, 'books'), where('grade', 'in', [studentGrade, 'all']));
-                    const snap = await getDocs(q);
-                    let html = `<h2>📚 الكتب</h2>`;
+// الكتب - بدون زر فتح في تبويب جديد
+// ============================================
+else if (section === 'books') {
+    try {
+        const q = query(collection(db, 'books'), where('grade', 'in', [studentGrade, 'all']));
+        const snap = await getDocs(q);
+        let html = `<h2>📚 الكتب</h2>`;
+        
+        if (snap.empty) {
+            html += `<p>لا توجد كتب حالياً</p>`;
+        } else {
+            snap.forEach(d => {
+                const data = d.data();
+                let originalUrl = data.url;
+                let embedUrl = originalUrl;
+                let fileId = null;
+                
+                // تنظيف الرابط
+                originalUrl = originalUrl.replace(/[?&]rm=minimal/g, '');
+                originalUrl = originalUrl.replace(/[?&]authuser=\d+/g, '');
+                originalUrl = originalUrl.replace(/[?&]usp=sharing/g, '');
+                
+                // استخراج معرف الملف
+                if (originalUrl.includes('drive.google.com')) {
+                    const patterns = [
+                        /\/d\/([^\/]+)/,
+                        /id=([^&]+)/,
+                        /file\/d\/([^\/]+)/,
+                        /open\?id=([^&]+)/
+                    ];
                     
-                    if (snap.empty) {
-                        html += `<p>لا توجد كتب حالياً</p>`;
-                    } else {
-                        snap.forEach(d => {
-                            const data = d.data();
-                            let originalUrl = data.url;
-                            let embedUrl = originalUrl;
-                            
-                            // ============================================
-                            // تنظيف الرابط من rm=minimal
-                            // ============================================
-                            originalUrl = originalUrl.replace(/[?&]rm=minimal/g, '');
-                            originalUrl = originalUrl.replace(/[?&]authuser=\d+/g, '');
-                            originalUrl = originalUrl.replace(/[?&]usp=sharing/g, '');
-                            
-                            // ============================================
-                            // معالجة جميع أنواع روابط Google Drive
-                            // ============================================
-                            if (originalUrl.includes('drive.google.com')) {
-                                // محاولة استخراج معرف الملف بأي طريقة
-                                let fileId = null;
-                                
-                                // قائمة بكل الأنماط الممكنة لروابط درايف
-                                const patterns = [
-                                    /\/d\/([^\/]+)/,                    // /d/FILE_ID
-                                    /id=([^&]+)/,                       // id=FILE_ID
-                                    /file\/d\/([^\/]+)/,                // file/d/FILE_ID
-                                    /open\?id=([^&]+)/,                 // open?id=FILE_ID
-                                    /\/uc\?id=([^&]+)/,                 // /uc?id=FILE_ID
-                                    /\/u\/\d+\/d\/([^\/]+)/,            // /u/0/d/FILE_ID
-                                    /\/file\/d\/([^\/]+)\/view/,        // /file/d/FILE_ID/view
-                                    /\/file\/d\/([^\/]+)\/preview/,     // /file/d/FILE_ID/preview
-                                    /([a-zA-Z0-9_-]{25,})/              // أي معرف طويل (آخر حل)
-                                ];
-                                
-                                for (const pattern of patterns) {
-                                    const match = originalUrl.match(pattern);
-                                    if (match && match[1] && match[1].length > 10) {
-                                        fileId = match[1];
-                                        break;
-                                    }
-                                }
-                                
-                                if (fileId) {
-                                    // استخدام رابط العرض المباشر
-                                    embedUrl = `https://drive.google.com/file/d/${fileId}/preview`;
-                                    console.log('✅ تم استخراج معرف الملف:', fileId);
-                                } else {
-                                    // إذا لم نستطع استخراج ID، نحاول استخدام الرابط كما هو مع تعديل بسيط
-                                    console.warn('⚠️ لم نستطع استخراج معرف الملف، استخدام الرابط الأصلي');
-                                    
-                                    // محاولة إصلاح الرابط إذا كان من نوع view
-                                    if (originalUrl.includes('/view')) {
-                                        embedUrl = originalUrl.replace('/view', '/preview');
-                                    }
-                                    // إذا كان الرابط من نوع open
-                                    else if (originalUrl.includes('open?id=')) {
-                                        const idMatch = originalUrl.match(/id=([^&]+)/);
-                                        if (idMatch) {
-                                            embedUrl = `https://drive.google.com/file/d/${idMatch[1]}/preview`;
-                                        }
-                                    }
-                                }
-                            }
-                            
-                            // ============================================
-                            // دعم روابط PDF المباشرة
-                            // ============================================
-                            else if (originalUrl.toLowerCase().endsWith('.pdf')) {
-                                embedUrl = originalUrl;
-                            }
-                            
-                            // ============================================
-                            // دعم روابط الصور
-                            // ============================================
-                            else if (originalUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
-                                embedUrl = originalUrl;
-                            }
-                            
-                            // ============================================
-                            // عرض الكتاب
-                            // ============================================
-                            html += `
-                                <div style="margin:25px 0; background:white; padding:15px; border-radius:15px; box-shadow:0 2px 10px rgba(0,0,0,0.05);">
-                                    <h3 style="margin-bottom:10px;">📖 ${data.title}</h3>
-                                    <div style="position:relative; padding-bottom:75%; height:0; overflow:hidden; border-radius:10px; background:#f0f0f0; border:1px solid #ddd;">
-                                        <iframe 
-                                            src="${embedUrl}" 
-                                            style="position:absolute; top:0; left:0; width:100%; height:100%; border:0; border-radius:10px;"
-                                            allowfullscreen
-                                            loading="lazy"
-                                            allow="autoplay; encrypted-media">
-                                        </iframe>
-                                    </div>
-                                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; flex-wrap:wrap; gap:5px;">
-                                        <span style="color:#888; font-size:12px;">📖 للقراءة فقط - التحميل غير مسموح</span>
-                                        <a href="${embedUrl}" target="_blank" style="color:#3498db; font-size:12px; text-decoration:none;">🔗 فتح في تبويب جديد</a>
-                                    </div>
-                                </div>
-                            `;
-                        });
+                    for (const pattern of patterns) {
+                        const match = originalUrl.match(pattern);
+                        if (match && match[1] && match[1].length > 10) {
+                            fileId = match[1];
+                            break;
+                        }
                     }
-                    container.innerHTML = html;
-                } catch (error) {
-                    console.error('خطأ في تحميل الكتب:', error);
-                    container.innerHTML = `<p style="color:red;">❌ حدث خطأ في تحميل الكتب: ${error.message}</p>`;
+                    
+                    if (fileId) {
+                        embedUrl = `https://drive.google.com/file/d/${fileId}/preview`;
+                    }
                 }
-            }
+                
+                html += `
+                    <div style="margin:25px 0; background:white; padding:15px; border-radius:15px; box-shadow:0 2px 10px rgba(0,0,0,0.05);">
+                        <h3 style="margin-bottom:10px;">📖 ${data.title}</h3>
+                        ${fileId ? `
+                            <div style="position:relative; padding-bottom:75%; height:0; overflow:hidden; border-radius:10px; background:#f0f0f0; border:1px solid #ddd;">
+                                <iframe 
+                                    src="${embedUrl}" 
+                                    style="position:absolute; top:0; left:0; width:100%; height:100%; border:0; border-radius:10px;"
+                                    allowfullscreen
+                                    loading="lazy"
+                                    sandbox="allow-scripts allow-same-origin allow-forms">
+                                </iframe>
+                            </div>
+                            <div style="margin-top:8px; text-align:center;">
+                                <span style="color:#888; font-size:12px;">📖 للقراءة فقط</span>
+                            </div>
+                        ` : `
+                            <div style="padding:20px; background:#fff3cd; border-radius:10px; border:1px solid #ffc107;">
+                                <p style="color:#856404; margin:0;">⚠️ الرابط غير صحيح أو الملف غير عام</p>
+                                <p style="color:#856404; font-size:12px; margin-top:5px;">تأكد من جعل الملف عاماً (Anyone with the link can view)</p>
+                            </div>
+                        `}
+                    </div>
+                `;
+            });
+        }
+        container.innerHTML = html;
+    } catch (error) {
+        console.error('خطأ في تحميل الكتب:', error);
+        container.innerHTML = `<p style="color:red;">❌ حدث خطأ في تحميل الكتب: ${error.message}</p>`;
+    }
+}
             
             // ============================================
             // الاختبارات
