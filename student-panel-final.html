@@ -456,7 +456,7 @@
 </head>
 <body>
     <script>
-        function toggleTheme() {
+        window.toggleTheme = function toggleTheme() {
             document.body.classList.toggle('dark-mode');
             const isDark = document.body.classList.contains('dark-mode');
             localStorage.setItem('darkMode', isDark);
@@ -1174,7 +1174,7 @@
         // ============================================
         // تحميل الأقسام
         // ============================================
-        function showFounderSection() {
+        window.showFounderSection = function showFounderSection() {
             const content = document.getElementById('student-content');
             content.innerHTML = `
               <div style="max-width:900px;margin:0 auto;">
@@ -1995,6 +1995,15 @@
         // ============================================
         // بداية التحميل
         // ============================================
+
+        window.addEventListener('unhandledrejection', function(e) {
+            console.error('Student panel error:', e.reason);
+            const c = document.getElementById('student-content');
+            if (c && c.innerHTML.includes('⏳ جاري التحميل')) {
+                c.innerHTML = '<div style="padding:30px;text-align:center"><h2>⚠️ حدث خطأ أثناء فتح القسم</h2><p style="color:#777">جرّب مرة أخرى.</p><button onclick="location.reload()" style="padding:10px 18px;border:0;border-radius:8px;cursor:pointer">🔄 إعادة تحميل</button></div>';
+            }
+        });
+
         recordLogin();
         updateLeaderboard();
         updatePointsDisplay(studentCode);
