@@ -1701,125 +1701,252 @@
                 }
             }
             
-            // ============================================
-            // الفيديوهات - مع حماية كاملة
-            // ============================================
-            else if (section === 'videos') {
-                try {
-                    const q = query(collection(db, 'videos'), where('grade', 'in', [studentGrade, 'all']));
-                    const snap = await getDocs(q);
-                    
-                    let html = `<h2>🎬 الفيديوهات</h2>`;
-                    if (snap.empty) {
-                        html += `<p>لا توجد فيديوهات حالياً</p>`;
-                        container.innerHTML = html;
-                        return;
-                    }
+           // ============================================
+// الفيديوهات - مع حماية كاملة وبدون روابط
+// ============================================
+else if (section === 'videos') {
+    try {
+        const q = query(collection(db, 'videos'), where('grade', 'in', [studentGrade, 'all']));
+        const snap = await getDocs(q);
+        
+        let html = `<h2>🎬 الفيديوهات</h2>`;
+        if (snap.empty) {
+            html += `<p>لا توجد فيديوهات حالياً</p>`;
+            container.innerHTML = html;
+            return;
+        }
 
-                    const videosData = [];
-                    snap.forEach(d => {
-                        const data = d.data();
-                        const videoId = d.id;
-                        videosData.push({ id: videoId, data: data });
-                        
-                        let videoSrc = data.url;
-                        const youtubeId = extractYouTubeId(data.url);
-                        
-                        if (youtubeId) {
-                            videoSrc = `https://www.youtube.com/embed/${youtubeId}`;
-                            // إضافة معلمات لمنع المشاركة والنسخ
-                            videoSrc += '?modestbranding=1&rel=0&showinfo=0&controls=1&disablekb=1&fs=0&iv_load_policy=3&cc_load_policy=0';
-                        }
-                        
-                        html += `
-                            <div class="video-player-wrapper">
-                                <h3>${data.title}</h3>
-                                <div class="video-container" style="position:relative; padding-bottom:56.25%; height:0; overflow:hidden; border-radius:10px; background:#000;">
-                                    <iframe 
-                                        src="${videoSrc}" 
-                                        style="position:absolute; top:0; left:0; width:100%; height:100%; border:0; border-radius:10px;"
-                                        frameborder="0" 
-                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                        allowfullscreen
-                                        loading="lazy"
-                                        sandbox="allow-scripts allow-same-origin allow-forms"
-                                        referrerpolicy="no-referrer"
-                                        id="video-${videoId}">
-                                    </iframe>
-                                    <!-- علامة مائية -->
-                                    <div style="position:absolute; bottom:10px; right:10px; z-index:10; color:rgba(255,255,255,0.3); font-size:11px; pointer-events:none; user-select:none; background:rgba(0,0,0,0.3); padding:4px 10px; border-radius:4px;">
-                                        ${studentName} • ${studentCode}
-                                    </div>
-                                </div>
-                                <div class="progress-info">
-                                    <div class="progress-bar">
-                                        <div class="progress-fill" id="progress-fill-${videoId}" style="width:0%;"></div>
-                                    </div>
-                                    <p id="progress-text-${videoId}">⏳ جاري تحميل التقدم...</p>
+        const videosData = [];
+        snap.forEach(d => {
+            const data = d.data();
+            const videoId = d.id;
+            videosData.push({ id: videoId, data: data });
+            
+            // استخراج معرف الفيديو فقط
+            let youtubeId = extractYouTubeId(data.url);
+            
+            // إذا كان الرابط من يوتيوب، نستخدم المعرف فقط
+            if (youtubeId) {
+                // نحتفظ بالمعرف فقط، مش الرابط كامل
+                html += `
+                    <div class="video-player-wrapper">
+                        <h3>${data.title}</h3>
+                        <div style="position:relative; padding-bottom:56.25%; height:0; overflow:hidden; border-radius:10px; background:#000; cursor:pointer;" 
+                             onclick="window.playVideo('${videoId}')"
+                             id="video-container-${videoId}">
+                            <div style="position:absolute; top:0; left:0; width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.7); z-index:5; border-radius:10px;">
+                                <div style="text-align:center; color:white;">
+                                    <div style="font-size:70px; margin-bottom:15px;">▶</div>
+                                    <p style="font-size:18px; font-weight:bold;">${data.title}</p>
+                                    <p style="font-size:14px; color:#aaa;">اضغط للمشاهدة</p>
                                 </div>
                             </div>
-                        `;
-                    });
-                    container.innerHTML = html;
-
-                    if (videosData.length > 0) {
-                        for (let key in players) {
-                            if (players[key] && players[key].destroy) {
-                                players[key].destroy();
-                            }
-                        }
-                        players = {};
-                        for (let key in progressIntervals) {
-                            clearInterval(progressIntervals[key]);
-                        }
-                        progressIntervals = {};
-
-                        initYouTubePlayers(videosData);
-                    }
-                    
-                    // حماية إضافية: منع فتح الفيديو في يوتيوب
-                    setTimeout(() => {
-                        document.querySelectorAll('.video-container iframe').forEach(iframe => {
-                            try {
-                                iframe.addEventListener('contextmenu', function(e) {
-                                    e.preventDefault();
-                                    return false;
-                                });
-                                
-                                iframe.addEventListener('load', function() {
-                                    try {
-                                        const doc = iframe.contentDocument || iframe.contentWindow?.document;
-                                        if (doc) {
-                                            doc.addEventListener('copy', function(e) {
-                                                e.preventDefault();
-                                                return false;
-                                            });
-                                            doc.addEventListener('contextmenu', function(e) {
-                                                e.preventDefault();
-                                                return false;
-                                            });
-                                            doc.addEventListener('click', function(e) {
-                                                if (e.target.tagName === 'A') {
-                                                    e.preventDefault();
-                                                    return false;
-                                                }
-                                            });
-                                        }
-                                    } catch(e) {
-                                        console.log('🔒 حماية iframe مفعلة');
-                                    }
-                                });
-                            } catch(e) {
-                                console.log('🔒 حماية iframe مفعلة');
-                            }
-                        });
-                    }, 1500);
-                    
-                } catch (error) {
-                    console.error('خطأ في تحميل الفيديوهات:', error);
-                    container.innerHTML = `<p style="color:red;">حدث خطأ في تحميل الفيديوهات</p>`;
-                }
+                            <div id="player-${videoId}" style="position:absolute; top:0; left:0; width:100%; height:100%; border-radius:10px; display:none;"></div>
+                            <!-- علامة مائية -->
+                            <div style="position:absolute; bottom:10px; right:10px; z-index:10; color:rgba(255,255,255,0.2); font-size:11px; pointer-events:none; user-select:none; background:rgba(0,0,0,0.3); padding:4px 10px; border-radius:4px;">
+                                ${studentName} • ${studentCode}
+                            </div>
+                        </div>
+                        <div class="progress-info" id="progress-info-${videoId}" style="display:none;">
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="progress-fill-${videoId}" style="width:0%;"></div>
+                            </div>
+                            <p id="progress-text-${videoId}">⏳ جاري التحميل...</p>
+                        </div>
+                    </div>
+                `;
+            } else {
+                html += `
+                    <div class="video-player-wrapper">
+                        <h3>${data.title}</h3>
+                        <div style="padding:20px; background:#fff3cd; border-radius:10px; border:1px solid #ffc107;">
+                            <p style="color:#856404; margin:0;">⚠️ الرابط غير صحيح أو ليس من يوتيوب</p>
+                        </div>
+                    </div>
+                `;
             }
+        });
+        container.innerHTML = html;
+        
+        // تهيئة المشغلات عند الطلب (بعد الضغط)
+        window.playVideo = function(videoId) {
+            const container = document.getElementById(`video-container-${videoId}`);
+            const playerDiv = document.getElementById(`player-${videoId}`);
+            const progressInfo = document.getElementById(`progress-info-${videoId}`);
+            
+            if (!container || !playerDiv) return;
+            
+            // إخفاء زر التشغيل
+            const overlay = container.querySelector('div[style*="z-index:5"]');
+            if (overlay) overlay.style.display = 'none';
+            
+            // عرض المشغل
+            playerDiv.style.display = 'block';
+            progressInfo.style.display = 'block';
+            
+            // البحث عن الفيديو في البيانات
+            const videoData = videosData.find(v => v.id === videoId);
+            if (!videoData) return;
+            
+            const youtubeId = extractYouTubeId(videoData.data.url);
+            if (!youtubeId) return;
+            
+            // إنشاء مشغل يوتيوب
+            if (window.players && window.players[videoId]) {
+                window.players[videoId].playVideo();
+                return;
+            }
+            
+            if (!window.YT || !window.YT.Player) {
+                // تحميل API إذا لم يكن موجوداً
+                const tag = document.createElement('script');
+                tag.src = 'https://www.youtube.com/iframe_api';
+                const firstScriptTag = document.getElementsByTagName('script')[0];
+                firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+                
+                window.onYouTubeIframeAPIReady = function() {
+                    createPlayer(videoId, youtubeId);
+                };
+                return;
+            }
+            
+            createPlayer(videoId, youtubeId);
+        };
+        
+        function createPlayer(videoId, youtubeId) {
+            if (!window.players) window.players = {};
+            
+            const playerDiv = document.getElementById(`player-${videoId}`);
+            if (!playerDiv) return;
+            
+            const player = new YT.Player(playerDiv, {
+                height: '100%',
+                width: '100%',
+                videoId: youtubeId,
+                playerVars: {
+                    'controls': 1,
+                    'rel': 0,
+                    'modestbranding': 1,
+                    'iv_load_policy': 3,
+                    'cc_load_policy': 0,
+                    'fs': 1,
+                    'autohide': 1,
+                    'autoplay': 1,
+                    'enablejsapi': 1,
+                    'origin': window.location.origin,
+                    'showinfo': 0,
+                    'disablekb': 1
+                },
+                events: {
+                    'onReady': function(event) {
+                        console.log(`🎬 الفيديو ${videoId} جاهز`);
+                        const progressText = document.getElementById(`progress-text-${videoId}`);
+                        if (progressText) {
+                            progressText.innerText = '▶ جاري التشغيل...';
+                        }
+                        // بدء تتبع التقدم
+                        startProgressTracking(videoId, player);
+                    },
+                    'onStateChange': function(event) {
+                        if (event.data === YT.PlayerState.ENDED) {
+                            const progressText = document.getElementById(`progress-text-${videoId}`);
+                            if (progressText) {
+                                progressText.innerText = '✅ تم الانتهاء من المشاهدة';
+                            }
+                        }
+                    },
+                    'onError': function(event) {
+                        console.error('❌ خطأ في الفيديو:', event.data);
+                        const progressText = document.getElementById(`progress-text-${videoId}`);
+                        if (progressText) {
+                            progressText.innerText = '❌ حدث خطأ في تشغيل الفيديو';
+                        }
+                    }
+                }
+            });
+            
+            window.players[videoId] = player;
+            
+            // تتبع التقدم
+            function startProgressTracking(videoId, player) {
+                if (window.progressIntervals) {
+                    if (window.progressIntervals[videoId]) {
+                        clearInterval(window.progressIntervals[videoId]);
+                    }
+                }
+                
+                window.progressIntervals = window.progressIntervals || {};
+                window.progressIntervals[videoId] = setInterval(async function() {
+                    if (player && player.getCurrentTime) {
+                        const currentTime = Math.floor(player.getCurrentTime());
+                        const duration = Math.floor(player.getDuration() || 0);
+                        if (duration > 0) {
+                            await saveProgress(videoId, currentTime, duration);
+                            updateProgressUI(videoId, currentTime, duration);
+                        }
+                    }
+                }, 5000);
+            }
+        }
+        
+        // حفظ التقدم
+        async function saveProgress(videoId, watchedSeconds, totalDuration) {
+            if (!studentCode || !videoId) return;
+            try {
+                const progressQuery = query(
+                    collection(db, 'progress'),
+                    where('studentCode', '==', studentCode),
+                    where('videoId', '==', videoId)
+                );
+                const snap = await getDocs(progressQuery);
+                const completed = totalDuration > 0 && watchedSeconds >= totalDuration;
+
+                if (snap.empty) {
+                    await addDoc(collection(db, 'progress'), {
+                        studentCode: studentCode,
+                        videoId: videoId,
+                        watchedSeconds: watchedSeconds,
+                        totalDuration: totalDuration,
+                        completed: completed,
+                        lastUpdated: serverTimestamp()
+                    });
+                } else {
+                    const docRef = snap.docs[0].ref;
+                    await updateDoc(docRef, {
+                        watchedSeconds: watchedSeconds,
+                        totalDuration: totalDuration,
+                        completed: completed,
+                        lastUpdated: serverTimestamp()
+                    });
+                }
+            } catch (error) {
+                console.error('خطأ في حفظ التقدم:', error);
+            }
+        }
+        
+        // تحديث واجهة التقدم
+        function updateProgressUI(videoId, watched, total) {
+            const fill = document.getElementById(`progress-fill-${videoId}`);
+            const text = document.getElementById(`progress-text-${videoId}`);
+            if (!fill || !text) return;
+
+            const percent = total > 0 ? Math.min(100, Math.round((watched / total) * 100)) : 0;
+            const completed = total > 0 && watched >= total;
+            fill.style.width = percent + '%';
+            
+            const watchedMin = Math.floor(watched / 60);
+            const watchedSec = Math.floor(watched % 60);
+            const totalMin = Math.floor(total / 60);
+            const totalSec = Math.floor(total % 60);
+            
+            text.innerText = `⏱️ شاهدت ${watchedMin}:${watchedSec.toString().padStart(2, '0')} من ${totalMin}:${totalSec.toString().padStart(2, '0')} (${percent}%) ${completed ? '✅ مكتمل' : ''}`;
+        }
+        
+    } catch (error) {
+        console.error('خطأ في تحميل الفيديوهات:', error);
+        container.innerHTML = `<p style="color:red;">حدث خطأ في تحميل الفيديوهات</p>`;
+    }
+}
             
             // ============================================
             // الكتب - مع زر تكبير داخل الموقع
