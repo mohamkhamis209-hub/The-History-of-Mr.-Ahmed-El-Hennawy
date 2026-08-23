@@ -1545,7 +1545,7 @@ document.addEventListener('click', function(e) {
             }
             
             // ============================================
-// الكتب - بدون زر فتح في تبويب جديد
+// الكتب - مع زر تكبير داخل الموقع
 // ============================================
 else if (section === 'books') {
     try {
@@ -1556,11 +1556,12 @@ else if (section === 'books') {
         if (snap.empty) {
             html += `<p>لا توجد كتب حالياً</p>`;
         } else {
-            snap.forEach(d => {
+            snap.forEach((d, index) => {
                 const data = d.data();
                 let originalUrl = data.url;
                 let embedUrl = originalUrl;
                 let fileId = null;
+                const bookId = `book-${index}-${Date.now()}`;
                 
                 // تنظيف الرابط
                 originalUrl = originalUrl.replace(/[?&]rm=minimal/g, '');
@@ -1590,10 +1591,21 @@ else if (section === 'books') {
                 }
                 
                 html += `
-                    <div style="margin:25px 0; background:white; padding:15px; border-radius:15px; box-shadow:0 2px 10px rgba(0,0,0,0.05);">
-                        <h3 style="margin-bottom:10px;">📖 ${data.title}</h3>
+                    <div style="margin:25px 0; background:white; padding:15px; border-radius:15px; box-shadow:0 2px 10px rgba(0,0,0,0.05); position:relative;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                            <h3 style="margin:0;">📖 ${data.title}</h3>
+                            ${fileId ? `
+                                <button onclick="toggleBookFullscreen('${bookId}')" 
+                                    style="background:none; border:none; font-size:24px; cursor:pointer; padding:5px 10px; border-radius:8px; transition:0.3s; width:auto;"
+                                    onmouseover="this.style.background='#f0f0f0'" 
+                                    onmouseout="this.style.background='none'"
+                                    title="تكبير الكتاب">
+                                    ⛶
+                                </button>
+                            ` : ''}
+                        </div>
                         ${fileId ? `
-                            <div style="position:relative; padding-bottom:75%; height:0; overflow:hidden; border-radius:10px; background:#f0f0f0; border:1px solid #ddd;">
+                            <div id="${bookId}" style="position:relative; padding-bottom:75%; height:0; overflow:hidden; border-radius:10px; background:#f0f0f0; border:1px solid #ddd; transition:all 0.3s;">
                                 <iframe 
                                     src="${embedUrl}" 
                                     style="position:absolute; top:0; left:0; width:100%; height:100%; border:0; border-radius:10px;"
@@ -1603,7 +1615,7 @@ else if (section === 'books') {
                                 </iframe>
                             </div>
                             <div style="margin-top:8px; text-align:center;">
-                                <span style="color:#888; font-size:12px;">📖 للقراءة فقط</span>
+                                <span style="color:#888; font-size:12px;">📖 للقراءة فقط - اضغط على زر ⛶ للتكبير</span>
                             </div>
                         ` : `
                             <div style="padding:20px; background:#fff3cd; border-radius:10px; border:1px solid #ffc107;">
