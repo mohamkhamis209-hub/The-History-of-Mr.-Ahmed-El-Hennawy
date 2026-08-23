@@ -21,61 +21,50 @@
         document.addEventListener('keydown', function(e) {
             const ctrl = e.ctrlKey || e.metaKey;
             
-            // منع Ctrl+C (نسخ)
             if (ctrl && e.key === 'c') {
                 e.preventDefault();
                 return false;
             }
-            // منع Ctrl+U (عرض المصدر)
             if (ctrl && e.key === 'u') {
                 e.preventDefault();
                 return false;
             }
-            // منع Ctrl+Shift+I (أدوات المطور)
             if (ctrl && e.shiftKey && e.key === 'I') {
                 e.preventDefault();
                 return false;
             }
-            // منع F12 (أدوات المطور)
             if (e.key === 'F12') {
                 e.preventDefault();
                 return false;
             }
-            // منع Ctrl+S (حفظ الصفحة)
             if (ctrl && e.key === 's') {
                 e.preventDefault();
                 return false;
             }
-            // منع Ctrl+P (طباعة)
             if (ctrl && e.key === 'p') {
                 e.preventDefault();
                 return false;
             }
-            // منع Ctrl+A (تحديد الكل)
             if (ctrl && e.key === 'a') {
                 e.preventDefault();
                 return false;
             }
-            // منع Ctrl+Shift+J (الكونسول)
             if (ctrl && e.shiftKey && e.key === 'J') {
                 e.preventDefault();
                 return false;
             }
         });
 
-        // 3. منع السحب (Drag) للصور والروابط
         document.addEventListener('dragstart', function(e) {
             e.preventDefault();
             return false;
         });
 
-        // 4. منع تحديد النص
         document.addEventListener('selectstart', function(e) {
             e.preventDefault();
             return false;
         });
 
-        // 5. منع النسخ
         document.addEventListener('copy', function(e) {
             e.preventDefault();
             return false;
@@ -88,23 +77,18 @@
     <!-- ============================================ -->
 
     <style>
-        /* ============================================ */
-        /* إضافات منع النسخ في CSS                      */
-        /* ============================================ */
         body {
             -webkit-user-select: none;
             -moz-user-select: none;
             -ms-user-select: none;
             user-select: none;
         }
-        
         iframe {
             -webkit-user-select: none;
             -moz-user-select: none;
             -ms-user-select: none;
             user-select: none;
         }
-        
         img, video {
             -webkit-user-drag: none;
             -khtml-user-drag: none;
@@ -112,9 +96,6 @@
             -o-user-drag: none;
             user-drag: none;
         }
-        /* ============================================ */
-        /* نهاية إضافات منع النسخ                       */
-        /* ============================================ */
 
         .header-bar {
             display: flex;
@@ -364,7 +345,6 @@
         .video-container:-webkit-full-screen .youtube-player {
             border-radius: 0;
         }
-        /* زر التكبير المخصص */
         .fullscreen-btn {
             position: absolute;
             bottom: 60px;
@@ -417,6 +397,24 @@
         body.dark-mode .progress-bar {
             background: #3d3d5c;
         }
+        #questionFab{position:fixed;right:22px;bottom:22px;width:58px;height:58px;border:0;border-radius:50%;background:#25D366;color:#fff;font-size:25px;cursor:pointer;z-index:9998;box-shadow:0 8px 25px rgba(0,0,0,.22);transition:.2s;}
+        #questionFab:hover{transform:scale(1.06);}
+        #questionModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center;padding:18px;}
+        #questionModal .question-card{width:min(520px,100%);background:#fff;border-radius:22px;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.25);direction:rtl;}
+        #questionModal textarea{width:100%;min-height:150px;resize:vertical;border:1px solid #ddd;border-radius:14px;padding:14px;font:inherit;outline:none;}
+        #questionModal .question-actions{display:flex;gap:10px;margin-top:14px;}
+        #questionModal button{border:0;border-radius:12px;padding:12px 18px;font:inherit;font-weight:800;cursor:pointer;}
+        #questionSendBtn{background:#25D366;color:#fff;flex:1;}
+        #questionCloseBtn{background:#eee;color:#333;}
+
+        /* منع النسخ من الـ iframe */
+        .no-copy-iframe {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+
         @media (max-width: 768px) {
             .header-bar {
                 margin-right: 0;
@@ -451,6 +449,8 @@
                 height: 32px;
                 font-size: 16px;
             }
+            #questionFab{right:15px;bottom:15px;width:54px;height:54px;}
+            #questionModal .question-card{padding:18px;}
         }
     </style>
 </head>
@@ -467,48 +467,26 @@
         if (localStorage.getItem('darkMode') === 'true') {
             document.body.classList.add('dark-mode');
         }
-
-        // منع النسخ من الـ iframe بعد تحميلها
-        document.addEventListener('DOMContentLoaded', function() {
-            setTimeout(() => {
-                document.querySelectorAll('iframe').forEach(iframe => {
-                    try {
-                        iframe.onload = function() {
-                            try {
-                                iframe.contentDocument.addEventListener('copy', function(e) {
-                                    e.preventDefault();
-                                    return false;
-                                });
-                                iframe.contentDocument.addEventListener('contextmenu', function(e) {
-                                    e.preventDefault();
-                                    return false;
-                                });
-                            } catch(e) {}
-                        };
-                    } catch(e) {}
-                });
-            }, 1000);
-        });
     </script>
 
     <div class="sidebar">
         <img src="assets/Mohamed.jpg" alt="Admin" class="admin-img">
         <h4>المنصة التعليمية</h4>
         <ul>
-            <li onclick="loadSection('dashboard')">📊 الرئيسية</li>
-            <li onclick="loadSection('videos')">🎬 الفيديوهات</li>
-            <li onclick="loadSection('books')">📚 الكتب</li>
-            <li onclick="loadSection('exams')">📝 الاختبارات</li>
-            <li onclick="loadSection('notifications')">🔔 الإشعارات</li>
-            <li onclick="loadSection('live')">📡 البث المباشر</li>
-            <li onclick="loadSection('badges')">🏅 الشارات والمكافآت</li>
-            <li onclick="loadSection('leaderboard')">🏆 لوحة المتصدرين</li>
-            <li onclick="loadSection('myProgress')">📊 تقدمي</li>
-            <li onclick="loadSection('centerAttendance')">📅 حضوري في السنتر</li>
-            <li onclick="loadSection('founder')" style="font-weight:800;">👤 عن مؤسس المنصة</li>
-            <li onclick="openQuestionModal()">💬 عندي سؤال</li>
+            <li onclick="window.loadSection('dashboard')">📊 الرئيسية</li>
+            <li onclick="window.loadSection('videos')">🎬 الفيديوهات</li>
+            <li onclick="window.loadSection('books')">📚 الكتب</li>
+            <li onclick="window.loadSection('exams')">📝 الاختبارات</li>
+            <li onclick="window.loadSection('notifications')">🔔 الإشعارات</li>
+            <li onclick="window.loadSection('live')">📡 البث المباشر</li>
+            <li onclick="window.loadSection('badges')">🏅 الشارات والمكافآت</li>
+            <li onclick="window.loadSection('leaderboard')">🏆 لوحة المتصدرين</li>
+            <li onclick="window.loadSection('myProgress')">📊 تقدمي</li>
+            <li onclick="window.loadSection('centerAttendance')">📅 حضوري في السنتر</li>
+            <li onclick="window.loadSection('founder')" style="font-weight:800;">👤 عن مؤسس المنصة</li>
+            <li onclick="window.openQuestionModal()">💬 عندي سؤال</li>
         </ul>
-        <button onclick="logoutStudent()" style="margin-top:20px; background:#e74c3c; color:white; border:none; padding:10px; border-radius:8px; cursor:pointer; width:100%; font-size:16px;">🚪 خروج</button>
+        <button onclick="window.logoutStudent()" style="margin-top:20px; background:#e74c3c; color:white; border:none; padding:10px; border-radius:8px; cursor:pointer; width:100%; font-size:16px;">🚪 خروج</button>
     </div>
 
     <div class="header-bar">
@@ -516,7 +494,7 @@
         <div style="display:flex; align-items:center; gap:15px;">
             <div class="points-display" id="pointsDisplay">⭐ 0</div>
             <button class="theme-toggle-small" onclick="toggleTheme()">🌙</button>
-            <div class="bell" onclick="loadSection('notifications')">
+            <div class="bell" onclick="window.loadSection('notifications')">
                 🔔 <span id="notif-count">0</span>
             </div>
         </div>
@@ -526,56 +504,106 @@
         <p style="font-size:18px; color:#666;">اختر ما تريد من القائمة الجانبية</p>
     </div>
 
-    <style>
-      #questionFab{position:fixed;right:22px;bottom:22px;width:58px;height:58px;border:0;border-radius:50%;background:#25D366;color:#fff;font-size:25px;cursor:pointer;z-index:9998;box-shadow:0 8px 25px rgba(0,0,0,.22);transition:.2s;}
-      #questionFab:hover{transform:scale(1.06);}
-      #questionModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center;padding:18px;}
-      #questionModal .question-card{width:min(520px,100%);background:#fff;border-radius:22px;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.25);direction:rtl;}
-      #questionModal textarea{width:100%;min-height:150px;resize:vertical;border:1px solid #ddd;border-radius:14px;padding:14px;font:inherit;outline:none;}
-      #questionModal .question-actions{display:flex;gap:10px;margin-top:14px;}
-      #questionModal button{border:0;border-radius:12px;padding:12px 18px;font:inherit;font-weight:800;cursor:pointer;}
-      #questionSendBtn{background:#25D366;color:#fff;flex:1;}
-      #questionCloseBtn{background:#eee;color:#333;}
-      @media(max-width:600px){#questionFab{right:15px;bottom:15px;width:54px;height:54px;}#questionModal .question-card{padding:18px;}}
-    </style>
-    <div id="questionModal" onclick="if(event.target===this) closeQuestionModal()">
-      <div class="question-card">
-        <h2 style="margin:0 0 8px;color:#252b52;">💬 عندي سؤال</h2>
-        <p style="margin:0 0 14px;color:#777;line-height:1.8;">اكتب سؤالك وسيتم فتح واتساب للمشرف مع اسمك وكودك تلقائيًا.</p>
-        <textarea id="studentQuestion" maxlength="1000" placeholder="اكتب سؤالك هنا..."></textarea>
-        <div class="question-actions">
-          <button id="questionSendBtn" onclick="sendStudentQuestion()">📱 إرسال على واتساب</button>
-          <button id="questionCloseBtn" onclick="closeQuestionModal()">إلغاء</button>
+    <div id="questionModal" onclick="if(event.target===this) window.closeQuestionModal()">
+        <div class="question-card">
+            <h2 style="margin:0 0 8px;color:#252b52;">💬 عندي سؤال</h2>
+            <p style="margin:0 0 14px;color:#777;line-height:1.8;">اكتب سؤالك وسيتم فتح واتساب للمشرف مع اسمك وكودك تلقائيًا.</p>
+            <textarea id="studentQuestion" maxlength="1000" placeholder="اكتب سؤالك هنا..."></textarea>
+            <div class="question-actions">
+                <button id="questionSendBtn" onclick="window.sendStudentQuestion()">📱 إرسال على واتساب</button>
+                <button id="questionCloseBtn" onclick="window.closeQuestionModal()">إلغاء</button>
+            </div>
         </div>
-      </div>
     </div>
-    <button id="questionFab" onclick="openQuestionModal()" aria-label="عندي سؤال" title="عندي سؤال">💬</button>
+    <button id="questionFab" onclick="window.openQuestionModal()" aria-label="عندي سؤال" title="عندي سؤال">💬</button>
 
     <!-- ============================================ -->
-    <!-- جسور عامة لأزرار HTML خارج نطاق module -->
+    <!-- دوال الجسر العامة (غير module)               -->
     <!-- ============================================ -->
     <script>
+        // هذه الدوال هي "جسر" بين onclick والدوال الحقيقية داخل الـ module
         window.loadSection = function(section) {
             if (window._moduleLoadSection) {
-                return window._moduleLoadSection(section);
+                window._moduleLoadSection(section);
+            } else {
+                console.warn('⚠️ الـ module لم يكتمل تحميله بعد، حاول مرة أخرى');
+                setTimeout(function() {
+                    if (window._moduleLoadSection) {
+                        window._moduleLoadSection(section);
+                    }
+                }, 500);
             }
-            console.warn('الوحدة لم تكتمل تحميلها بعد، حاول مرة أخرى');
-            return Promise.resolve();
         };
 
         window.logoutStudent = function() {
             if (window._moduleLogout) {
-                return window._moduleLogout();
+                window._moduleLogout();
+            } else {
+                localStorage.removeItem('studentCode');
+                localStorage.removeItem('studentGrade');
+                localStorage.removeItem('studentName');
+                window.location.href = 'student-login.html';
             }
+        };
 
-            localStorage.removeItem('studentCode');
-            localStorage.removeItem('studentGrade');
-            localStorage.removeItem('studentName');
-            window.location.href = 'student-login.html';
+        window.openQuestionModal = function() {
+            if (window._moduleOpenQuestionModal) {
+                window._moduleOpenQuestionModal();
+            } else {
+                // fallback مباشر
+                const modal = document.getElementById('questionModal');
+                const input = document.getElementById('studentQuestion');
+                if (modal) {
+                    modal.style.display = 'flex';
+                    setTimeout(() => { if (input) input.focus(); }, 50);
+                }
+            }
+        };
+
+        window.closeQuestionModal = function() {
+            if (window._moduleCloseQuestionModal) {
+                window._moduleCloseQuestionModal();
+            } else {
+                const modal = document.getElementById('questionModal');
+                if (modal) modal.style.display = 'none';
+            }
+        };
+
+        window.sendStudentQuestion = function() {
+            if (window._moduleSendStudentQuestion) {
+                window._moduleSendStudentQuestion();
+            } else {
+                // fallback مباشر
+                const input = document.getElementById('studentQuestion');
+                const question = (input?.value || '').trim();
+                const name = localStorage.getItem('studentName') || 'طالب';
+                const code = localStorage.getItem('studentCode') || 'غير معروف';
+                if (!question) { alert('⚠️ اكتب سؤالك أولاً'); input?.focus(); return; }
+                const message = `🎓 سؤال من طالب\n👤 الاسم: ${name}\n🔑 الكود: ${code}\n\n💬 السؤال:\n${question}`;
+                window.open(`https://wa.me/201558812897?text=${encodeURIComponent(message)}`, '_blank');
+                if (input) input.value = '';
+                const modal = document.getElementById('questionModal');
+                if (modal) modal.style.display = 'none';
+            }
+        };
+
+        window.submitSingleExamAnswer = function(examId, questionIndex) {
+            if (window._moduleSubmitExamAnswer) {
+                window._moduleSubmitExamAnswer(examId, questionIndex);
+            } else {
+                alert('⏳ جاري تحميل النظام، حاول مرة أخرى خلال ثانية');
+                setTimeout(function() {
+                    if (window._moduleSubmitExamAnswer) {
+                        window._moduleSubmitExamAnswer(examId, questionIndex);
+                    }
+                }, 1000);
+            }
         };
     </script>
 
-    <script src="js/firebase-config.js" type="module"></script>
+    <!-- ============================================ -->
+    <!-- الكود الأساسي - module                       -->
+    <!-- ============================================ -->
     <script type="module">
         import { 
             db, collection, getDocs, query, where, doc, getDoc, 
@@ -970,7 +998,7 @@
         }
 
         // ============================================
-        // تهيئة مشغلات YouTube (تعطيل زر المشاركة والنسخ فقط)
+        // تهيئة مشغلات YouTube
         // ============================================
         function initYouTubePlayers(videosData) {
             window.onYouTubeIframeAPIReady = function() {
@@ -1019,9 +1047,7 @@
                                     'autoplay': 0,
                                     'enablejsapi': 1,
                                     'origin': window.location.origin,
-                                    // ===== تعطيل زر المشاركة والنسخ فقط =====
-                                    'showinfo': 0,
-                                    'rel': 0
+                                    'showinfo': 0
                                 },
                                 events: {
                                     'onReady': function(event) {
@@ -1071,7 +1097,6 @@
 
                             players[videoId] = player;
 
-                            // إضافة زر تكبير مخصص
                             const wrapper = container.parentElement;
                             if (wrapper) {
                                 const oldBtn = wrapper.querySelector('.fullscreen-btn');
@@ -1104,7 +1129,6 @@
                                 wrapper.style.position = 'relative';
                                 wrapper.appendChild(fullscreenBtn);
 
-                                // علامة مائية متحركة باسم الطالب وكوده فوق الفيديو
                                 const videoContainer = container.closest('.video-container');
                                 if (videoContainer) {
                                     let watermark = videoContainer.querySelector('.video-watermark');
@@ -1196,7 +1220,102 @@
         }
 
         // ============================================
-        // تحميل الأقسام
+        // دالة حساب ظهور النتيجة
+        // ============================================
+        function isExamRevealReady(submittedAt, reveal) {
+            if (reveal === 'instant') return true;
+            if (reveal === 'never') return false;
+            let t = submittedAt?.toDate ? submittedAt.toDate().getTime() : new Date(submittedAt || 0).getTime();
+            if (!t) return false;
+            const delay = reveal === '24h' ? 24*60*60*1000 : reveal === '3d' ? 3*24*60*60*1000 : 0;
+            return Date.now() >= t + delay;
+        }
+
+        // ============================================
+        // دالة إرسال إجابة سؤال واحد
+        // ============================================
+        async function submitSingleExamAnswer(examId, questionIndex) {
+            try {
+                const examSnap = await getDoc(doc(db, 'exams', examId));
+                if (!examSnap.exists()) return alert('الاختبار غير موجود');
+                const exam = examSnap.data();
+                const question = exam.questions?.[questionIndex];
+                if (!question) return alert('السؤال غير موجود');
+
+                let value = null;
+                if (question.type === 'text') {
+                    value = document.getElementById(`answer_${examId}_${questionIndex}`)?.value?.trim() || '';
+                } else {
+                    const selected = document.querySelector(`input[name="exam_${examId}_${questionIndex}"]:checked`);
+                    value = selected ? selected.value : null;
+                }
+
+                if (value === null || value === '') return alert('اختر أو اكتب إجابتك أولاً');
+
+                const existingQ = query(
+                    collection(db, 'examAnswers'),
+                    where('examId', '==', examId),
+                    where('studentCode', '==', studentCode)
+                );
+                const existingSnap = await getDocs(existingQ);
+
+                let answerDoc = null;
+                if (!existingSnap.empty) {
+                    answerDoc = existingSnap.docs[0];
+                }
+
+                let answers = {};
+                let autoCorrect = 0;
+                let autoTotal = 0;
+                let submittedAt = new Date();
+
+                if (answerDoc) {
+                    const old = answerDoc.data();
+                    answers = {...(old.answers || {})};
+                    submittedAt = old.submittedAt || submittedAt;
+                }
+                answers[String(questionIndex)] = value;
+
+                (exam.questions || []).forEach((qst, i) => {
+                    const a = answers[String(i)];
+                    if (a === undefined || a === null) return;
+                    if (qst.type === 'mcq') {
+                        autoTotal++;
+                        if (Number(a) === Number(qst.correct)) autoCorrect++;
+                    } else if (qst.type === 'truefalse') {
+                        autoTotal++;
+                        if (String(a) === String(qst.correct)) autoCorrect++;
+                    }
+                });
+
+                const payload = {
+                    examId,
+                    examTitle: exam.title || '',
+                    studentCode: studentCode,
+                    studentName: studentName || localStorage.getItem('studentName') || 'طالب',
+                    studentGrade: localStorage.getItem('studentGrade') || 'all',
+                    answers,
+                    autoCorrect,
+                    autoTotal,
+                    submittedAt
+                };
+
+                if (answerDoc) {
+                    await updateDoc(answerDoc.ref, payload);
+                } else {
+                    await addDoc(collection(db, 'examAnswers'), payload);
+                }
+
+                alert('✅ تم إرسال إجابتك للمشرف');
+                loadSection('exams');
+            } catch (e) {
+                console.error('خطأ في إرسال الإجابة:', e);
+                alert('❌ حدث خطأ أثناء إرسال الإجابة');
+            }
+        }
+
+        // ============================================
+        // عرض قسم مؤسس المنصة
         // ============================================
         function showFounderSection() {
             const content = document.getElementById('student-content');
@@ -1216,39 +1335,38 @@
         }
 
         // ============================================
-        // سؤال الطالب عبر واتساب
+        // دوال سؤال الطالب عبر واتساب
         // ============================================
-        const SUPERVISOR_WHATSAPP = '201558812897'; // نفس رقم التواصل القديم
+        const SUPERVISOR_WHATSAPP = '201558812897';
 
-        window.openQuestionModal = function() {
+        function openQuestionModal() {
             const modal = document.getElementById('questionModal');
             const input = document.getElementById('studentQuestion');
             if (!modal || !input) return;
             modal.style.display = 'flex';
             setTimeout(() => input.focus(), 50);
-        };
+        }
 
-        window.closeQuestionModal = function() {
+        function closeQuestionModal() {
             const modal = document.getElementById('questionModal');
             if (modal) modal.style.display = 'none';
-        };
+        }
 
-        window.sendStudentQuestion = function() {
+        function sendStudentQuestion() {
             const input = document.getElementById('studentQuestion');
             const question = (input?.value || '').trim();
             const name = localStorage.getItem('studentName') || 'طالب';
             const code = localStorage.getItem('studentCode') || 'غير معروف';
             if (!question) { alert('⚠️ اكتب سؤالك أولاً'); input?.focus(); return; }
-            if (!/^20\d{10}$/.test(SUPERVISOR_WHATSAPP)) {
-                alert('⚠️ لم يتم ضبط رقم واتساب المشرف بعد. ضع الرقم في SUPERVISOR_WHATSAPP داخل الكود.');
-                return;
-            }
             const message = `🎓 سؤال من طالب\n👤 الاسم: ${name}\n🔑 الكود: ${code}\n\n💬 السؤال:\n${question}`;
             window.open(`https://wa.me/${SUPERVISOR_WHATSAPP}?text=${encodeURIComponent(message)}`, '_blank');
             input.value = '';
             closeQuestionModal();
-        };
+        }
 
+        // ============================================
+        // دالة تحميل الأقسام الرئيسية
+        // ============================================
         async function loadSection(section) {
             if (section === 'founder') {
                 showFounderSection();
@@ -1472,7 +1590,6 @@
             // ============================================
             // الاختبارات
             // ============================================
-
             else if (section === 'exams') {
                 container.innerHTML = `<h2>⏳ جاري تحميل الاختبارات...</h2>`;
                 try {
@@ -1488,7 +1605,6 @@
                         const data = d.data();
                         const examId = d.id;
 
-                        // الاختبارات الجديدة التفاعلية
                         if (Array.isArray(data.questions)) {
                             let answersSnap;
                             try {
@@ -1519,7 +1635,7 @@
                                     answerControl = (qst.options || []).map((op, oi) =>
                                         `<label style="display:block;padding:10px;margin:7px 0;border:1px solid #ddd;border-radius:10px;cursor:${locked?'default':'pointer'};">
                                             <input type="radio" name="exam_${examId}_${qi}" value="${oi}" ${String(savedAnswer)===String(oi)?'checked':''} ${locked?'disabled':''}>
-                                            ${esc(op)}
+                                            ${op}
                                         </label>`).join('');
                                 } else if (qst.type === 'truefalse') {
                                     answerControl = `
@@ -1530,7 +1646,7 @@
                                             <input type="radio" name="exam_${examId}_${qi}" value="false" ${String(savedAnswer)==='false'?'checked':''} ${locked?'disabled':''}> خطأ
                                         </label>`;
                                 } else {
-                                    answerControl = `<textarea id="answer_${examId}_${qi}" ${locked?'disabled':''} placeholder="اكتب إجابتك..." style="width:100%;min-height:110px;padding:12px;border:1px solid #ddd;border-radius:10px;">${locked?esc(String(savedAnswer)):''}</textarea>`;
+                                    answerControl = `<textarea id="answer_${examId}_${qi}" ${locked?'disabled':''} placeholder="اكتب إجابتك..." style="width:100%;min-height:110px;padding:12px;border:1px solid #ddd;border-radius:10px;">${locked?String(savedAnswer):''}</textarea>`;
                                 }
 
                                 const canReveal = previous && isExamRevealReady(previous.submittedAt, reveal);
@@ -1542,7 +1658,7 @@
                                         feedback = `<div style="margin-top:10px;padding:10px;border-radius:9px;background:#fff8e8;color:#8a6500;">⏳ سيتم إظهار نتيجة الإجابة حسب الوقت الذي حدده المشرف.</div>`;
                                     } else if (qst.type === 'mcq') {
                                         const ok = Number(savedAnswer) === Number(qst.correct);
-                                        feedback = `<div style="margin-top:10px;padding:10px;border-radius:9px;background:${ok?'#eaf8ef':'#fff0f0'};color:${ok?'#218838':'#c0392b'};font-weight:800;">${ok?'✅ إجابتك صحيحة':'❌ إجابتك غير صحيحة'}<br>الإجابة الصحيحة: ${esc(qst.options?.[Number(qst.correct)] || '')}</div>`;
+                                        feedback = `<div style="margin-top:10px;padding:10px;border-radius:9px;background:${ok?'#eaf8ef':'#fff0f0'};color:${ok?'#218838':'#c0392b'};font-weight:800;">${ok?'✅ إجابتك صحيحة':'❌ إجابتك غير صحيحة'}<br>الإجابة الصحيحة: ${qst.options?.[Number(qst.correct)] || ''}</div>`;
                                     } else if (qst.type === 'truefalse') {
                                         const ok = String(savedAnswer) === String(qst.correct);
                                         feedback = `<div style="margin-top:10px;padding:10px;border-radius:9px;background:${ok?'#eaf8ef':'#fff0f0'};color:${ok?'#218838':'#c0392b'};font-weight:800;">${ok?'✅ إجابتك صحيحة':'❌ إجابتك غير صحيحة'}<br>الإجابة الصحيحة: ${qst.correct === 'true' ? 'صح' : 'خطأ'}</div>`;
@@ -1552,25 +1668,24 @@
                                 }
 
                                 html += `<div style="margin-top:18px;padding:16px;border:1px solid #eee;border-radius:12px;background:#fafafa;">
-                                    <div style="font-weight:800;margin-bottom:8px;">${qi+1}. ${esc(qst.text)}</div>
+                                    <div style="font-weight:800;margin-bottom:8px;">${qi+1}. ${qst.text}</div>
                                     <small style="color:#888;">${typeText}</small>
                                     <div style="margin-top:10px;">${answerControl}</div>
                                     ${locked ? '<span style="display:inline-block;margin-top:8px;color:#777;">🔐 تم إرسال الإجابة</span>' :
-                                        `<button class="btn-sm btn-add" style="margin-top:10px;" onclick="submitSingleExamAnswer('${examId}', ${qi})">📤 إرسال الإجابة</button>`}
+                                        `<button class="btn-sm btn-add" style="margin-top:10px;" onclick="window.submitSingleExamAnswer('${examId}', ${qi})">📤 إرسال الإجابة</button>`}
                                     ${feedback}
                                 </div>`;
                             });
 
                             html += `</div>`;
                         } else {
-                            // دعم الاختبارات القديمة كما هي
                             html += `<div style="border:1px solid #e0e0e0; padding:20px; margin:20px 0; border-radius:15px; background:white;">
-                                <h3>${esc(data.title || 'اختبار')}</h3>
-                                <p><strong>النوع:</strong> ${esc(data.type || '')}</p>
+                                <h3>${data.title || 'اختبار'}</h3>
+                                <p><strong>النوع:</strong> ${data.type || ''}</p>
                                 <div style="background:#f9f9f9; padding:15px; border-radius:10px; margin-top:10px;">
-                                    ${data.type === 'image' ? `<img src="${esc(data.content || '')}" width="100%" style="border-radius:10px;">` :
-                                      data.type === 'video' ? `<video controls controlsList="nodownload" src="${esc(data.content || '')}" width="100%" style="border-radius:10px;"></video>` :
-                                      `<p style="font-size:18px;">${esc(data.content || '')}</p>`}
+                                    ${data.type === 'image' ? `<img src="${data.content || ''}" width="100%" style="border-radius:10px;">` :
+                                      data.type === 'video' ? `<video controls controlsList="nodownload" src="${data.content || ''}" width="100%" style="border-radius:10px;"></video>` :
+                                      `<p style="font-size:18px;">${data.content || ''}</p>`}
                                 </div>
                             </div>`;
                         }
@@ -1582,99 +1697,7 @@
                     container.innerHTML = `<p style="color:red;">حدث خطأ في تحميل الاختبارات</p>`;
                 }
             }
-
-
-            // حساب هل حان وقت ظهور النتيجة
-            function isExamRevealReady(submittedAt, reveal) {
-                if (reveal === 'instant') return true;
-                if (reveal === 'never') return false;
-                let t = submittedAt?.toDate ? submittedAt.toDate().getTime() : new Date(submittedAt || 0).getTime();
-                if (!t) return false;
-                const delay = reveal === '24h' ? 24*60*60*1000 : reveal === '3d' ? 3*24*60*60*1000 : 0;
-                return Date.now() >= t + delay;
-            }
-
-            window.submitSingleExamAnswer = async function(examId, questionIndex) {
-                try {
-                    const examSnap = await getDoc(doc(db, 'exams', examId));
-                    if (!examSnap.exists()) return alert('الاختبار غير موجود');
-                    const exam = examSnap.data();
-                    const question = exam.questions?.[questionIndex];
-                    if (!question) return alert('السؤال غير موجود');
-
-                    let value = null;
-                    if (question.type === 'text') {
-                        value = document.getElementById(`answer_${examId}_${questionIndex}`)?.value?.trim() || '';
-                    } else {
-                        const selected = document.querySelector(`input[name="exam_${examId}_${questionIndex}"]:checked`);
-                        value = selected ? selected.value : null;
-                    }
-
-                    if (value === null || value === '') return alert('اختر أو اكتب إجابتك أولاً');
-
-                    const existingQ = query(
-                        collection(db, 'examAnswers'),
-                        where('examId', '==', examId),
-                        where('studentCode', '==', code)
-                    );
-                    const existingSnap = await getDocs(existingQ);
-
-                    let answerDoc = null;
-                    if (!existingSnap.empty) {
-                        answerDoc = existingSnap.docs[0];
-                    }
-
-                    let answers = {};
-                    let autoCorrect = 0;
-                    let autoTotal = 0;
-                    let submittedAt = new Date();
-
-                    if (answerDoc) {
-                        const old = answerDoc.data();
-                        answers = {...(old.answers || {})};
-                        submittedAt = old.submittedAt || submittedAt;
-                    }
-                    answers[String(questionIndex)] = value;
-
-                    // حساب التصحيح الآلي لكل ما تم إرساله
-                    (exam.questions || []).forEach((qst, i) => {
-                        const a = answers[String(i)];
-                        if (a === undefined || a === null) return;
-                        if (qst.type === 'mcq') {
-                            autoTotal++;
-                            if (Number(a) === Number(qst.correct)) autoCorrect++;
-                        } else if (qst.type === 'truefalse') {
-                            autoTotal++;
-                            if (String(a) === String(qst.correct)) autoCorrect++;
-                        }
-                    });
-
-                    const payload = {
-                        examId,
-                        examTitle: exam.title || '',
-                        studentCode: code,
-                        studentName: studentName || localStorage.getItem('studentName') || 'طالب',
-                        studentGrade,
-                        answers,
-                        autoCorrect,
-                        autoTotal,
-                        submittedAt
-                    };
-
-                    if (answerDoc) {
-                        await updateDoc(answerDoc.ref, payload);
-                    } else {
-                        await addDoc(collection(db, 'examAnswers'), payload);
-                    }
-
-                    alert('✅ تم إرسال إجابتك للمشرف');
-                    loadSection('exams');
-                } catch (e) {
-                    console.error('خطأ في إرسال الإجابة:', e);
-                    alert('❌ حدث خطأ أثناء إرسال الإجابة');
-                }
-            };
-
+            
             // ============================================
             // الإشعارات
             // ============================================
@@ -1769,7 +1792,6 @@
                     const rows = [];
                     attSnap.forEach(d => {
                         const data = d.data();
-                        // لا تعرض حضوراً تابعاً لمجموعة تم حذفها من النظام
                         if (data.groupId && !groupMap[data.groupId]) return;
                         rows.push(data);
                     });
@@ -2003,7 +2025,7 @@
                     container.innerHTML = `<p style="color:red;">حدث خطأ في تحميل تقدمك</p>`;
                 }
             }
-        };
+        }
 
         // ============================================
         // تسجيل الخروج
@@ -2017,10 +2039,14 @@
         }
 
         // ============================================
-        // تصدير الدوال الداخلية إلى الجسور العامة
+        // ربط الدوال بالنافذة العالمية
         // ============================================
         window._moduleLoadSection = loadSection;
         window._moduleLogout = logoutStudent;
+        window._moduleOpenQuestionModal = openQuestionModal;
+        window._moduleCloseQuestionModal = closeQuestionModal;
+        window._moduleSendStudentQuestion = sendStudentQuestion;
+        window._moduleSubmitExamAnswer = submitSingleExamAnswer;
 
         // ============================================
         // بداية التحميل
@@ -2029,91 +2055,10 @@
         updateLeaderboard();
         updatePointsDisplay(studentCode);
         loadSection('dashboard');
+
+        console.log('✅ تم تحميل لوحة الطالب بنجاح');
+        console.log('👤 الطالب:', studentName, studentCode);
     </script>
-
-<!-- PLATFORM PROTECTION LAYER -->
-<style>
-  /* Prevent selection/dragging on the student UI. Inputs remain usable. */
-  body { -webkit-user-select:none; user-select:none; }
-  input, textarea, select, [contenteditable="true"] { -webkit-user-select:text; user-select:text; }
-  img, video, iframe { -webkit-user-drag:none; user-drag:none; }
-  #screenProtectionOverlay {
-    display:none; position:fixed; inset:0; z-index:2147483647;
-    background:#080808; color:#fff; align-items:center; justify-content:center;
-    text-align:center; font-family:Arial,sans-serif; padding:30px;
-  }
-  #screenProtectionOverlay .box {max-width:560px}
-  #screenProtectionOverlay h2 {margin-bottom:12px}
-</style>
-<div id="screenProtectionOverlay">
-  <div class="box">
-    <div style="font-size:52px">🔒</div>
-    <h2>المحتوى محمي</h2>
-    <p>تم إيقاف عرض المحتوى مؤقتًا. ارجع إلى المنصة لاستكمال المشاهدة.</p>
-  </div>
-</div>
-<script>
-(function(){
-  "use strict";
-
-  const overlay = document.getElementById("screenProtectionOverlay");
-  const showOverlay = () => { if (overlay) overlay.style.display = "flex"; };
-  const hideOverlay = () => { if (overlay) overlay.style.display = "none"; };
-
-  // Right click / common copy-save-print shortcuts.
-  document.addEventListener("contextmenu", e => e.preventDefault(), true);
-  document.addEventListener("dragstart", e => e.preventDefault(), true);
-  document.addEventListener("selectstart", e => {
-    const t = e.target;
-    if (!(t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable))) e.preventDefault();
-  }, true);
-
-  document.addEventListener("keydown", e => {
-    const k = String(e.key || "").toLowerCase();
-    const ctrl = e.ctrlKey || e.metaKey;
-    const blocked =
-      (ctrl && ["c","x","s","u","p","a"].includes(k)) ||
-      (ctrl && e.shiftKey && ["i","j","c"].includes(k)) ||
-      k === "f12" ||
-      (e.ctrlKey && e.shiftKey && k === "s");
-    if (blocked) {
-      const t = e.target;
-      const editable = t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable);
-      if (!editable) {
-        e.preventDefault(); e.stopPropagation();
-      }
-    }
-  }, true);
-
-  // Hide content when page is backgrounded or window loses focus.
-  document.addEventListener("visibilitychange", () => {
-    if (document.hidden) showOverlay();
-    else hideOverlay();
-  });
-  window.addEventListener("blur", showOverlay);
-  window.addEventListener("focus", hideOverlay);
-
-  // Best-effort screenshot/recording heuristics. Browser APIs cannot guarantee prevention.
-  // If the browser exposes a capture-related signal, cover the page.
-  ["beforeprint"].forEach(ev => window.addEventListener(ev, showOverlay));
-  window.addEventListener("afterprint", hideOverlay);
-
-  // Warn/cover when common DevTools shortcuts are attempted.
-  let last = 0;
-  setInterval(() => {
-    const now = Date.now();
-    // Large window dimension mismatch can indicate a docked devtools panel.
-    const suspicious = Math.abs(window.outerWidth - window.innerWidth) > 500 ||
-                       Math.abs(window.outerHeight - window.innerHeight) > 400;
-    if (suspicious && now - last > 1500) {
-      last = now;
-      showOverlay();
-    } else if (!suspicious && !document.hidden) {
-      hideOverlay();
-    }
-  }, 1200);
-})();
-</script>
 
 </body>
 </html>
