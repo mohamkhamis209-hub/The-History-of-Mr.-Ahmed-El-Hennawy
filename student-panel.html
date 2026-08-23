@@ -70,6 +70,24 @@
             return false;
         });
 
+        // منع فتح الروابط في نوافذ جديدة
+        document.addEventListener('click', function(e) {
+            const target = e.target;
+            if (target.tagName === 'A' && target.getAttribute('target') === '_blank') {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            }
+        }, true);
+
+        // منع استخدام اختصار Ctrl+Click لفتح رابط
+        document.addEventListener('mousedown', function(e) {
+            if (e.button === 1 || (e.ctrlKey && e.button === 0)) {
+                e.preventDefault();
+                return false;
+            }
+        }, true);
+
         console.log('🛡️ تم تفعيل الحماية ضد النسخ');
     </script>
     <!-- ============================================ -->
@@ -468,6 +486,20 @@
             border-color: #555 !important;
         }
 
+        /* حماية الفيديو - منع ظهور أيقونات يوتيوب */
+        .video-container iframe {
+            pointer-events: auto;
+        }
+        .video-container iframe::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 5;
+        }
+
         @media (max-width: 768px) {
             .book-fullscreen {
                 height: 95vh !important;
@@ -617,7 +649,6 @@
             if (window._moduleOpenQuestionModal) {
                 window._moduleOpenQuestionModal();
             } else {
-                // fallback مباشر
                 const modal = document.getElementById('questionModal');
                 const input = document.getElementById('studentQuestion');
                 if (modal) {
@@ -640,7 +671,6 @@
             if (window._moduleSendStudentQuestion) {
                 window._moduleSendStudentQuestion();
             } else {
-                // fallback مباشر
                 const input = document.getElementById('studentQuestion');
                 const question = (input?.value || '').trim();
                 const name = localStorage.getItem('studentName') || 'طالب';
@@ -672,7 +702,10 @@
         // ============================================
         window.toggleBookFullscreen = function(bookId) {
             const container = document.getElementById(bookId);
-            if (!container) return;
+            if (!container) {
+                console.error('❌ الكتاب غير موجود:', bookId);
+                return;
+            }
             
             const isFullscreen = container.classList.contains('book-fullscreen');
             
@@ -702,7 +735,7 @@
                 }
                 
                 const btn = container.parentElement.querySelector('.book-fullscreen-btn');
-                if (btn) btn.textContent = '⛶';
+                if (btn) btn.innerHTML = '⛶ تكبير';
                 
                 const closeBtn = container.querySelector('.book-close-btn');
                 if (closeBtn) closeBtn.style.display = 'none';
@@ -734,7 +767,7 @@
                 }
                 
                 const btn = container.parentElement.querySelector('.book-fullscreen-btn');
-                if (btn) btn.textContent = '✕';
+                if (btn) btn.innerHTML = '✕ إغلاق';
                 
                 let closeBtn = container.querySelector('.book-close-btn');
                 if (!closeBtn) {
@@ -1179,7 +1212,7 @@
         }
 
         // ============================================
-        // تهيئة مشغلات YouTube
+        // تهيئة مشغلات YouTube مع حماية إضافية
         // ============================================
         function initYouTubePlayers(videosData) {
             window.onYouTubeIframeAPIReady = function() {
@@ -1228,7 +1261,8 @@
                                     'autoplay': 0,
                                     'enablejsapi': 1,
                                     'origin': window.location.origin,
-                                    'showinfo': 0
+                                    'showinfo': 0,
+                                    'disablekb': 1
                                 },
                                 events: {
                                     'onReady': function(event) {
@@ -1238,6 +1272,15 @@
                                             progressText.innerText = '🟢 اضغط على زر التشغيل للمشاهدة';
                                         }
                                         updateProgressUI(videoId, watched, total);
+                                        
+                                        // محاولة إخفاء زر المشاركة
+                                        try {
+                                            const iframe = container.querySelector('iframe');
+                                            if (iframe) {
+                                                // منع النقر على عناصر يوتيوب
+                                                iframe.style.pointerEvents = 'auto';
+                                            }
+                                        } catch(e) {}
                                     },
                                     'onStateChange': async function(event) {
                                         const state = event.data;
@@ -1659,7 +1702,7 @@
             }
             
             // ============================================
-            // الفيديوهات
+            // الفيديوهات - مع حماية كاملة
             // ============================================
             else if (section === 'videos') {
                 try {
@@ -1678,11 +1721,35 @@
                         const data = d.data();
                         const videoId = d.id;
                         videosData.push({ id: videoId, data: data });
+                        
+                        let videoSrc = data.url;
+                        const youtubeId = extractYouTubeId(data.url);
+                        
+                        if (youtubeId) {
+                            videoSrc = `https://www.youtube.com/embed/${youtubeId}`;
+                            // إضافة معلمات لمنع المشاركة والنسخ
+                            videoSrc += '?modestbranding=1&rel=0&showinfo=0&controls=1&disablekb=1&fs=0&iv_load_policy=3&cc_load_policy=0';
+                        }
+                        
                         html += `
                             <div class="video-player-wrapper">
                                 <h3>${data.title}</h3>
-                                <div class="video-container">
-                                    <div id="player-${videoId}" class="youtube-player"></div>
+                                <div class="video-container" style="position:relative; padding-bottom:56.25%; height:0; overflow:hidden; border-radius:10px; background:#000;">
+                                    <iframe 
+                                        src="${videoSrc}" 
+                                        style="position:absolute; top:0; left:0; width:100%; height:100%; border:0; border-radius:10px;"
+                                        frameborder="0" 
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                        allowfullscreen
+                                        loading="lazy"
+                                        sandbox="allow-scripts allow-same-origin allow-forms"
+                                        referrerpolicy="no-referrer"
+                                        id="video-${videoId}">
+                                    </iframe>
+                                    <!-- علامة مائية -->
+                                    <div style="position:absolute; bottom:10px; right:10px; z-index:10; color:rgba(255,255,255,0.3); font-size:11px; pointer-events:none; user-select:none; background:rgba(0,0,0,0.3); padding:4px 10px; border-radius:4px;">
+                                        ${studentName} • ${studentCode}
+                                    </div>
                                 </div>
                                 <div class="progress-info">
                                     <div class="progress-bar">
@@ -1709,6 +1776,45 @@
 
                         initYouTubePlayers(videosData);
                     }
+                    
+                    // حماية إضافية: منع فتح الفيديو في يوتيوب
+                    setTimeout(() => {
+                        document.querySelectorAll('.video-container iframe').forEach(iframe => {
+                            try {
+                                iframe.addEventListener('contextmenu', function(e) {
+                                    e.preventDefault();
+                                    return false;
+                                });
+                                
+                                iframe.addEventListener('load', function() {
+                                    try {
+                                        const doc = iframe.contentDocument || iframe.contentWindow?.document;
+                                        if (doc) {
+                                            doc.addEventListener('copy', function(e) {
+                                                e.preventDefault();
+                                                return false;
+                                            });
+                                            doc.addEventListener('contextmenu', function(e) {
+                                                e.preventDefault();
+                                                return false;
+                                            });
+                                            doc.addEventListener('click', function(e) {
+                                                if (e.target.tagName === 'A') {
+                                                    e.preventDefault();
+                                                    return false;
+                                                }
+                                            });
+                                        }
+                                    } catch(e) {
+                                        console.log('🔒 حماية iframe مفعلة');
+                                    }
+                                });
+                            } catch(e) {
+                                console.log('🔒 حماية iframe مفعلة');
+                            }
+                        });
+                    }, 1500);
+                    
                 } catch (error) {
                     console.error('خطأ في تحميل الفيديوهات:', error);
                     container.innerHTML = `<p style="color:red;">حدث خطأ في تحميل الفيديوهات</p>`;
@@ -1716,98 +1822,97 @@
             }
             
             // ============================================
-// الكتب - مع زر تكبير داخل الموقع (نسخة معدلة)
-// ============================================
-else if (section === 'books') {
-    try {
-        const q = query(collection(db, 'books'), where('grade', 'in', [studentGrade, 'all']));
-        const snap = await getDocs(q);
-        let html = `<h2>📚 الكتب</h2>`;
-        
-        if (snap.empty) {
-            html += `<p>لا توجد كتب حالياً</p>`;
-        } else {
-            snap.forEach((d, index) => {
-                const data = d.data();
-                let originalUrl = data.url || '';
-                let embedUrl = originalUrl;
-                let fileId = null;
-                const bookId = `book-${index}-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-                
-                // تنظيف الرابط
-                originalUrl = originalUrl.replace(/[?&]rm=minimal/g, '');
-                originalUrl = originalUrl.replace(/[?&]authuser=\d+/g, '');
-                originalUrl = originalUrl.replace(/[?&]usp=sharing/g, '');
-                
-                // استخراج معرف الملف من Google Drive
-                if (originalUrl.includes('drive.google.com')) {
-                    const patterns = [
-                        /\/d\/([^\/]+)/,
-                        /id=([^&]+)/,
-                        /file\/d\/([^\/]+)/,
-                        /open\?id=([^&]+)/
-                    ];
+            // الكتب - مع زر تكبير داخل الموقع
+            // ============================================
+            else if (section === 'books') {
+                try {
+                    const q = query(collection(db, 'books'), where('grade', 'in', [studentGrade, 'all']));
+                    const snap = await getDocs(q);
+                    let html = `<h2>📚 الكتب</h2>`;
                     
-                    for (const pattern of patterns) {
-                        const match = originalUrl.match(pattern);
-                        if (match && match[1] && match[1].length > 10) {
-                            fileId = match[1];
-                            break;
-                        }
+                    if (snap.empty) {
+                        html += `<p>لا توجد كتب حالياً</p>`;
+                    } else {
+                        snap.forEach((d, index) => {
+                            const data = d.data();
+                            let originalUrl = data.url || '';
+                            let embedUrl = originalUrl;
+                            let fileId = null;
+                            const bookId = `book-${index}-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+                            
+                            // تنظيف الرابط
+                            originalUrl = originalUrl.replace(/[?&]rm=minimal/g, '');
+                            originalUrl = originalUrl.replace(/[?&]authuser=\d+/g, '');
+                            originalUrl = originalUrl.replace(/[?&]usp=sharing/g, '');
+                            
+                            // استخراج معرف الملف من Google Drive
+                            if (originalUrl.includes('drive.google.com')) {
+                                const patterns = [
+                                    /\/d\/([^\/]+)/,
+                                    /id=([^&]+)/,
+                                    /file\/d\/([^\/]+)/,
+                                    /open\?id=([^&]+)/
+                                ];
+                                
+                                for (const pattern of patterns) {
+                                    const match = originalUrl.match(pattern);
+                                    if (match && match[1] && match[1].length > 10) {
+                                        fileId = match[1];
+                                        break;
+                                    }
+                                }
+                                
+                                if (fileId) {
+                                    embedUrl = `https://drive.google.com/file/d/${fileId}/preview`;
+                                }
+                            }
+                            
+                            const isDrive = originalUrl.includes('drive.google.com');
+                            
+                            html += `
+                                <div style="margin:25px 0; background:white; padding:15px; border-radius:15px; box-shadow:0 2px 10px rgba(0,0,0,0.05); position:relative;">
+                                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:10px;">
+                                        <h3 style="margin:0;">📖 ${data.title || 'كتاب'}</h3>
+                                        ${isDrive ? `
+                                            <button onclick="window.toggleBookFullscreen('${bookId}')" 
+                                                class="book-fullscreen-btn"
+                                                style="background:#3498db; border:none; color:white; font-size:18px; cursor:pointer; padding:8px 16px; border-radius:8px; transition:0.3s; width:auto; display:flex; align-items:center; gap:8px;"
+                                                onmouseover="this.style.background='#2980b9'" 
+                                                onmouseout="this.style.background='#3498db'"
+                                                title="تكبير الكتاب">
+                                                ⛶ تكبير
+                                            </button>
+                                        ` : ''}
+                                    </div>
+                                    ${isDrive ? `
+                                        <div id="${bookId}" style="position:relative; padding-bottom:75%; height:0; overflow:hidden; border-radius:10px; background:#f0f0f0; border:1px solid #ddd; transition:all 0.3s;">
+                                            <iframe 
+                                                src="${embedUrl}" 
+                                                style="position:absolute; top:0; left:0; width:100%; height:100%; border:0; border-radius:10px;"
+                                                allowfullscreen
+                                                loading="lazy"
+                                                sandbox="allow-scripts allow-same-origin allow-forms">
+                                            </iframe>
+                                        </div>
+                                        <div style="margin-top:8px; text-align:center;">
+                                            <span style="color:#888; font-size:12px;">📖 للقراءة فقط - اضغط على زر "⛶ تكبير" للتكبير</span>
+                                        </div>
+                                    ` : `
+                                        <div style="padding:20px; background:#fff3cd; border-radius:10px; border:1px solid #ffc107;">
+                                            <p style="color:#856404; margin:0;">⚠️ الرابط ليس من Google Drive أو غير صحيح</p>
+                                            <p style="color:#856404; font-size:12px; margin-top:5px;">الرابط: <span style="word-break:break-all;">${originalUrl}</span></p>
+                                        </div>
+                                    `}
+                                </div>
+                            `;
+                        });
                     }
-                    
-                    if (fileId) {
-                        embedUrl = `https://drive.google.com/file/d/${fileId}/preview`;
-                    }
+                    container.innerHTML = html;
+                } catch (error) {
+                    console.error('خطأ في تحميل الكتب:', error);
+                    container.innerHTML = `<p style="color:red;">❌ حدث خطأ في تحميل الكتب: ${error.message}</p>`;
                 }
-                
-                // التحقق مما إذا كان الرابط من Google Drive (حتى لو ما قدرش يستخرج ID)
-                const isDrive = originalUrl.includes('drive.google.com');
-                
-                html += `
-                    <div style="margin:25px 0; background:white; padding:15px; border-radius:15px; box-shadow:0 2px 10px rgba(0,0,0,0.05); position:relative;">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:10px;">
-                            <h3 style="margin:0;">📖 ${data.title || 'كتاب'}</h3>
-                            ${isDrive ? `
-                                <button onclick="window.toggleBookFullscreen('${bookId}')" 
-                                    class="book-fullscreen-btn"
-                                    style="background:#3498db; border:none; color:white; font-size:18px; cursor:pointer; padding:8px 16px; border-radius:8px; transition:0.3s; width:auto; display:flex; align-items:center; gap:8px;"
-                                    onmouseover="this.style.background='#2980b9'" 
-                                    onmouseout="this.style.background='#3498db'"
-                                    title="تكبير الكتاب">
-                                    ⛶ تكبير
-                                </button>
-                            ` : ''}
-                        </div>
-                        ${isDrive ? `
-                            <div id="${bookId}" style="position:relative; padding-bottom:75%; height:0; overflow:hidden; border-radius:10px; background:#f0f0f0; border:1px solid #ddd; transition:all 0.3s;">
-                                <iframe 
-                                    src="${embedUrl}" 
-                                    style="position:absolute; top:0; left:0; width:100%; height:100%; border:0; border-radius:10px;"
-                                    allowfullscreen
-                                    loading="lazy"
-                                    sandbox="allow-scripts allow-same-origin allow-forms">
-                                </iframe>
-                            </div>
-                            <div style="margin-top:8px; text-align:center;">
-                                <span style="color:#888; font-size:12px;">📖 للقراءة فقط - اضغط على زر "⛶ تكبير" للتكبير</span>
-                            </div>
-                        ` : `
-                            <div style="padding:20px; background:#fff3cd; border-radius:10px; border:1px solid #ffc107;">
-                                <p style="color:#856404; margin:0;">⚠️ الرابط ليس من Google Drive أو غير صحيح</p>
-                                <p style="color:#856404; font-size:12px; margin-top:5px;">الرابط: <span style="word-break:break-all;">${originalUrl}</span></p>
-                            </div>
-                        `}
-                    </div>
-                `;
-            });
-        }
-        container.innerHTML = html;
-    } catch (error) {
-        console.error('خطأ في تحميل الكتب:', error);
-        container.innerHTML = `<p style="color:red;">❌ حدث خطأ في تحميل الكتب: ${error.message}</p>`;
-    }
-}
+            }
             
             // ============================================
             // الاختبارات
@@ -2284,4 +2389,3 @@ else if (section === 'books') {
 
 </body>
 </html>
-    
