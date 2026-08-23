@@ -357,6 +357,22 @@
             border-radius: 0;
             background: #000;
         }
+
+        .video-container:fullscreen .yt-top-blocker,
+        .video-container:-webkit-full-screen .yt-top-blocker {
+            position: absolute !important;
+            z-index: 10000 !important;
+        }
+        .video-container:fullscreen .yt-bottom-left-blocker,
+        .video-container:-webkit-full-screen .yt-bottom-left-blocker {
+            position: absolute !important;
+            z-index: 10001 !important;
+        }
+        .video-container:fullscreen .yt-bottom-right-blocker,
+        .video-container:-webkit-full-screen .yt-bottom-right-blocker {
+            position: absolute !important;
+            z-index: 10002 !important;
+        }
         .video-container:fullscreen iframe,
         .video-container:fullscreen .youtube-player,
         .video-container:-webkit-full-screen iframe,
@@ -367,7 +383,7 @@
             position: absolute;
             bottom: 60px;
             right: 15px;
-            z-index: 10;
+            z-index: 10003;
             background: rgba(0,0,0,0.7);
             color: white;
             border: none;
@@ -384,6 +400,13 @@
         .fullscreen-btn:hover {
             background: rgba(0,0,0,0.9);
             transform: scale(1.1);
+        }
+        .video-container:fullscreen .fullscreen-btn,
+        .video-container:-webkit-full-screen .fullscreen-btn {
+            display: flex !important;
+            z-index: 10003 !important;
+            bottom: 70px !important;
+            right: 18px !important;
         }
         .progress-info {
             margin-top: 10px;
@@ -486,10 +509,83 @@
             border-color: #555 !important;
         }
 
-        /* حماية الفيديو - منع ظهور أيقونات يوتيوب */
+        /* حماية الفيديو - منع روابط وعلامات YouTube العلوية */
         .video-container iframe {
             pointer-events: auto;
         }
+
+        /* طبقة شفافة فوق شريط YouTube العلوي لمنع زر المشاركة/فتح YouTube */
+        .yt-top-blocker {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 64px !important;
+            z-index: 10000 !important;
+            background: transparent !important;
+            pointer-events: auto !important;
+            user-select: none !important;
+            -webkit-user-select: none !important;
+            cursor: default !important;
+        }
+
+        .yt-top-blocker * {
+            pointer-events: none !important;
+        }
+        .yt-top-blocker * {
+            pointer-events: none !important;
+        }
+
+        /* منطقتان منفصلتان فوق الأيقونات العلوية في YouTube */
+        .yt-left-blocker, .yt-right-blocker {
+            position: absolute !important;
+            top: 0 !important;
+            height: 72px !important;
+            z-index: 10001 !important;
+            background: transparent !important;
+            pointer-events: auto !important;
+        }
+        .yt-left-blocker { left: 0 !important; width: 90px !important; }
+        .yt-right-blocker { right: 0 !important; width: 190px !important; }
+
+        /* منع الضغط على شعار YouTube أسفل اليسار */
+        .yt-bottom-left-blocker {
+            position: absolute !important;
+            left: 0 !important;
+            bottom: 0 !important;
+            width: 125px !important;
+            height: 58px !important;
+            z-index: 1001 !important;
+            background: transparent !important;
+            pointer-events: auto !important;
+            user-select: none !important;
+            -webkit-user-select: none !important;
+            cursor: default !important;
+        }
+
+        .yt-bottom-left-blocker * {
+            pointer-events: none !important;
+        }
+
+        /* منع زر نسخ/مشاركة الرابط الموجود أسفل يمين مشغل YouTube */
+        .yt-bottom-right-blocker {
+            position: absolute !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            width: 115px !important;
+            height: 62px !important;
+            z-index: 10002 !important;
+            background: transparent !important;
+            pointer-events: auto !important;
+            user-select: none !important;
+            -webkit-user-select: none !important;
+            cursor: default !important;
+        }
+
+        .yt-bottom-right-blocker * {
+            pointer-events: none !important;
+        }
+
         .video-container iframe::after {
             content: '';
             position: absolute;
@@ -1256,7 +1352,7 @@
                                     'modestbranding': 1,
                                     'iv_load_policy': 3,
                                     'cc_load_policy': 0,
-                                    'fs': 1,
+                                    'fs': 0,
                                     'autohide': 1,
                                     'autoplay': 0,
                                     'enablejsapi': 1,
@@ -1333,7 +1429,7 @@
                                 fullscreenBtn.setAttribute('aria-label', 'تكبير الفيديو');
                                 fullscreenBtn.addEventListener('click', function(e) {
                                     e.stopPropagation();
-                                    const videoContainer = container.closest('.video-container');
+                                    const videoContainer = container.closest('.video-container') || container.parentElement;
                                     if (!videoContainer) return;
                                     try {
                                         if (document.fullscreenElement === videoContainer) {
@@ -1351,10 +1447,11 @@
                                     }
                                 });
                                 wrapper.style.position = 'relative';
-                                wrapper.appendChild(fullscreenBtn);
 
-                                const videoContainer = container.closest('.video-container');
+                                const videoContainer = container.closest('.video-container') || container.parentElement;
                                 if (videoContainer) {
+                                    // زر التكبير يكون داخل حاوية الفيديو نفسها حتى يظل ظاهرًا في Fullscreen
+                                    videoContainer.appendChild(fullscreenBtn);
                                     let watermark = videoContainer.querySelector('.video-watermark');
                                     if (!watermark) {
                                         watermark = document.createElement('div');
@@ -1731,7 +1828,7 @@ else if (section === 'videos') {
                 html += `
                     <div class="video-player-wrapper">
                         <h3>${data.title}</h3>
-                        <div style="position:relative; padding-bottom:56.25%; height:0; overflow:hidden; border-radius:10px; background:#000; cursor:pointer;" 
+                        <div class="video-container" style="position:relative; padding-bottom:56.25%; height:0; overflow:hidden; border-radius:10px; background:#000; cursor:pointer;" 
                              onclick="window.playVideo('${videoId}')"
                              id="video-container-${videoId}">
                             <div style="position:absolute; top:0; left:0; width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.7); z-index:5; border-radius:10px;">
@@ -1742,10 +1839,25 @@ else if (section === 'videos') {
                                 </div>
                             </div>
                             <div id="player-${videoId}" style="position:absolute; top:0; left:0; width:100%; height:100%; border-radius:10px; display:none;"></div>
+                            <!-- زر تكبير منفصل عن أدوات YouTube -->
+                            <button type="button" class="fullscreen-btn"
+                                    title="تكبير الفيديو" aria-label="تكبير الفيديو"
+                                    onclick="window.toggleVideoFullscreen(event, '${videoId}')">
+                                ⛶
+                            </button>
                             <!-- علامة مائية -->
                             <div style="position:absolute; bottom:10px; right:10px; z-index:10; color:rgba(255,255,255,0.2); font-size:11px; pointer-events:none; user-select:none; background:rgba(0,0,0,0.3); padding:4px 10px; border-radius:4px;">
                                 ${studentName} • ${studentCode}
                             </div>
+                            <!-- منع الضغط على علامة المشاركة وYouTube وفتح الفيديو خارج المنصة -->
+                            <div class="yt-top-blocker" aria-hidden="true">
+                                <div class="yt-left-blocker"></div>
+                                <div class="yt-right-blocker"></div>
+                            </div>
+                            <!-- منع الضغط على شعار YouTube أسفل اليسار -->
+                            <div class="yt-bottom-left-blocker" aria-hidden="true"></div>
+                            <!-- منع زر نسخ/مشاركة الرابط أسفل اليمين -->
+                            <div class="yt-bottom-right-blocker" aria-hidden="true"></div>
                         </div>
                         <div class="progress-info" id="progress-info-${videoId}" style="display:none;">
                             <div class="progress-bar">
@@ -1768,6 +1880,55 @@ else if (section === 'videos') {
         });
         container.innerHTML = html;
         
+        // زر تكبير منفصل عن YouTube: يدخل حاوية الفيديو نفسها في Fullscreen
+        window.toggleVideoFullscreen = function(event, videoId) {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            const videoContainer = document.getElementById(`video-container-${videoId}`);
+            if (!videoContainer) return;
+
+            try {
+                const activeFullscreen = document.fullscreenElement || document.webkitFullscreenElement;
+                if (activeFullscreen === videoContainer) {
+                    if (document.exitFullscreen) document.exitFullscreen();
+                    else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+                    return;
+                }
+
+                if (videoContainer.requestFullscreen) {
+                    const result = videoContainer.requestFullscreen();
+                    if (result && typeof result.catch === 'function') {
+                        result.catch(err => console.warn('تعذر تكبير الفيديو:', err));
+                    }
+                } else if (videoContainer.webkitRequestFullscreen) {
+                    videoContainer.webkitRequestFullscreen();
+                } else if (videoContainer.msRequestFullscreen) {
+                    videoContainer.msRequestFullscreen();
+                }
+            } catch (err) {
+                console.warn('Fullscreen error:', err);
+            }
+        };
+
+        // تحديث شكل زر التكبير عند الدخول والخروج من Fullscreen
+        if (!window.__videoFullscreenEventsBound) {
+            window.__videoFullscreenEventsBound = true;
+            const updateFullscreenButtons = function() {
+                const active = document.fullscreenElement || document.webkitFullscreenElement;
+                document.querySelectorAll('.video-container .fullscreen-btn').forEach(btn => {
+                    const container = btn.closest('.video-container');
+                    const isActive = active && container === active;
+                    btn.textContent = isActive ? '⛶' : '⛶';
+                    btn.title = isActive ? 'تصغير الفيديو' : 'تكبير الفيديو';
+                    btn.setAttribute('aria-label', isActive ? 'تصغير الفيديو' : 'تكبير الفيديو');
+                });
+            };
+            document.addEventListener('fullscreenchange', updateFullscreenButtons);
+            document.addEventListener('webkitfullscreenchange', updateFullscreenButtons);
+        }
+
         // تهيئة المشغلات عند الطلب (بعد الضغط)
         window.playVideo = function(videoId) {
             const container = document.getElementById(`video-container-${videoId}`);
@@ -1829,7 +1990,7 @@ else if (section === 'videos') {
                     'modestbranding': 1,
                     'iv_load_policy': 3,
                     'cc_load_policy': 0,
-                    'fs': 1,
+                    'fs': 0,
                     'autohide': 1,
                     'autoplay': 1,
                     'enablejsapi': 1,
@@ -1837,6 +1998,7 @@ else if (section === 'videos') {
                     'showinfo': 0,
                     'disablekb': 1
                 },
+                host: 'https://www.youtube-nocookie.com',
                 events: {
                     'onReady': function(event) {
                         console.log(`🎬 الفيديو ${videoId} جاهز`);
@@ -1866,6 +2028,24 @@ else if (section === 'videos') {
             });
             
             window.players[videoId] = player;
+
+            // منع أي محاولة ضغط على منطقة روابط YouTube العلوية
+            const videoContainer = document.getElementById(`video-container-${videoId}`);
+            if (videoContainer) {
+                const blockers = videoContainer.querySelectorAll('.yt-top-blocker, .yt-bottom-left-blocker, .yt-bottom-right-blocker');
+                blockers.forEach(blocker => {
+                    ['click', 'dblclick', 'mousedown', 'mouseup', 'pointerdown', 'pointerup', 'touchstart', 'touchend', 'contextmenu'].forEach(type => {
+                        blocker.addEventListener(type, function(e) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                        }, true);
+                    });
+                });
+
+                // منع قائمة كليك يمين والنسخ داخل منطقة الفيديو
+                videoContainer.addEventListener('contextmenu', e => e.preventDefault());
+                videoContainer.addEventListener('copy', e => e.preventDefault());
+            }
             
             // تتبع التقدم
             function startProgressTracking(videoId, player) {
