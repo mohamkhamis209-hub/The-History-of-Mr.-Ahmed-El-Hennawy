@@ -2335,108 +2335,131 @@
         };
 
         // ============================================
-        // BOOKS
-        // ============================================
-        window.addBook = async function() {
-            const title = document.getElementById('bookTitle').value.trim();
-            let url = document.getElementById('bookUrl').value.trim();
-            const grade = document.getElementById('bookGrade').value;
-            if (!title || !url) return alert('املأ البيانات');
+// الكتب - لوحة المشرف (نسخة تدعم أي رابط)
+// ============================================
+window.showBooks = async function() {
+    await getGrades();
+    const gradeFilter = document.getElementById('filterBookGrade')?.value || 'all';
+    const searchTerm = document.getElementById('searchBook')?.value?.trim()?.toLowerCase() || '';
 
-            if (url.includes('drive.google.com/file/d/')) {
-                const match = url.match(/\/d\/([^\/]+)/);
-                if (match) {
-                    url = `https://drive.google.com/file/d/${match[1]}/preview`;
-                }
-            }
-            if (url.includes('drive.google.com/open?id=')) {
-                const match = url.match(/id=([^&]+)/);
-                if (match) {
-                    url = `https://drive.google.com/file/d/${match[1]}/preview`;
-                }
-            }
-            if (url.includes('drive.google.com')) {
-                if (!url.includes('rm=minimal')) {
-                    url += url.includes('?') ? '&rm=minimal' : '?rm=minimal';
-                }
-            }
+    let q;
+    if (gradeFilter === 'all') {
+        q = collection(db, 'books');
+    } else {
+        q = query(collection(db, 'books'), where('grade', '==', gradeFilter));
+    }
+    const snap = await getDocs(q);
 
-            await addDoc(collection(db, 'books'), { title, url, grade, addedAt: new Date() });
-            alert('✅ تمت الإضافة');
-            window.showBooks();
-        };
+    let books = [];
+    snap.forEach(d => {
+        const data = d.data();
+        books.push({ id: d.id, ...data });
+    });
 
-        window.searchBooks = function() { window.showBooks(); };
-        window.clearBookSearch = function() { document.getElementById('searchBook').value = ''; window.showBooks(); };
+    if (searchTerm) {
+        books = books.filter(b =>
+            b.title && b.title.toLowerCase().includes(searchTerm)
+        );
+    }
 
-        window.showBooks = async function() {
-            await getGrades();
-            const gradeFilter = document.getElementById('filterBookGrade')?.value || 'all';
-            const searchTerm = document.getElementById('searchBook')?.value?.trim()?.toLowerCase() || '';
-
-            let q;
-            if (gradeFilter === 'all') {
-                q = collection(db, 'books');
-            } else {
-                q = query(collection(db, 'books'), where('grade', '==', gradeFilter));
-            }
-            const snap = await getDocs(q);
-
-            let books = [];
-            snap.forEach(d => {
-                const data = d.data();
-                books.push({ id: d.id, ...data });
-            });
-
-            if (searchTerm) {
-                books = books.filter(b =>
-                    b.title && b.title.toLowerCase().includes(searchTerm)
-                );
-            }
-
-            let html = `<h2>📚 الكتب</h2>
-                        <div class="filter-bar">
-                            <input id="bookTitle" placeholder="عنوان الكتاب">
-                            <input id="bookUrl" placeholder="رابط جوجل درايف" style="flex:2; min-width:200px;">
-                            <select id="bookGrade">
-                                ${getGradeOptions('all')}
-                            </select>
-                            <button onclick="addBook()" class="btn-sm btn-add">➕ إضافة</button>
-                        </div>
-                        <div class="filter-bar">
-                            <select id="filterBookGrade" onchange="showBooks()">
-                                ${getGradeOptions(gradeFilter)}
-                            </select>
-                            <input id="searchBook" class="search-box" placeholder="🔍 بحث بالعنوان..." value="${searchTerm}">
-                            <button onclick="searchBooks()" class="btn-sm btn-search">🔍 بحث</button>
-                            <button onclick="clearBookSearch()" class="btn-sm btn-clear">✖️ إلغاء</button>
-                        </div>`;
-            if (books.length === 0) html += `<p>لا يوجد كتب</p>`;
-            books.forEach(b => {
-                const isCustom = cachedGrades.some(g => g.code === b.grade);
-                const gradeText = isCustom ? (cachedGrades.find(g => g.code === b.grade)?.name || b.grade) :
-                    (b.grade === 'all' ? 'للجميع' : b.grade === '1' ? 'أولى ث' : b.grade === '2' ? 'ثانية ث' : b.grade === '3' ? 'ثالثة ث' : b.grade || '—');
-                let url = b.url;
-                if (url.includes('drive.google.com')) {
-                    if (!url.includes('rm=minimal')) {
-                        url += url.includes('?') ? '&rm=minimal' : '?rm=minimal';
+    let html = `<h2>📚 الكتب</h2>
+                <div class="filter-bar">
+                    <input id="bookTitle" placeholder="عنوان الكتاب">
+                    <input id="bookUrl" placeholder="رابط جوجل درايف أو أي رابط" style="flex:2; min-width:200px;">
+                    <select id="bookGrade">
+                        ${getGradeOptions('all')}
+                    </select>
+                    <button onclick="addBook()" class="btn-sm btn-add">➕ إضافة</button>
+                </div>
+                <div class="filter-bar">
+                    <select id="filterBookGrade" onchange="showBooks()">
+                        ${getGradeOptions(gradeFilter)}
+                    </select>
+                    <input id="searchBook" class="search-box" placeholder="🔍 بحث بالعنوان..." value="${searchTerm}">
+                    <button onclick="searchBooks()" class="btn-sm btn-search">🔍 بحث</button>
+                    <button onclick="clearBookSearch()" class="btn-sm btn-clear">✖️ إلغاء</button>
+                </div>`;
+                
+    if (books.length === 0) {
+        html += `<p>لا يوجد كتب</p>`;
+    } else {
+        books.forEach(b => {
+            const isCustom = cachedGrades.some(g => g.code === b.grade);
+            const gradeText = isCustom ? (cachedGrades.find(g => g.code === b.grade)?.name || b.grade) :
+                (b.grade === 'all' ? 'للجميع' : b.grade === '1' ? 'أولى ث' : b.grade === '2' ? 'ثانية ث' : b.grade === '3' ? 'ثالثة ث' : b.grade || '—');
+            
+            // ============================================
+            // معالجة رابط الكتاب - دعم أي رابط درايف
+            // ============================================
+            let embedUrl = b.url;
+            
+            if (b.url && b.url.includes('drive.google.com')) {
+                // محاولة استخراج معرف الملف
+                let fileId = null;
+                
+                // قائمة بكل الأنماط الممكنة لروابط درايف
+                const patterns = [
+                    /\/d\/([^\/]+)/,
+                    /id=([^&]+)/,
+                    /file\/d\/([^\/]+)/,
+                    /open\?id=([^&]+)/,
+                    /\/uc\?id=([^&]+)/,
+                    /\/u\/\d+\/d\/([^\/]+)/,
+                    /\/file\/d\/([^\/]+)\/view/,
+                    /\/file\/d\/([^\/]+)\/preview/,
+                    /([a-zA-Z0-9_-]{25,})/
+                ];
+                
+                for (const pattern of patterns) {
+                    const match = b.url.match(pattern);
+                    if (match && match[1] && match[1].length > 10) {
+                        fileId = match[1];
+                        break;
                     }
                 }
-                html += `<div style="border:1px solid #ddd; padding:15px; margin:15px 0; border-radius:10px; background:white;">
-                            <h4>${b.title} <span class="grade-badge ${isCustom ? 'grade-custom' : (b.grade || 'all')}">${gradeText}</span></h4>
-                            <iframe src="${url}" 
-                                    width="100%" 
-                                    height="500" 
-                                    frameborder="0" 
-                                    allowfullscreen
-                                    style="border-radius:10px;">
-                            </iframe>
-                            <button onclick="deleteItem('books','${b.id}')" class="btn-sm" style="background:#e74c3c; color:white; margin-top:10px;">🗑️ حذف</button>
-                        </div>`;
-            });
-            document.getElementById('content-area').innerHTML = html;
-        };
-
+                
+                if (fileId) {
+                    embedUrl = `https://drive.google.com/file/d/${fileId}/preview`;
+                } else {
+                    // محاولة إصلاح الرابط
+                    if (b.url.includes('/view')) {
+                        embedUrl = b.url.replace('/view', '/preview');
+                    } else if (b.url.includes('open?id=')) {
+                        const idMatch = b.url.match(/id=([^&]+)/);
+                        if (idMatch) {
+                            embedUrl = `https://drive.google.com/file/d/${idMatch[1]}/preview`;
+                        }
+                    }
+                }
+            }
+            
+            html += `
+                <div style="border:1px solid #ddd; padding:15px; margin:15px 0; border-radius:10px; background:white;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
+                        <h4 style="margin:0;">${b.title} <span class="grade-badge ${isCustom ? 'grade-custom' : (b.grade || 'all')}">${gradeText}</span></h4>
+                        <div>
+                            <button onclick="deleteItem('books','${b.id}')" class="btn-sm" style="background:#e74c3c; color:white;">🗑️ حذف</button>
+                        </div>
+                    </div>
+                    <div style="position:relative; padding-bottom:75%; height:0; overflow:hidden; border-radius:10px; background:#f5f5f5; border:1px solid #ddd;">
+                        <iframe 
+                            src="${embedUrl}" 
+                            style="position:absolute; top:0; left:0; width:100%; height:100%; border:0; border-radius:10px;"
+                            allowfullscreen
+                            loading="lazy"
+                            allow="autoplay; encrypted-media">
+                        </iframe>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; flex-wrap:wrap; gap:5px;">
+                        <span style="color:#888; font-size:12px;">📖 الرابط: <a href="${b.url}" target="_blank" style="color:#3498db; text-decoration:none; word-break:break-all;">${b.url}</a></span>
+                        <a href="${embedUrl}" target="_blank" style="color:#3498db; font-size:12px; text-decoration:none;">🔗 فتح في تبويب جديد</a>
+                    </div>
+                </div>
+            `;
+        });
+    }
+    document.getElementById('content-area').innerHTML = html;
+};
         // ============================================
         // EXAMS
         // ============================================
