@@ -580,7 +580,7 @@
                 const code = localStorage.getItem('studentCode') || 'غير معروف';
                 if (!question) { alert('⚠️ اكتب سؤالك أولاً'); input?.focus(); return; }
                 const message = `🎓 سؤال من طالب\n👤 الاسم: ${name}\n🔑 الكود: ${code}\n\n💬 السؤال:\n${question}`;
-                window.open(`https://wa.me/201558812897?text=${encodeURIComponent(message)}`, '_blank');
+                window.open(`https://wa.me/201275001442?text=${encodeURIComponent(message)}`, '_blank');
                 if (input) input.value = '';
                 const modal = document.getElementById('questionModal');
                 if (modal) modal.style.display = 'none';
@@ -1337,7 +1337,7 @@
         // ============================================
         // دوال سؤال الطالب عبر واتساب
         // ============================================
-        const SUPERVISOR_WHATSAPP = '201558812897';
+        const SUPERVISOR_WHATSAPP = '201275001442';
 
         function openQuestionModal() {
             const modal = document.getElementById('questionModal');
