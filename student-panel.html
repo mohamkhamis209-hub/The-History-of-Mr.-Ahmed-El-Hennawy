@@ -1194,7 +1194,7 @@
         // ============================================
         // سؤال الطالب عبر واتساب
         // ============================================
-        const SUPERVISOR_WHATSAPP = '201275001442'; // نفس رقم التواصل القديم
+        const SUPERVISOR_WHATSAPP = '201558812897'; // نفس رقم التواصل القديم
 
         window.openQuestionModal = function() {
             const modal = document.getElementById('questionModal');
@@ -2000,34 +2000,6 @@
         updatePointsDisplay(studentCode);
         loadSection('dashboard');
     </script>
-
-
-<script id="section-navigation-bridge">
-document.addEventListener('DOMContentLoaded', function () {
-    document.querySelectorAll('.sidebar li[onclick*="loadSection("]').forEach(function (item) {
-        const match = item.getAttribute('onclick')?.match(/loadSection\(['"]([^'"]+)['"]\)/);
-        if (!match) return;
-        const section = match[1];
-        item.removeAttribute('onclick');
-        item.addEventListener('click', function () {
-            if (typeof window.loadSection === 'function') {
-                window.loadSection(section).catch(function (err) {
-                    console.error('خطأ في فتح القسم:', err);
-                    const c = document.getElementById('student-content');
-                    if (c) c.innerHTML =
-                        '<div style="padding:30px;text-align:center">' +
-                        '<h2>⚠️ تعذر فتح القسم</h2>' +
-                        '<p style="color:#777">حدث خطأ أثناء تحميل القسم. حاول مرة أخرى.</p>' +
-                        '<button onclick="location.reload()" style="padding:10px 18px;border:0;border-radius:8px;cursor:pointer">🔄 إعادة المحاولة</button>' +
-                        '</div>';
-                });
-            } else {
-                console.error('loadSection غير متاحة');
-            }
-        });
-    });
-});
-</script>
 
 <!-- PLATFORM PROTECTION LAYER -->
 <style>
