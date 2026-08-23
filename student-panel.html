@@ -1633,6 +1633,145 @@ else if (section === 'books') {
         container.innerHTML = `<p style="color:red;">❌ حدث خطأ في تحميل الكتب: ${error.message}</p>`;
     }
 }
+    // ============================================
+// دالة تكبير الكتاب داخل الموقع
+// ============================================
+window.toggleBookFullscreen = function(bookId) {
+    const container = document.getElementById(bookId);
+    if (!container) return;
+    
+    // التحقق مما إذا كان في وضع التكبير
+    const isFullscreen = container.classList.contains('book-fullscreen');
+    
+    if (isFullscreen) {
+        // إلغاء التكبير
+        container.classList.remove('book-fullscreen');
+        container.style.position = 'relative';
+        container.style.paddingBottom = '75%';
+        container.style.height = '0';
+        container.style.width = '100%';
+        container.style.top = 'auto';
+        container.style.left = 'auto';
+        container.style.zIndex = 'auto';
+        container.style.background = '#f0f0f0';
+        container.style.borderRadius = '10px';
+        
+        // إعادة iframe إلى حجمه الطبيعي
+        const iframe = container.querySelector('iframe');
+        if (iframe) {
+            iframe.style.position = 'absolute';
+            iframe.style.top = '0';
+            iframe.style.left = '0';
+            iframe.style.width = '100%';
+            iframe.style.height = '100%';
+            iframe.style.borderRadius = '10px';
+        }
+        
+        // تحديث نص الزر
+        const btn = container.parentElement.querySelector('button');
+        if (btn) btn.textContent = '⛶';
+    } else {
+        // تفعيل التكبير
+        container.classList.add('book-fullscreen');
+        container.style.position = 'fixed';
+        container.style.top = '50%';
+        container.style.left = '50%';
+        container.style.transform = 'translate(-50%, -50%)';
+        container.style.paddingBottom = '0';
+        container.style.height = '90vh';
+        container.style.width = '90vw';
+        container.style.zIndex = '9999';
+        container.style.background = '#1a1a2e';
+        container.style.borderRadius = '12px';
+        container.style.boxShadow = '0 25px 70px rgba(0,0,0,0.8)';
+        container.style.border = '2px solid #444';
+        
+        // تكبير iframe
+        const iframe = container.querySelector('iframe');
+        if (iframe) {
+            iframe.style.position = 'absolute';
+            iframe.style.top = '0';
+            iframe.style.left = '0';
+            iframe.style.width = '100%';
+            iframe.style.height = '100%';
+            iframe.style.borderRadius = '10px';
+        }
+        
+        // تحديث نص الزر
+        const btn = container.parentElement.querySelector('button');
+        if (btn) btn.textContent = '✕';
+        
+        // إضافة زر إغلاق في الزاوية
+        let closeBtn = container.querySelector('.book-close-btn');
+        if (!closeBtn) {
+            closeBtn = document.createElement('button');
+            closeBtn.className = 'book-close-btn';
+            closeBtn.textContent = '✕';
+            closeBtn.style.cssText = `
+                position: absolute;
+                top: 10px;
+                right: 10px;
+                z-index: 10000;
+                background: rgba(0,0,0,0.7);
+                color: white;
+                border: none;
+                border-radius: 50%;
+                width: 40px;
+                height: 40px;
+                font-size: 20px;
+                cursor: pointer;
+                transition: 0.3s;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: auto;
+                padding: 0 15px;
+                border-radius: 20px;
+            `;
+            closeBtn.onmouseover = () => closeBtn.style.background = 'rgba(231,76,60,0.9)';
+            closeBtn.onmouseout = () => closeBtn.style.background = 'rgba(0,0,0,0.7)';
+            closeBtn.onclick = () => window.toggleBookFullscreen(bookId);
+            container.appendChild(closeBtn);
+        }
+        closeBtn.style.display = 'flex';
+        
+        // منع التمرير في الخلفية
+        document.body.style.overflow = 'hidden';
+    }
+    
+    // إزالة أو إضافة منع التمرير
+    if (!isFullscreen) {
+        document.body.style.overflow = 'hidden';
+    } else {
+        document.body.style.overflow = '';
+    }
+};
+
+// إغلاق التكبير عند الضغط على ESC
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        const fullscreenBooks = document.querySelectorAll('.book-fullscreen');
+        fullscreenBooks.forEach(book => {
+            const bookId = book.id;
+            if (bookId) {
+                window.toggleBookFullscreen(bookId);
+            }
+        });
+    }
+});
+
+// إغلاق التكبير عند الضغط خارج المحتوى
+document.addEventListener('click', function(e) {
+    const fullscreenBooks = document.querySelectorAll('.book-fullscreen');
+    fullscreenBooks.forEach(book => {
+        if (!book.contains(e.target) && !e.target.closest('button')) {
+            const bookId = book.id;
+            if (bookId) {
+                window.toggleBookFullscreen(bookId);
+            }
+        }
+    });
+});
             
             // ============================================
             // الاختبارات
