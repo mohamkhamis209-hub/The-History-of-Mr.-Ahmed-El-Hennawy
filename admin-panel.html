@@ -3101,37 +3101,21 @@
             return students;
         }
 
-        function loadReportPDFLibraries() {
-            return Promise.all([
-                new Promise((resolve, reject) => {
-                    if (window.html2canvas) return resolve();
-                    const script = document.createElement('script');
-                    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-                    script.onload = resolve;
-                    script.onerror = () => reject(new Error('فشل تحميل مكتبة رسم التقرير'));
-                    document.head.appendChild(script);
-                }),
-                new Promise((resolve, reject) => {
-                    if (window.jspdf?.jsPDF) return resolve();
-                    const script = document.createElement('script');
-                    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-                    script.onload = resolve;
-                    script.onerror = () => reject(new Error('فشل تحميل مكتبة PDF'));
-                    document.head.appendChild(script);
-                })
-            ]);
+        async function loadReportPDFLibraries() {
+            await loadPDF();
+            if (typeof window.html2pdf !== 'function') {
+                throw new Error('مكتبة PDF غير جاهزة. أعد تحميل الصفحة ثم حاول مرة أخرى.');
+            }
         }
 
         async function createReportPDF(title, subtitle, tableHtml, filename, orientation='landscape') {
-            await loadPDF();
+            await loadReportPDFLibraries();
 
-            // لا نستخدم عناصر خارج الـ viewport أو z-index سالب، لأن ذلك قد يجعل
-            // html2canvas يلتقط صفحة بيضاء. التقرير يُرسم فعليًا داخل DOM ثم يُلتقط.
             const wrap = document.createElement('div');
             wrap.id = 'pdf-report-render-root';
             wrap.dir = 'rtl';
             wrap.style.cssText = [
-                'position:fixed',
+                'position:absolute',
                 'left:0',
                 'top:0',
                 'width:1120px',
@@ -3144,6 +3128,7 @@
                 'z-index:2147483647',
                 'display:block',
                 'visibility:visible',
+                'opacity:1',
                 'direction:rtl',
                 'text-align:right',
                 'overflow:visible'
@@ -3161,74 +3146,40 @@
             document.body.appendChild(wrap);
 
             try {
-                // ننتظر دورة رسم كاملة حتى يكون العنصر وأبعاده قد حُسبت فعليًا.
-                await new Promise(requestAnimationFrame);
-                await new Promise(resolve => setTimeout(resolve, 80));
+                await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+                await new Promise(resolve => setTimeout(resolve, 150));
 
                 const rect = wrap.getBoundingClientRect();
-                if (!rect.width || !rect.height || wrap.scrollHeight < 10) {
+                if (rect.width < 10 || rect.height < 10 || wrap.scrollHeight < 20) {
                     throw new Error('تعذر تجهيز محتوى التقرير للطباعة');
                 }
 
-                const canvas = await window.html2canvas(wrap, {
-                    scale: 2,
-                    useCORS: true,
-                    allowTaint: false,
-                    backgroundColor: '#ffffff',
-                    logging: false,
-                    x: 0,
-                    y: 0,
-                    width: Math.ceil(wrap.scrollWidth),
-                    height: Math.ceil(wrap.scrollHeight),
-                    scrollX: 0,
-                    scrollY: 0,
-                    windowWidth: Math.max(document.documentElement.clientWidth, 1120),
-                    windowHeight: Math.max(document.documentElement.clientHeight, wrap.scrollHeight)
-                });
-
-                if (!canvas.width || !canvas.height) {
-                    throw new Error('تم إنشاء صورة التقرير بحجم صفر');
-                }
-
-                const { jsPDF } = window.jspdf || {};
-                if (!jsPDF) {
-                    throw new Error('مكتبة PDF غير جاهزة');
-                }
-
-                const pdf = new jsPDF({
-                    unit: 'mm',
-                    format: 'a4',
-                    orientation
-                });
-
-                const pageWidth = orientation === 'landscape' ? 297 : 210;
-                const pageHeight = orientation === 'landscape' ? 210 : 297;
-                const margin = 8;
-                const contentWidth = pageWidth - (margin * 2);
-                const contentHeight = pageHeight - (margin * 2);
-                const pxPerPage = Math.max(1, Math.floor(canvas.width * (contentHeight / contentWidth)));
-
-                let sourceY = 0;
-                let page = 0;
-                while (sourceY < canvas.height) {
-                    const sliceHeight = Math.min(pxPerPage, canvas.height - sourceY);
-                    const slice = document.createElement('canvas');
-                    slice.width = canvas.width;
-                    slice.height = sliceHeight;
-                    const ctx = slice.getContext('2d');
-                    ctx.fillStyle = '#ffffff';
-                    ctx.fillRect(0, 0, slice.width, slice.height);
-                    ctx.drawImage(canvas, 0, sourceY, canvas.width, sliceHeight, 0, 0, slice.width, slice.height);
-
-                    if (page > 0) pdf.addPage();
-                    const renderedHeight = contentWidth * (sliceHeight / canvas.width);
-                    pdf.addImage(slice.toDataURL('image/jpeg', 0.96), 'JPEG', margin, margin, contentWidth, renderedHeight, undefined, 'FAST');
-
-                    sourceY += sliceHeight;
-                    page++;
-                }
-
-                pdf.save(filename);
+                // استخدم html2pdf.bundle مباشرة؛ فهي تحمل html2canvas و jsPDF
+                // داخليًا، لذلك لا نعتمد على window.html2canvas الذي قد لا يكون مكشوفًا عالميًا.
+                await window.html2pdf()
+                    .set({
+                        margin: [8, 8, 8, 8],
+                        filename,
+                        image: { type: 'jpeg', quality: 0.98 },
+                        html2canvas: {
+                            scale: 2,
+                            useCORS: true,
+                            allowTaint: false,
+                            backgroundColor: '#ffffff',
+                            logging: false,
+                            scrollX: 0,
+                            scrollY: 0,
+                            windowWidth: 1200
+                        },
+                        pagebreak: { mode: ['css', 'legacy'] },
+                        jsPDF: {
+                            unit: 'mm',
+                            format: 'a4',
+                            orientation
+                        }
+                    })
+                    .from(wrap)
+                    .save();
             } finally {
                 wrap.remove();
             }
