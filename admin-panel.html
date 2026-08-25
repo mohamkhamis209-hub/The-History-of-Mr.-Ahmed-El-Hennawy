@@ -3101,11 +3101,54 @@
             return students;
         }
 
+        function loadReportPDFLibraries() {
+            return Promise.all([
+                new Promise((resolve, reject) => {
+                    if (window.html2canvas) return resolve();
+                    const script = document.createElement('script');
+                    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+                    script.onload = resolve;
+                    script.onerror = () => reject(new Error('فشل تحميل مكتبة رسم التقرير'));
+                    document.head.appendChild(script);
+                }),
+                new Promise((resolve, reject) => {
+                    if (window.jspdf?.jsPDF) return resolve();
+                    const script = document.createElement('script');
+                    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+                    script.onload = resolve;
+                    script.onerror = () => reject(new Error('فشل تحميل مكتبة PDF'));
+                    document.head.appendChild(script);
+                })
+            ]);
+        }
+
         async function createReportPDF(title, subtitle, tableHtml, filename, orientation='landscape') {
             await loadPDF();
+
+            // لا نستخدم عناصر خارج الـ viewport أو z-index سالب، لأن ذلك قد يجعل
+            // html2canvas يلتقط صفحة بيضاء. التقرير يُرسم فعليًا داخل DOM ثم يُلتقط.
             const wrap = document.createElement('div');
+            wrap.id = 'pdf-report-render-root';
             wrap.dir = 'rtl';
-            wrap.style.cssText = 'position:absolute;left:0;top:0;width:1120px;background:#fff;color:#111;font-family:Tahoma,Arial,sans-serif;padding:28px;box-sizing:border-box;z-index:2147483647;pointer-events:none;direction:rtl;';
+            wrap.style.cssText = [
+                'position:fixed',
+                'left:0',
+                'top:0',
+                'width:1120px',
+                'min-height:100px',
+                'background:#ffffff',
+                'color:#111111',
+                'font-family:Tahoma,Arial,sans-serif',
+                'padding:28px',
+                'box-sizing:border-box',
+                'z-index:2147483647',
+                'display:block',
+                'visibility:visible',
+                'direction:rtl',
+                'text-align:right',
+                'overflow:visible'
+            ].join(';') + ';';
+
             wrap.innerHTML = `
                 <div style="border-bottom:3px solid #2c3e50;padding-bottom:12px;margin-bottom:18px;text-align:center;">
                     <h1 style="margin:0 0 8px;font-size:25px;color:#2c3e50;">${reportEsc(title)}</h1>
@@ -3114,21 +3157,80 @@
                 </div>
                 ${tableHtml}
                 <div style="margin-top:20px;text-align:center;color:#777;font-size:11px;">منصة الأستاذ أحمد الحناوي</div>`;
+
             document.body.appendChild(wrap);
-            const previousOverflow = document.body.style.overflow;
-            document.body.style.overflow = 'hidden';
+
             try {
-                await window.html2pdf().set({
-                    margin: 8,
-                    filename,
-                    image: { type: 'jpeg', quality: 0.96 },
-                    html2canvas: { scale: 1.6, useCORS: true, backgroundColor: '#ffffff' },
-                    pagebreak: { mode: ['css','legacy'] },
-                    jsPDF: { unit: 'mm', format: 'a4', orientation }
-                }).from(wrap).save();
+                // ننتظر دورة رسم كاملة حتى يكون العنصر وأبعاده قد حُسبت فعليًا.
+                await new Promise(requestAnimationFrame);
+                await new Promise(resolve => setTimeout(resolve, 80));
+
+                const rect = wrap.getBoundingClientRect();
+                if (!rect.width || !rect.height || wrap.scrollHeight < 10) {
+                    throw new Error('تعذر تجهيز محتوى التقرير للطباعة');
+                }
+
+                const canvas = await window.html2canvas(wrap, {
+                    scale: 2,
+                    useCORS: true,
+                    allowTaint: false,
+                    backgroundColor: '#ffffff',
+                    logging: false,
+                    x: 0,
+                    y: 0,
+                    width: Math.ceil(wrap.scrollWidth),
+                    height: Math.ceil(wrap.scrollHeight),
+                    scrollX: 0,
+                    scrollY: 0,
+                    windowWidth: Math.max(document.documentElement.clientWidth, 1120),
+                    windowHeight: Math.max(document.documentElement.clientHeight, wrap.scrollHeight)
+                });
+
+                if (!canvas.width || !canvas.height) {
+                    throw new Error('تم إنشاء صورة التقرير بحجم صفر');
+                }
+
+                const { jsPDF } = window.jspdf || {};
+                if (!jsPDF) {
+                    throw new Error('مكتبة PDF غير جاهزة');
+                }
+
+                const pdf = new jsPDF({
+                    unit: 'mm',
+                    format: 'a4',
+                    orientation
+                });
+
+                const pageWidth = orientation === 'landscape' ? 297 : 210;
+                const pageHeight = orientation === 'landscape' ? 210 : 297;
+                const margin = 8;
+                const contentWidth = pageWidth - (margin * 2);
+                const contentHeight = pageHeight - (margin * 2);
+                const pxPerPage = Math.max(1, Math.floor(canvas.width * (contentHeight / contentWidth)));
+
+                let sourceY = 0;
+                let page = 0;
+                while (sourceY < canvas.height) {
+                    const sliceHeight = Math.min(pxPerPage, canvas.height - sourceY);
+                    const slice = document.createElement('canvas');
+                    slice.width = canvas.width;
+                    slice.height = sliceHeight;
+                    const ctx = slice.getContext('2d');
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, slice.width, slice.height);
+                    ctx.drawImage(canvas, 0, sourceY, canvas.width, sliceHeight, 0, 0, slice.width, slice.height);
+
+                    if (page > 0) pdf.addPage();
+                    const renderedHeight = contentWidth * (sliceHeight / canvas.width);
+                    pdf.addImage(slice.toDataURL('image/jpeg', 0.96), 'JPEG', margin, margin, contentWidth, renderedHeight, undefined, 'FAST');
+
+                    sourceY += sliceHeight;
+                    page++;
+                }
+
+                pdf.save(filename);
             } finally {
                 wrap.remove();
-                document.body.style.overflow = previousOverflow;
             }
         }
 
