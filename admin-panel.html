@@ -3111,31 +3111,32 @@
         async function createReportPDF(title, subtitle, tableHtml, filename, orientation='landscape') {
             await loadReportPDFLibraries();
 
+            const isLandscape = orientation === 'landscape';
+            const renderWidth = isLandscape ? 1120 : 794;
             const wrap = document.createElement('div');
             wrap.id = 'pdf-report-render-root';
-            wrap.dir = 'rtl';
-            wrap.style.cssText = [
-                'position:absolute',
-                'left:0',
-                'top:0',
-                'width:1120px',
-                'min-height:100px',
-                'background:#ffffff',
-                'color:#111111',
-                'font-family:Tahoma,Arial,sans-serif',
-                'padding:28px',
-                'box-sizing:border-box',
-                'z-index:2147483647',
-                'display:block',
-                'visibility:visible',
-                'opacity:1',
-                'direction:rtl',
-                'text-align:right',
-                'overflow:visible'
-            ].join(';') + ';';
+            wrap.setAttribute('dir', 'rtl');
+            Object.assign(wrap.style, {
+                position: 'fixed',
+                left: '0', top: '0',
+                width: renderWidth + 'px',
+                minHeight: '1120px',
+                padding: '28px',
+                boxSizing: 'border-box',
+                backgroundColor: '#fff',
+                color: '#111',
+                fontFamily: 'Tahoma, Arial, sans-serif',
+                direction: 'rtl',
+                textAlign: 'right',
+                display: 'block',
+                visibility: 'visible',
+                opacity: '1',
+                overflow: 'visible',
+                zIndex: '2147483647'
+            });
 
             wrap.innerHTML = `
-                <div style="border-bottom:3px solid #2c3e50;padding-bottom:12px;margin-bottom:18px;text-align:center;">
+                <div style="border-bottom:3px solid #2c3e50;padding-bottom:12px;margin-bottom:18px;text-align:center;background:#fff;">
                     <h1 style="margin:0 0 8px;font-size:25px;color:#2c3e50;">${reportEsc(title)}</h1>
                     <div style="font-size:13px;color:#666;">${reportEsc(subtitle || '')}</div>
                     <div style="font-size:12px;color:#888;margin-top:5px;">تاريخ التقرير: ${reportSafeDate()}</div>
@@ -3146,42 +3147,49 @@
             document.body.appendChild(wrap);
 
             try {
-                await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-                await new Promise(resolve => setTimeout(resolve, 150));
+                // اجعل المتصفح يرسم العنصر فعليًا قبل التقاطه.
+                if (document.fonts && document.fonts.ready) {
+                    try { await document.fonts.ready; } catch (_) {}
+                }
+                await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+                await new Promise(r => setTimeout(r, 300));
 
                 const rect = wrap.getBoundingClientRect();
-                if (rect.width < 10 || rect.height < 10 || wrap.scrollHeight < 20) {
-                    throw new Error('تعذر تجهيز محتوى التقرير للطباعة');
+                const width = Math.max(wrap.scrollWidth, rect.width);
+                const height = Math.max(wrap.scrollHeight, rect.height);
+                if (!Number.isFinite(width) || !Number.isFinite(height) || width < 100 || height < 50) {
+                    throw new Error('محتوى التقرير لم يتم رسمه بشكل صحيح');
                 }
 
-                // استخدم html2pdf.bundle مباشرة؛ فهي تحمل html2canvas و jsPDF
-                // داخليًا، لذلك لا نعتمد على window.html2canvas الذي قد لا يكون مكشوفًا عالميًا.
-                await window.html2pdf()
-                    .set({
-                        margin: [8, 8, 8, 8],
-                        filename,
-                        image: { type: 'jpeg', quality: 0.98 },
-                        html2canvas: {
-                            scale: 2,
-                            useCORS: true,
-                            allowTaint: false,
-                            backgroundColor: '#ffffff',
-                            logging: false,
-                            scrollX: 0,
-                            scrollY: 0,
-                            windowWidth: 1200
-                        },
-                        pagebreak: { mode: ['css', 'legacy'] },
-                        jsPDF: {
-                            unit: 'mm',
-                            format: 'a4',
-                            orientation
-                        }
-                    })
-                    .from(wrap)
-                    .save();
+                // نستخدم html2pdf نفسه، مع عنصر ظاهر فعليًا داخل الـDOM.
+                const worker = window.html2pdf().set({
+                    margin: [8, 8, 8, 8],
+                    filename,
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: {
+                        scale: 1.5,
+                        useCORS: true,
+                        allowTaint: true,
+                        backgroundColor: '#ffffff',
+                        logging: false,
+                        scrollX: 0,
+                        scrollY: 0,
+                        windowWidth: Math.ceil(width),
+                        windowHeight: Math.ceil(height)
+                    },
+                    pagebreak: { mode: ['css', 'legacy'] },
+                    jsPDF: {
+                        unit: 'mm',
+                        format: 'a4',
+                        orientation: isLandscape ? 'landscape' : 'portrait',
+                        compress: true
+                    }
+                }).from(wrap);
+
+                // تنفيذ المراحل صراحةً حتى نضمن أن canvas ثم PDF اتعملوا فعلًا.
+                await worker.toContainer().toCanvas().toPdf().save();
             } finally {
-                wrap.remove();
+                if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
             }
         }
 
