@@ -857,37 +857,247 @@
             if(!requirePermission('attendance')) return;
             const sid=document.getElementById('centerSessionSelect')?.value;
             if(!sid) return alert('اختر الحصة أولاً');
-            const sessionSnap=await getDoc(doc(db,'centerSessions',sid));
-            if(!sessionSnap.exists()) return alert('الحصة غير موجودة');
-            const session=sessionSnap.data();
-            const attSnap=await getDocs(query(collection(db,'centerAttendance'),where('sessionId','==',sid)));
-            const rows=[]; attSnap.forEach(d=>rows.push(d.data()));
-            rows.sort((a,b)=>String(a.studentName||'').localeCompare(String(b.studentName||''),'ar'));
-            const present=rows.filter(r=>r.status==='present').length;
-            const absent=rows.length-present;
-            const w=window.open('','_blank');
-            w.document.write(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>كشف حضور</title>
-                <style>body{font-family:Tahoma,Arial;padding:30px}h1{text-align:center}table{width:100%;border-collapse:collapse;margin-top:20px}th,td{border:1px solid #333;padding:9px;text-align:center}th{background:#eee}.present{color:green}.absent{color:#c00}.meta{display:flex;justify-content:space-between}</style></head><body>
-                <h1>كشف حضور وغياب</h1><div class="meta"><span>المجموعة: ${escapeHtml(session.groupName)}</span><span>التاريخ: ${escapeHtml(session.date)}</span></div>
-                <p>المادة: ${escapeHtml(session.subject||'—')} | الحصة: ${escapeHtml(session.topic||'—')} | حاضر: ${present} | غائب: ${absent}</p>
-                <table><tr><th>#</th><th>اسم الطالب</th><th>الكود</th><th>الحالة</th></tr>
-                ${rows.map((r,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(r.studentName)}</td><td>${escapeHtml(r.studentCode)}</td><td class="${r.status}">${r.status==='present'?'حاضر':'غائب'}</td></tr>`).join('')}
-                </table><script>window.onload=()=>window.print();<\/script></body></html>`);
-            w.document.close();
+            
+            try {
+                const sessionSnap = await getDoc(doc(db, 'centerSessions', sid));
+                if(!sessionSnap.exists()) return alert('الحصة غير موجودة');
+                const session = sessionSnap.data();
+                
+                const attSnap = await getDocs(query(collection(db, 'centerAttendance'), where('sessionId', '==', sid)));
+                const rows = [];
+                attSnap.forEach(d => rows.push(d.data()));
+                rows.sort((a,b) => String(a.studentName||'').localeCompare(String(b.studentName||''),'ar'));
+                
+                const present = rows.filter(r => r.status === 'present').length;
+                const absent = rows.length - present;
+                
+                const printWindow = window.open('', '_blank', 'width=800,height=600');
+                if (!printWindow) {
+                    alert('❌ يرجى السماح بالنوافذ المنبثقة للموقع');
+                    return;
+                }
+                
+                printWindow.document.write(`
+                    <!DOCTYPE html>
+                    <html lang="ar" dir="rtl">
+                    <head>
+                        <meta charset="UTF-8">
+                        <title>كشف حضور وغياب</title>
+                        <style>
+                            * { box-sizing: border-box; margin: 0; padding: 0; }
+                            body {
+                                font-family: 'Tahoma', 'Arial', sans-serif;
+                                padding: 30px;
+                                background: #fff;
+                                color: #222;
+                                direction: rtl;
+                            }
+                            .print-header {
+                                text-align: center;
+                                border-bottom: 3px solid #2c3e50;
+                                padding-bottom: 15px;
+                                margin-bottom: 20px;
+                            }
+                            .print-header h1 {
+                                font-size: 26px;
+                                color: #2c3e50;
+                                margin-bottom: 5px;
+                            }
+                            .print-header .sub {
+                                font-size: 16px;
+                                color: #555;
+                            }
+                            .info-row {
+                                display: flex;
+                                justify-content: space-between;
+                                flex-wrap: wrap;
+                                gap: 10px;
+                                background: #f8f9fa;
+                                padding: 12px 18px;
+                                border-radius: 8px;
+                                margin-bottom: 20px;
+                                font-size: 15px;
+                            }
+                            .info-row span { font-weight: bold; }
+                            .info-row .val { font-weight: normal; color: #333; }
+                            .summary {
+                                display: flex;
+                                gap: 30px;
+                                justify-content: center;
+                                margin: 15px 0 25px;
+                                font-size: 16px;
+                            }
+                            .summary .present { color: #27ae60; font-weight: bold; }
+                            .summary .absent { color: #e74c3c; font-weight: bold; }
+                            table {
+                                width: 100%;
+                                border-collapse: collapse;
+                                margin-top: 10px;
+                                font-size: 14px;
+                            }
+                            th {
+                                background: #2c3e50;
+                                color: white;
+                                padding: 12px 10px;
+                                text-align: center;
+                                border: 1px solid #2c3e50;
+                            }
+                            td {
+                                padding: 10px;
+                                text-align: center;
+                                border: 1px solid #ccc;
+                            }
+                            tr:nth-child(even) { background: #f7f9fc; }
+                            .status-present { color: #27ae60; font-weight: bold; }
+                            .status-absent { color: #e74c3c; font-weight: bold; }
+                            .footer {
+                                text-align: center;
+                                margin-top: 30px;
+                                padding-top: 15px;
+                                border-top: 2px solid #eee;
+                                color: #888;
+                                font-size: 13px;
+                            }
+                            @media print {
+                                body { padding: 15px; }
+                                .no-print { display: none !important; }
+                                th { background: #2c3e50 !important; color: white !important; }
+                                tr:nth-child(even) { background: #f7f9fc !important; }
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="print-header">
+                            <h1>📋 كشف حضور وغياب السنتر</h1>
+                            <div class="sub">منصة مستر أحمد الحناوي</div>
+                        </div>
+                        
+                        <div class="info-row">
+                            <div><span>📚 المجموعة:</span> <span class="val">${escapeHtml(session.groupName || '—')}</span></div>
+                            <div><span>📅 التاريخ:</span> <span class="val">${escapeHtml(session.date || '—')}</span></div>
+                            <div><span>🕐 الوقت:</span> <span class="val">${escapeHtml(session.time || '—')}</span></div>
+                            <div><span>📖 الموضوع:</span> <span class="val">${escapeHtml(session.topic || 'حصة')}</span></div>
+                        </div>
+                        
+                        <div class="summary">
+                            <span>✅ الحضور: <span class="present">${present}</span></span>
+                            <span>❌ الغياب: <span class="absent">${absent}</span></span>
+                            <span>📊 الإجمالي: <span>${rows.length}</span></span>
+                            <span>📈 نسبة الحضور: <span>${rows.length > 0 ? Math.round((present/rows.length)*100) : 0}%</span></span>
+                        </div>
+                        
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>اسم الطالب</th>
+                                    <th>الكود</th>
+                                    <th>الحالة</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${rows.map((r, i) => `
+                                    <tr>
+                                        <td>${i + 1}</td>
+                                        <td>${escapeHtml(r.studentName || '—')}</td>
+                                        <td>${escapeHtml(r.studentCode || '—')}</td>
+                                        <td class="${r.status === 'present' ? 'status-present' : 'status-absent'}">${r.status === 'present' ? '✅ حاضر' : '❌ غائب'}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                        
+                        <div class="footer">
+                            تم طباعة التقرير بتاريخ ${new Date().toLocaleDateString('ar-EG')} - ${new Date().toLocaleTimeString('ar-EG')}
+                        </div>
+                        
+                        <script>
+                            window.onload = function() {
+                                setTimeout(function() {
+                                    window.print();
+                                }, 500);
+                            };
+                        <\/script>
+                    </body>
+                    </html>
+                `);
+                
+                printWindow.document.close();
+                
+            } catch (error) {
+                console.error('خطأ في الطباعة:', error);
+                alert('❌ حدث خطأ أثناء الطباعة: ' + error.message);
+            }
         };
 
         window.exportCenterAttendanceExcel = async function(){
             if(!requirePermission('attendance')) return;
             const sid=document.getElementById('centerSessionSelect')?.value;
             if(!sid) return alert('اختر الحصة أولاً');
-            await loadXLSX();
-            const session=(await getDoc(doc(db,'centerSessions',sid))).data();
-            const snap=await getDocs(query(collection(db,'centerAttendance'),where('sessionId','==',sid)));
-            const data=[['كشف حضور وغياب','المجموعة','التاريخ','اسم الطالب','الكود','الحالة']];
-            snap.forEach(d=>{const r=d.data();data.push(['حضور وغياب',session.groupName,session.date,r.studentName,r.studentCode,r.status==='present'?'حاضر':'غائب']);});
-            const ws=XLSX.utils.aoa_to_sheet(data), wb=XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb,ws,'الحضور');
-            XLSX.writeFile(wb,`attendance_${session.date}_${session.groupName}.xlsx`);
+            
+            try {
+                await loadXLSX();
+                const XLSX = window.XLSX;
+                if (!XLSX) {
+                    alert('❌ فشل تحميل مكتبة Excel');
+                    return;
+                }
+                
+                const sessionSnap = await getDoc(doc(db, 'centerSessions', sid));
+                if(!sessionSnap.exists()) return alert('الحصة غير موجودة');
+                const session = sessionSnap.data();
+                
+                const attSnap = await getDocs(query(collection(db, 'centerAttendance'), where('sessionId', '==', sid)));
+                const rows = [];
+                attSnap.forEach(d => rows.push(d.data()));
+                rows.sort((a,b) => String(a.studentName||'').localeCompare(String(b.studentName||''),'ar'));
+                
+                const data = [
+                    ['كشف حضور وغياب السنتر'],
+                    ['المجموعة', session.groupName || '—'],
+                    ['التاريخ', session.date || '—'],
+                    ['الوقت', session.time || '—'],
+                    ['الموضوع', session.topic || 'حصة'],
+                    [],
+                    ['#', 'اسم الطالب', 'الكود', 'الحالة']
+                ];
+                
+                rows.forEach((r, i) => {
+                    data.push([
+                        i + 1,
+                        r.studentName || '—',
+                        r.studentCode || '—',
+                        r.status === 'present' ? 'حاضر' : 'غائب'
+                    ]);
+                });
+                
+                const present = rows.filter(r => r.status === 'present').length;
+                data.push([]);
+                data.push(['الإحصائيات', '', '', '']);
+                data.push(['إجمالي الحضور', present, '', '']);
+                data.push(['إجمالي الغياب', rows.length - present, '', '']);
+                data.push(['الإجمالي', rows.length, '', '']);
+                data.push(['نسبة الحضور', rows.length > 0 ? Math.round((present/rows.length)*100) + '%' : '0%', '', '']);
+                
+                const ws = XLSX.utils.aoa_to_sheet(data);
+                ws['!cols'] = [
+                    { wch: 8 },
+                    { wch: 25 },
+                    { wch: 15 },
+                    { wch: 15 }
+                ];
+                
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, 'الحضور');
+                
+                const fileName = `attendance_${session.date || 'date'}_${(session.groupName || 'group').replace(/\s/g, '_')}.xlsx`;
+                XLSX.writeFile(wb, fileName);
+                alert('✅ تم تحميل ملف Excel بنجاح');
+                
+            } catch (error) {
+                console.error('خطأ في تصدير Excel:', error);
+                alert('❌ حدث خطأ: ' + error.message);
+            }
         };
 
         const adminRole = localStorage.getItem('adminRole') || 'primary';
@@ -3147,7 +3357,6 @@
             document.body.appendChild(wrap);
 
             try {
-                // اجعل المتصفح يرسم العنصر فعليًا قبل التقاطه.
                 if (document.fonts && document.fonts.ready) {
                     try { await document.fonts.ready; } catch (_) {}
                 }
@@ -3161,7 +3370,6 @@
                     throw new Error('محتوى التقرير لم يتم رسمه بشكل صحيح');
                 }
 
-                // نستخدم html2pdf نفسه، مع عنصر ظاهر فعليًا داخل الـDOM.
                 const worker = window.html2pdf().set({
                     margin: [8, 8, 8, 8],
                     filename,
@@ -3186,7 +3394,6 @@
                     }
                 }).from(wrap);
 
-                // تنفيذ المراحل صراحةً حتى نضمن أن canvas ثم PDF اتعملوا فعلًا.
                 await worker.toContainer().toCanvas().toPdf().save();
             } finally {
                 if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
@@ -3195,37 +3402,180 @@
 
         window.exportAllStudentsPDF = async function() {
             try {
+                // التحقق من الصلاحية
+                if (!hasPermission('reports')) {
+                    alert('⛔ ليس لديك صلاحية لهذا القسم');
+                    return;
+                }
+
+                // عرض رسالة انتظار
+                const btn = document.querySelector('button[onclick*="exportAllStudentsPDF"]');
+                if (btn) {
+                    btn.textContent = '⏳ جاري التحميل...';
+                    btn.disabled = true;
+                }
+
                 const students = await fetchAllStudentsForReport();
-                if (!students.length) return alert('لا يوجد طلاب لتصديرهم');
-                const rows = students.map((s,i) => `
+                if (!students || students.length === 0) {
+                    alert('لا يوجد طلاب لتصديرهم');
+                    if (btn) { btn.textContent = '📄 تحميل PDF'; btn.disabled = false; }
+                    return;
+                }
+
+                // تحميل مكتبة PDF
+                try {
+                    await loadPDF();
+                } catch (e) {
+                    alert('❌ فشل تحميل مكتبة PDF. تأكد من اتصالك بالإنترنت.');
+                    if (btn) { btn.textContent = '📄 تحميل PDF'; btn.disabled = false; }
+                    return;
+                }
+
+                // التأكد من وجود html2pdf
+                if (typeof html2pdf === 'undefined' && typeof window.html2pdf === 'undefined') {
+                    alert('❌ مكتبة PDF لم يتم تحميلها. حاول تحديث الصفحة.');
+                    if (btn) { btn.textContent = '📄 تحميل PDF'; btn.disabled = false; }
+                    return;
+                }
+
+                const html2pdfLib = window.html2pdf || html2pdf;
+
+                // بناء الجدول
+                const rows = students.map((s, i) => `
                     <tr>
-                        <td>${i+1}</td><td>${reportEsc(s.name)}</td><td>${reportEsc(s.code)}</td>
-                        <td>${reportEsc(s.grade)}</td><td>${reportEsc(s.phone)}</td><td>${reportEsc(s.parentPhone)}</td>
-                        <td>${reportEsc(s.status)}</td><td>${s.lastLogin ? reportEsc(s.lastLogin.toLocaleString('ar-EG')) : '—'}</td><td>${s.devices}</td>
-                    </tr>`).join('');
-                const table = `<table style="width:100%;border-collapse:collapse;font-size:11px;direction:rtl;">
-                    <thead><tr style="background:#2c3e50;color:#fff;">
-                        <th>م</th><th>الاسم</th><th>الكود</th><th>الصف</th><th>تليفون الطالب</th><th>ولي الأمر</th><th>الحالة</th><th>آخر دخول</th><th>الأجهزة</th>
-                    </tr></thead><tbody>${rows}</tbody></table>
-                    <style>th,td{border:1px solid #aaa;padding:6px;text-align:center;}tbody tr:nth-child(even){background:#f7f7f7;}thead{display:table-header-group;}tr{break-inside:avoid;}</style>`;
-                await createReportPDF('تقرير جميع الطلاب', `إجمالي الطلاب: ${students.length}`, table, `students-report-${reportSafeDate()}.pdf`);
-                alert('✅ تم تحميل تقرير جميع الطلاب بنجاح');
+                        <td style="border:1px solid #999;padding:6px;text-align:center;">${i + 1}</td>
+                        <td style="border:1px solid #999;padding:6px;text-align:center;">${reportEsc(s.name)}</td>
+                        <td style="border:1px solid #999;padding:6px;text-align:center;">${reportEsc(s.code)}</td>
+                        <td style="border:1px solid #999;padding:6px;text-align:center;">${reportEsc(s.grade)}</td>
+                        <td style="border:1px solid #999;padding:6px;text-align:center;">${reportEsc(s.phone)}</td>
+                        <td style="border:1px solid #999;padding:6px;text-align:center;">${reportEsc(s.parentPhone)}</td>
+                        <td style="border:1px solid #999;padding:6px;text-align:center;">${reportEsc(s.status)}</td>
+                        <td style="border:1px solid #999;padding:6px;text-align:center;">${s.lastLogin ? reportEsc(s.lastLogin.toLocaleString('ar-EG')) : '—'}</td>
+                        <td style="border:1px solid #999;padding:6px;text-align:center;">${s.devices}</td>
+                    </tr>
+                `).join('');
+
+                // إنشاء عنصر HTML للتقرير
+                const element = document.createElement('div');
+                element.style.direction = 'rtl';
+                element.style.fontFamily = 'Tahoma, Arial, sans-serif';
+                element.style.padding = '20px';
+                element.style.background = 'white';
+                element.style.maxWidth = '100%';
+                element.style.overflow = 'hidden';
+                
+                element.innerHTML = `
+                    <div style="text-align:center;border-bottom:3px solid #2c3e50;padding-bottom:12px;margin-bottom:18px;">
+                        <h1 style="margin:0 0 5px;font-size:22px;color:#2c3e50;">📊 تقرير جميع الطلاب</h1>
+                        <div style="font-size:13px;color:#666;">إجمالي الطلاب: ${students.length}</div>
+                        <div style="font-size:12px;color:#888;margin-top:4px;">تاريخ التقرير: ${new Date().toLocaleDateString('ar-EG')}</div>
+                    </div>
+                    <table style="width:100%;border-collapse:collapse;font-size:11px;direction:rtl;">
+                        <thead>
+                            <tr style="background:#2c3e50;color:#fff;">
+                                <th style="border:1px solid #999;padding:6px;text-align:center;">م</th>
+                                <th style="border:1px solid #999;padding:6px;text-align:center;">الاسم</th>
+                                <th style="border:1px solid #999;padding:6px;text-align:center;">الكود</th>
+                                <th style="border:1px solid #999;padding:6px;text-align:center;">الصف</th>
+                                <th style="border:1px solid #999;padding:6px;text-align:center;">تليفون الطالب</th>
+                                <th style="border:1px solid #999;padding:6px;text-align:center;">ولي الأمر</th>
+                                <th style="border:1px solid #999;padding:6px;text-align:center;">الحالة</th>
+                                <th style="border:1px solid #999;padding:6px;text-align:center;">آخر دخول</th>
+                                <th style="border:1px solid #999;padding:6px;text-align:center;">الأجهزة</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                    <div style="text-align:center;color:#777;font-size:11px;margin-top:15px;border-top:1px solid #ddd;padding-top:10px;">
+                        منصة مستر أحمد الحناوي © ${new Date().getFullYear()}
+                    </div>
+                `;
+
+                // إضافة العنصر للصفحة مؤقتاً
+                document.body.appendChild(element);
+
+                try {
+                    // إنشاء PDF
+                    await html2pdfLib()
+                        .set({
+                            margin: [8, 8, 8, 8],
+                            filename: `تقرير_جميع_الطلاب_${reportSafeDate()}.pdf`,
+                            image: { type: 'jpeg', quality: 0.98 },
+                            html2canvas: { 
+                                scale: 2, 
+                                useCORS: true,
+                                backgroundColor: '#ffffff',
+                                logging: false
+                            },
+                            jsPDF: { 
+                                unit: 'mm', 
+                                format: 'a4', 
+                                orientation: 'landscape',
+                                compress: true
+                            },
+                            pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+                        })
+                        .from(element)
+                        .save();
+
+                    alert('✅ تم تحميل التقرير بنجاح');
+                } catch (pdfError) {
+                    console.error('خطأ في إنشاء PDF:', pdfError);
+                    alert('❌ حدث خطأ أثناء إنشاء PDF: ' + pdfError.message);
+                } finally {
+                    // إزالة العنصر من الصفحة
+                    if (element.parentNode) element.parentNode.removeChild(element);
+                    if (btn) { btn.textContent = '📄 تحميل PDF'; btn.disabled = false; }
+                }
+
             } catch (error) {
-                console.error('exportAllStudentsPDF:', error);
-                alert('❌ تعذر تحميل التقرير: ' + (error?.message || error));
+                console.error('exportAllStudentsPDF error:', error);
+                alert('❌ حدث خطأ: ' + error.message);
+                const btn = document.querySelector('button[onclick*="exportAllStudentsPDF"]');
+                if (btn) { btn.textContent = '📄 تحميل PDF'; btn.disabled = false; }
             }
         };
 
         window.exportStudentProgressPDF = async function() {
             try {
+                if (!hasPermission('reports')) {
+                    alert('⛔ ليس لديك صلاحية لهذا القسم');
+                    return;
+                }
+
+                const btn = document.querySelector('button[onclick*="exportStudentProgressPDF"]');
+                if (btn) {
+                    btn.textContent = '⏳ جاري التحميل...';
+                    btn.disabled = true;
+                }
+
+                // تحميل مكتبة PDF
+                try {
+                    await loadPDF();
+                } catch (e) {
+                    alert('❌ فشل تحميل مكتبة PDF. تأكد من اتصالك بالإنترنت.');
+                    if (btn) { btn.textContent = '📄 تحميل PDF'; btn.disabled = false; }
+                    return;
+                }
+
+                if (typeof html2pdf === 'undefined' && typeof window.html2pdf === 'undefined') {
+                    alert('❌ مكتبة PDF لم يتم تحميلها. حاول تحديث الصفحة.');
+                    if (btn) { btn.textContent = '📄 تحميل PDF'; btn.disabled = false; }
+                    return;
+                }
+
+                const html2pdfLib = window.html2pdf || html2pdf;
+
                 await getGrades();
                 const [studentsSnap, videosSnap, progressSnap] = await Promise.all([
                     getDocs(collection(db, 'students')),
                     getDocs(collection(db, 'videos')),
                     getDocs(collection(db, 'progress'))
                 ]);
+
                 const videos = {};
-                videosSnap.forEach(d => videos[d.id] = { id:d.id, ...d.data() });
+                videosSnap.forEach(d => videos[d.id] = { id: d.id, ...d.data() });
+
                 const progressByStudent = {};
                 progressSnap.forEach(d => {
                     const x = d.data();
@@ -3233,7 +3583,9 @@
                     if (!progressByStudent[code]) progressByStudent[code] = {};
                     if (x.videoId) progressByStudent[code][x.videoId] = x;
                 });
-                const rows = [];
+
+                let rows = '';
+                let totalRows = 0;
                 studentsSnap.forEach(d => {
                     const st = d.data();
                     const code = st.code || '—';
@@ -3244,30 +3596,208 @@
                         const total = Number(p.totalDuration || 0);
                         const percent = total > 0 ? Math.min(100, Math.round(watched / total * 100)) : 0;
                         const status = p.completed ? 'مكتمل' : watched > 0 ? 'قيد المشاهدة' : 'لم يشاهد';
-                        rows.push(`<tr><td>${reportEsc(st.name || '—')}</td><td>${reportEsc(code)}</td><td>${reportEsc(reportGradeText(st.grade))}</td><td>${reportEsc(v.title || '—')}</td><td>${Math.floor(watched/60)}:${String(Math.floor(watched%60)).padStart(2,'0')}</td><td>${Math.floor(total/60)}:${String(Math.floor(total%60)).padStart(2,'0')}</td><td>${percent}%</td><td>${status}</td></tr>`);
+                        const watchedMin = Math.floor(watched / 60);
+                        const watchedSec = Math.floor(watched % 60);
+                        const totalMin = Math.floor(total / 60);
+                        const totalSec = Math.floor(total % 60);
+                        rows += `
+                            <tr>
+                                <td style="border:1px solid #999;padding:5px;text-align:center;">${reportEsc(st.name || '—')}</td>
+                                <td style="border:1px solid #999;padding:5px;text-align:center;">${reportEsc(code)}</td>
+                                <td style="border:1px solid #999;padding:5px;text-align:center;">${reportEsc(reportGradeText(st.grade))}</td>
+                                <td style="border:1px solid #999;padding:5px;text-align:center;">${reportEsc(v.title || '—')}</td>
+                                <td style="border:1px solid #999;padding:5px;text-align:center;">${watchedMin}:${String(watchedSec).padStart(2,'0')}</td>
+                                <td style="border:1px solid #999;padding:5px;text-align:center;">${totalMin}:${String(totalSec).padStart(2,'0')}</td>
+                                <td style="border:1px solid #999;padding:5px;text-align:center;">${percent}%</td>
+                                <td style="border:1px solid #999;padding:5px;text-align:center;">${status}</td>
+                            </tr>
+                        `;
+                        totalRows++;
                     });
                 });
-                if (!rows.length) return alert('لا توجد بيانات تقدم لتصديرها');
-                const table = `<table style="width:100%;border-collapse:collapse;font-size:10px;direction:rtl;"><thead><tr style="background:#2980b9;color:#fff;"><th>الطالب</th><th>الكود</th><th>الصف</th><th>الفيديو</th><th>المشاهدة</th><th>المدة</th><th>النسبة</th><th>الحالة</th></tr></thead><tbody>${rows.join('')}</tbody></table><style>th,td{border:1px solid #aaa;padding:5px;text-align:center;}tbody tr:nth-child(even){background:#f7f9fb;}thead{display:table-header-group;}tr{break-inside:avoid;}</style>`;
-                await createReportPDF('تقرير تقدم الطلاب', `الطلاب: ${studentsSnap.size} — الفيديوهات: ${videosSnap.size}`, table, `students-progress-report-${reportSafeDate()}.pdf`);
-                alert('✅ تم تحميل تقرير تقدم الطلاب بنجاح');
+
+                if (totalRows === 0) {
+                    alert('لا توجد بيانات تقدم لتصديرها');
+                    if (btn) { btn.textContent = '📄 تحميل PDF'; btn.disabled = false; }
+                    return;
+                }
+
+                const element = document.createElement('div');
+                element.style.direction = 'rtl';
+                element.style.fontFamily = 'Tahoma, Arial, sans-serif';
+                element.style.padding = '20px';
+                element.style.background = 'white';
+                element.style.maxWidth = '100%';
+                element.style.overflow = 'hidden';
+
+                element.innerHTML = `
+                    <div style="text-align:center;border-bottom:3px solid #2980b9;padding-bottom:12px;margin-bottom:18px;">
+                        <h1 style="margin:0 0 5px;font-size:22px;color:#2980b9;">📊 تقرير تقدم الطلاب</h1>
+                        <div style="font-size:13px;color:#666;">الطلاب: ${studentsSnap.size} — الفيديوهات: ${videosSnap.size}</div>
+                        <div style="font-size:12px;color:#888;margin-top:4px;">تاريخ التقرير: ${new Date().toLocaleDateString('ar-EG')}</div>
+                    </div>
+                    <table style="width:100%;border-collapse:collapse;font-size:10px;direction:rtl;">
+                        <thead>
+                            <tr style="background:#2980b9;color:#fff;">
+                                <th style="border:1px solid #999;padding:5px;text-align:center;">الطالب</th>
+                                <th style="border:1px solid #999;padding:5px;text-align:center;">الكود</th>
+                                <th style="border:1px solid #999;padding:5px;text-align:center;">الصف</th>
+                                <th style="border:1px solid #999;padding:5px;text-align:center;">الفيديو</th>
+                                <th style="border:1px solid #999;padding:5px;text-align:center;">المشاهدة</th>
+                                <th style="border:1px solid #999;padding:5px;text-align:center;">المدة</th>
+                                <th style="border:1px solid #999;padding:5px;text-align:center;">النسبة</th>
+                                <th style="border:1px solid #999;padding:5px;text-align:center;">الحالة</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                    <div style="text-align:center;color:#777;font-size:11px;margin-top:15px;border-top:1px solid #ddd;padding-top:10px;">
+                        منصة مستر أحمد الحناوي © ${new Date().getFullYear()}
+                    </div>
+                `;
+
+                document.body.appendChild(element);
+
+                try {
+                    await html2pdfLib()
+                        .set({
+                            margin: [8, 8, 8, 8],
+                            filename: `تقرير_تقدم_الطلاب_${reportSafeDate()}.pdf`,
+                            image: { type: 'jpeg', quality: 0.98 },
+                            html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false },
+                            jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape', compress: true },
+                            pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+                        })
+                        .from(element)
+                        .save();
+
+                    alert('✅ تم تحميل التقرير بنجاح');
+                } catch (pdfError) {
+                    console.error('خطأ في إنشاء PDF:', pdfError);
+                    alert('❌ حدث خطأ أثناء إنشاء PDF: ' + pdfError.message);
+                } finally {
+                    if (element.parentNode) element.parentNode.removeChild(element);
+                    if (btn) { btn.textContent = '📄 تحميل PDF'; btn.disabled = false; }
+                }
+
             } catch (error) {
-                console.error('exportStudentProgressPDF:', error);
-                alert('❌ تعذر تحميل تقرير التقدم: ' + (error?.message || error));
+                console.error('exportStudentProgressPDF error:', error);
+                alert('❌ حدث خطأ: ' + error.message);
+                const btn = document.querySelector('button[onclick*="exportStudentProgressPDF"]');
+                if (btn) { btn.textContent = '📄 تحميل PDF'; btn.disabled = false; }
             }
         };
 
         window.exportStudentCodesPDF = async function() {
             try {
+                if (!hasPermission('reports')) {
+                    alert('⛔ ليس لديك صلاحية لهذا القسم');
+                    return;
+                }
+
+                const btn = document.querySelector('button[onclick*="exportStudentCodesPDF"]');
+                if (btn) {
+                    btn.textContent = '⏳ جاري التحميل...';
+                    btn.disabled = true;
+                }
+
+                try {
+                    await loadPDF();
+                } catch (e) {
+                    alert('❌ فشل تحميل مكتبة PDF. تأكد من اتصالك بالإنترنت.');
+                    if (btn) { btn.textContent = '📄 تحميل PDF'; btn.disabled = false; }
+                    return;
+                }
+
+                if (typeof html2pdf === 'undefined' && typeof window.html2pdf === 'undefined') {
+                    alert('❌ مكتبة PDF لم يتم تحميلها. حاول تحديث الصفحة.');
+                    if (btn) { btn.textContent = '📄 تحميل PDF'; btn.disabled = false; }
+                    return;
+                }
+
+                const html2pdfLib = window.html2pdf || html2pdf;
+
                 const students = await fetchAllStudentsForReport();
-                if (!students.length) return alert('لا يوجد طلاب لتصديرهم');
-                const cells = students.map(s => `<div style="border:1px solid #999;border-radius:8px;padding:8px;min-height:58px;box-sizing:border-box;"><div style="font-weight:bold;font-size:12px;">${reportEsc(s.name)}</div><div style="font-size:11px;margin-top:4px;">الكود: <b>${reportEsc(s.code)}</b></div><div style="font-size:10px;color:#666;">${reportEsc(s.grade)}</div></div>`).join('');
-                const table = `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;direction:rtl;">${cells}</div>`;
-                await createReportPDF('تقرير أكواد الطلاب', `إجمالي الطلاب: ${students.length}`, table, `student-codes-report-${reportSafeDate()}.pdf`);
-                alert('✅ تم تحميل تقرير أكواد الطلاب بنجاح');
+                if (!students || students.length === 0) {
+                    alert('لا يوجد طلاب لتصديرهم');
+                    if (btn) { btn.textContent = '📄 تحميل PDF'; btn.disabled = false; }
+                    return;
+                }
+
+                // ترتيب الطلاب حسب الصف
+                const gradeOrder = { 'أولى ثانوي': 1, 'ثانية ثانوي': 2, 'ثالثة ثانوي': 3 };
+                students.sort((a, b) => (gradeOrder[a.grade] || 99) - (gradeOrder[b.grade] || 99));
+
+                // تقسيم الطلاب إلى صفوف (3 لكل صف)
+                let cardsHtml = '';
+                for (let i = 0; i < students.length; i += 3) {
+                    const chunk = students.slice(i, i + 3);
+                    let rowHtml = '<div style="display:flex;gap:10px;margin-bottom:10px;direction:rtl;">';
+                    chunk.forEach(s => {
+                        rowHtml += `
+                            <div style="flex:1;border:1px solid #999;border-radius:8px;padding:10px;min-height:65px;text-align:center;background:#fafafa;">
+                                <div style="font-weight:bold;font-size:13px;">${reportEsc(s.name)}</div>
+                                <div style="font-size:14px;margin-top:4px;color:#2c3e50;">الكود: <b>${reportEsc(s.code)}</b></div>
+                                <div style="font-size:11px;color:#666;">${reportEsc(s.grade)}</div>
+                            </div>
+                        `;
+                    });
+                    // ملء الفراغات إذا كان العدد أقل من 3
+                    for (let j = chunk.length; j < 3; j++) {
+                        rowHtml += `<div style="flex:1;border:1px solid #ddd;border-radius:8px;padding:10px;min-height:65px;background:#f5f5f5;"></div>`;
+                    }
+                    rowHtml += '</div>';
+                    cardsHtml += rowHtml;
+                }
+
+                const element = document.createElement('div');
+                element.style.direction = 'rtl';
+                element.style.fontFamily = 'Tahoma, Arial, sans-serif';
+                element.style.padding = '20px';
+                element.style.background = 'white';
+                element.style.maxWidth = '100%';
+
+                element.innerHTML = `
+                    <div style="text-align:center;border-bottom:3px solid #9b59b6;padding-bottom:12px;margin-bottom:18px;">
+                        <h1 style="margin:0 0 5px;font-size:22px;color:#9b59b6;">📋 تقرير أكواد الطلاب</h1>
+                        <div style="font-size:13px;color:#666;">إجمالي الطلاب: ${students.length}</div>
+                        <div style="font-size:12px;color:#888;margin-top:4px;">تاريخ التقرير: ${new Date().toLocaleDateString('ar-EG')}</div>
+                    </div>
+                    ${cardsHtml}
+                    <div style="text-align:center;color:#777;font-size:11px;margin-top:15px;border-top:1px solid #ddd;padding-top:10px;">
+                        منصة مستر أحمد الحناوي © ${new Date().getFullYear()}
+                    </div>
+                `;
+
+                document.body.appendChild(element);
+
+                try {
+                    await html2pdfLib()
+                        .set({
+                            margin: [10, 10, 10, 10],
+                            filename: `تقرير_أكواد_الطلاب_${reportSafeDate()}.pdf`,
+                            image: { type: 'jpeg', quality: 0.98 },
+                            html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false },
+                            jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape', compress: true },
+                            pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+                        })
+                        .from(element)
+                        .save();
+
+                    alert('✅ تم تحميل التقرير بنجاح');
+                } catch (pdfError) {
+                    console.error('خطأ في إنشاء PDF:', pdfError);
+                    alert('❌ حدث خطأ أثناء إنشاء PDF: ' + pdfError.message);
+                } finally {
+                    if (element.parentNode) element.parentNode.removeChild(element);
+                    if (btn) { btn.textContent = '📄 تحميل PDF'; btn.disabled = false; }
+                }
+
             } catch (error) {
-                console.error('exportStudentCodesPDF:', error);
-                alert('❌ تعذر تحميل تقرير الأكواد: ' + (error?.message || error));
+                console.error('exportStudentCodesPDF error:', error);
+                alert('❌ حدث خطأ: ' + error.message);
+                const btn = document.querySelector('button[onclick*="exportStudentCodesPDF"]');
+                if (btn) { btn.textContent = '📄 تحميل PDF'; btn.disabled = false; }
             }
         };
 
@@ -4304,7 +4834,6 @@ import { db, collection, addDoc, getDocs, deleteDoc, doc, query, where, getDoc, 
   setTimeout(installResetButton,1500);
 })();
 </script>
-
 
 </body>
 </html>
