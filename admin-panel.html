@@ -4240,5 +4240,74 @@ import { db, collection, addDoc, getDocs, deleteDoc, doc, query, where, getDoc, 
   setTimeout(installResetButton,1500);
 })();
 </script>
+
+<script>
+// PDF REPORTS FAILSAFE: keeps inline onclick buttons working even if the main module fails to initialize.
+(function(){
+  if (window.__PDF_REPORTS_FAILSAFE_V1) return;
+  window.__PDF_REPORTS_FAILSAFE_V1 = true;
+
+  async function loadPdf(){
+    if(window.html2pdf) return window.html2pdf;
+    await new Promise((resolve,reject)=>{
+      const sc=document.createElement('script');
+      sc.src='https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+      sc.onload=resolve; sc.onerror=()=>reject(new Error('فشل تحميل مكتبة PDF'));
+      document.head.appendChild(sc);
+    });
+    return window.html2pdf;
+  }
+  function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+  function stamp(){return new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');}
+  async function fire(){return import('./js/firebase-config.js');}
+  async function allStudents(){
+    const {db,collection,getDocs}=await fire();
+    const snap=await getDocs(collection(db,'students'));
+    const out=[]; snap.forEach(d=>out.push({id:d.id,...d.data()}));
+    return {db,collection,getDocs,students:out};
+  }
+  async function makePdf(title,subtitle,table,filename,orientation='landscape'){
+    const html2pdf=await loadPdf();
+    const wrap=document.createElement('div');
+    wrap.dir='rtl'; wrap.style.cssText='background:#fff;color:#111;padding:24px;font-family:Arial,sans-serif;direction:rtl;';
+    wrap.innerHTML=`<div style="border-bottom:3px solid #2c3e50;padding-bottom:12px;margin-bottom:18px;text-align:center"><h1 style="margin:0 0 8px;color:#2c3e50">${esc(title)}</h1><div style="color:#666">${esc(subtitle||'')}</div><div style="font-size:12px;color:#888;margin-top:5px">تاريخ التقرير: ${new Date().toLocaleString('ar-EG')}</div></div>${table}<div style="margin-top:20px;text-align:center;color:#777;font-size:11px">منصة الأستاذ أحمد الحناوي</div>`;
+    document.body.appendChild(wrap);
+    try{await html2pdf().set({margin:8,filename,image:{type:'jpeg',quality:.96},html2canvas:{scale:1.6,useCORS:true,backgroundColor:'#fff'},pagebreak:{mode:['css','legacy']},jsPDF:{unit:'mm',format:'a4',orientation}}).from(wrap).save();}
+    finally{wrap.remove();}
+  }
+  window.exportAllStudentsPDF=async function(){
+    try{
+      const {students}=await allStudents();
+      if(!students.length)return alert('لا يوجد طلاب لتصديرهم');
+      const rows=students.map((s,i)=>`<tr><td>${i+1}</td><td>${esc(s.name||'—')}</td><td>${esc(s.code||'—')}</td><td>${esc(s.grade||s.className||'—')}</td><td>${esc(s.phone||'—')}</td><td>${esc(s.parentPhone||'—')}</td><td>${esc(s.status||'—')}</td></tr>`).join('');
+      const table=`<table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr style="background:#2c3e50;color:#fff"><th>م</th><th>الاسم</th><th>الكود</th><th>الصف</th><th>تليفون الطالب</th><th>ولي الأمر</th><th>الحالة</th></tr></thead><tbody>${rows}</tbody></table><style>th,td{border:1px solid #aaa;padding:6px;text-align:center}tr{break-inside:avoid}</style>`;
+      await makePdf('تقرير جميع الطلاب','إجمالي الطلاب: '+students.length,table,'students-report-'+stamp()+'.pdf');
+      alert('✅ تم تحميل تقرير جميع الطلاب بنجاح');
+    }catch(e){console.error(e);alert('❌ تعذر تحميل التقرير: '+(e?.message||e));}
+  };
+  window.exportStudentProgressPDF=async function(){
+    try{
+      const {db,collection,getDocs,students}=await allStudents();
+      const [vs,ps]=await Promise.all([getDocs(collection(db,'videos')),getDocs(collection(db,'progress'))]);
+      const videos=[];vs.forEach(d=>videos.push({id:d.id,...d.data()})); const pm={};
+      ps.forEach(d=>{const x=d.data(),code=x.studentCode||'';(pm[code]??={})[x.videoId]=x;});
+      const rows=[];
+      students.forEach(s=>videos.forEach(v=>{const p=pm[s.code||'']?.[v.id]||{},w=Number(p.watchedSeconds||0),t=Number(p.totalDuration||0),pct=t?Math.min(100,Math.round(w/t*100)):0;rows.push(`<tr><td>${esc(s.name||'—')}</td><td>${esc(s.code||'—')}</td><td>${esc(s.grade||'—')}</td><td>${esc(v.title||'—')}</td><td>${Math.floor(w/60)}:${String(Math.floor(w%60)).padStart(2,'0')}</td><td>${pct}%</td><td>${p.completed?'مكتمل':w?'قيد المشاهدة':'لم يشاهد'}</td></tr>`);}));
+      if(!rows.length)return alert('لا توجد بيانات تقدم لتصديرها');
+      const table=`<table style="width:100%;border-collapse:collapse;font-size:10px"><thead><tr style="background:#2980b9;color:#fff"><th>الطالب</th><th>الكود</th><th>الصف</th><th>الفيديو</th><th>المشاهدة</th><th>النسبة</th><th>الحالة</th></tr></thead><tbody>${rows.join('')}</tbody></table><style>th,td{border:1px solid #aaa;padding:5px;text-align:center}tr{break-inside:avoid}</style>`;
+      await makePdf('تقرير تقدم الطلاب',`الطلاب: ${students.length} — الفيديوهات: ${videos.length}`,table,'students-progress-report-'+stamp()+'.pdf');
+      alert('✅ تم تحميل تقرير تقدم الطلاب بنجاح');
+    }catch(e){console.error(e);alert('❌ تعذر تحميل تقرير التقدم: '+(e?.message||e));}
+  };
+  window.exportStudentCodesPDF=async function(){
+    try{
+      const {students}=await allStudents(); if(!students.length)return alert('لا يوجد طلاب لتصديرهم');
+      const cells=students.map(s=>`<div style="border:1px solid #999;border-radius:8px;padding:8px;min-height:58px"><b>${esc(s.name||'—')}</b><div style="margin-top:4px">الكود: <b>${esc(s.code||'—')}</b></div><div style="font-size:10px;color:#666">${esc(s.grade||'—')}</div></div>`).join('');
+      await makePdf('تقرير أكواد الطلاب','إجمالي الطلاب: '+students.length,`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${cells}</div>`,'student-codes-report-'+stamp()+'.pdf','portrait');
+      alert('✅ تم تحميل تقرير الأكواد بنجاح');
+    }catch(e){console.error(e);alert('❌ تعذر تحميل تقرير الأكواد: '+(e?.message||e));}
+  };
+})();
+</script>
 </body>
 </html>
