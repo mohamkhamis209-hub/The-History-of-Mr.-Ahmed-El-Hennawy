@@ -3056,6 +3056,184 @@
             }
         };
 
+        // ===== إصلاح وتوحيد تصدير تقارير الطلاب (Excel + PDF) =====
+        function reportSafeDate() {
+            const d = new Date();
+            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        }
+
+        function reportGradeText(grade) {
+            if (grade === '1') return 'أولى ثانوي';
+            if (grade === '2') return 'ثانية ثانوي';
+            if (grade === '3') return 'ثالثة ثانوي';
+            return cachedGrades.find(g => g.code === grade)?.name || grade || '—';
+        }
+
+        function reportEsc(value) {
+            return String(value ?? '—')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        async function fetchAllStudentsForReport() {
+            await getGrades();
+            const snap = await getDocs(collection(db, 'students'));
+            const students = [];
+            snap.forEach(d => {
+                const x = d.data();
+                const lastLogin = x.lastLogin?.toDate ? x.lastLogin.toDate() : (x.lastLogin ? new Date(x.lastLogin) : null);
+                students.push({
+                    id: d.id,
+                    name: x.name || '—',
+                    code: x.code || '—',
+                    grade: reportGradeText(x.grade),
+                    phone: x.phone || x.studentPhone || '—',
+                    parentPhone: x.parentPhone || x.parentPhoneNumber || '—',
+                    status: x.status === 'active' ? 'نشط' : x.status === 'suspended' ? 'موقوف' : 'غير نشط',
+                    lastLogin,
+                    devices: Array.isArray(x.deviceIds) ? x.deviceIds.length : 0
+                });
+            });
+            students.sort((a,b) => a.name.localeCompare(b.name, 'ar'));
+            return students;
+        }
+
+        async function createReportPDF(title, subtitle, tableHtml, filename, orientation='landscape') {
+            await loadPDF();
+            const wrap = document.createElement('div');
+            wrap.dir = 'rtl';
+            wrap.style.cssText = 'position:fixed;left:-100000px;top:0;width:1120px;background:#fff;color:#111;font-family:Tahoma,Arial,sans-serif;padding:28px;box-sizing:border-box;z-index:-1;';
+            wrap.innerHTML = `
+                <div style="border-bottom:3px solid #2c3e50;padding-bottom:12px;margin-bottom:18px;text-align:center;">
+                    <h1 style="margin:0 0 8px;font-size:25px;color:#2c3e50;">${reportEsc(title)}</h1>
+                    <div style="font-size:13px;color:#666;">${reportEsc(subtitle || '')}</div>
+                    <div style="font-size:12px;color:#888;margin-top:5px;">تاريخ التقرير: ${reportSafeDate()}</div>
+                </div>
+                ${tableHtml}
+                <div style="margin-top:20px;text-align:center;color:#777;font-size:11px;">منصة الأستاذ أحمد الحناوي</div>`;
+            document.body.appendChild(wrap);
+            try {
+                await window.html2pdf().set({
+                    margin: 8,
+                    filename,
+                    image: { type: 'jpeg', quality: 0.96 },
+                    html2canvas: { scale: 1.6, useCORS: true, backgroundColor: '#ffffff' },
+                    pagebreak: { mode: ['css','legacy'] },
+                    jsPDF: { unit: 'mm', format: 'a4', orientation }
+                }).from(wrap).save();
+            } finally {
+                wrap.remove();
+            }
+        }
+
+        window.exportAllStudentsPDF = async function() {
+            try {
+                const students = await fetchAllStudentsForReport();
+                if (!students.length) return alert('لا يوجد طلاب لتصديرهم');
+                const rows = students.map((s,i) => `
+                    <tr>
+                        <td>${i+1}</td><td>${reportEsc(s.name)}</td><td>${reportEsc(s.code)}</td>
+                        <td>${reportEsc(s.grade)}</td><td>${reportEsc(s.phone)}</td><td>${reportEsc(s.parentPhone)}</td>
+                        <td>${reportEsc(s.status)}</td><td>${s.lastLogin ? reportEsc(s.lastLogin.toLocaleString('ar-EG')) : '—'}</td><td>${s.devices}</td>
+                    </tr>`).join('');
+                const table = `<table style="width:100%;border-collapse:collapse;font-size:11px;direction:rtl;">
+                    <thead><tr style="background:#2c3e50;color:#fff;">
+                        <th>م</th><th>الاسم</th><th>الكود</th><th>الصف</th><th>تليفون الطالب</th><th>ولي الأمر</th><th>الحالة</th><th>آخر دخول</th><th>الأجهزة</th>
+                    </tr></thead><tbody>${rows}</tbody></table>
+                    <style>th,td{border:1px solid #aaa;padding:6px;text-align:center;}tbody tr:nth-child(even){background:#f7f7f7;}thead{display:table-header-group;}tr{break-inside:avoid;}</style>`;
+                await createReportPDF('تقرير جميع الطلاب', `إجمالي الطلاب: ${students.length}`, table, `students-report-${reportSafeDate()}.pdf`);
+                alert('✅ تم تحميل تقرير جميع الطلاب بنجاح');
+            } catch (error) {
+                console.error('exportAllStudentsPDF:', error);
+                alert('❌ تعذر تحميل التقرير: ' + (error?.message || error));
+            }
+        };
+
+        window.exportStudentProgressPDF = async function() {
+            try {
+                await getGrades();
+                const [studentsSnap, videosSnap, progressSnap] = await Promise.all([
+                    getDocs(collection(db, 'students')),
+                    getDocs(collection(db, 'videos')),
+                    getDocs(collection(db, 'progress'))
+                ]);
+                const videos = {};
+                videosSnap.forEach(d => videos[d.id] = { id:d.id, ...d.data() });
+                const progressByStudent = {};
+                progressSnap.forEach(d => {
+                    const x = d.data();
+                    const code = x.studentCode || '';
+                    if (!progressByStudent[code]) progressByStudent[code] = {};
+                    if (x.videoId) progressByStudent[code][x.videoId] = x;
+                });
+                const rows = [];
+                studentsSnap.forEach(d => {
+                    const st = d.data();
+                    const code = st.code || '—';
+                    const pmap = progressByStudent[code] || {};
+                    Object.values(videos).forEach(v => {
+                        const p = pmap[v.id] || {};
+                        const watched = Number(p.watchedSeconds || 0);
+                        const total = Number(p.totalDuration || 0);
+                        const percent = total > 0 ? Math.min(100, Math.round(watched / total * 100)) : 0;
+                        const status = p.completed ? 'مكتمل' : watched > 0 ? 'قيد المشاهدة' : 'لم يشاهد';
+                        rows.push(`<tr><td>${reportEsc(st.name || '—')}</td><td>${reportEsc(code)}</td><td>${reportEsc(reportGradeText(st.grade))}</td><td>${reportEsc(v.title || '—')}</td><td>${Math.floor(watched/60)}:${String(Math.floor(watched%60)).padStart(2,'0')}</td><td>${Math.floor(total/60)}:${String(Math.floor(total%60)).padStart(2,'0')}</td><td>${percent}%</td><td>${status}</td></tr>`);
+                    });
+                });
+                if (!rows.length) return alert('لا توجد بيانات تقدم لتصديرها');
+                const table = `<table style="width:100%;border-collapse:collapse;font-size:10px;direction:rtl;"><thead><tr style="background:#2980b9;color:#fff;"><th>الطالب</th><th>الكود</th><th>الصف</th><th>الفيديو</th><th>المشاهدة</th><th>المدة</th><th>النسبة</th><th>الحالة</th></tr></thead><tbody>${rows.join('')}</tbody></table><style>th,td{border:1px solid #aaa;padding:5px;text-align:center;}tbody tr:nth-child(even){background:#f7f9fb;}thead{display:table-header-group;}tr{break-inside:avoid;}</style>`;
+                await createReportPDF('تقرير تقدم الطلاب', `الطلاب: ${studentsSnap.size} — الفيديوهات: ${videosSnap.size}`, table, `students-progress-report-${reportSafeDate()}.pdf`);
+                alert('✅ تم تحميل تقرير تقدم الطلاب بنجاح');
+            } catch (error) {
+                console.error('exportStudentProgressPDF:', error);
+                alert('❌ تعذر تحميل تقرير التقدم: ' + (error?.message || error));
+            }
+        };
+
+        window.exportStudentCodesPDF = async function() {
+            try {
+                const students = await fetchAllStudentsForReport();
+                if (!students.length) return alert('لا يوجد طلاب لتصديرهم');
+                const cells = students.map(s => `<div style="border:1px solid #999;border-radius:8px;padding:8px;min-height:58px;box-sizing:border-box;"><div style="font-weight:bold;font-size:12px;">${reportEsc(s.name)}</div><div style="font-size:11px;margin-top:4px;">الكود: <b>${reportEsc(s.code)}</b></div><div style="font-size:10px;color:#666;">${reportEsc(s.grade)}</div></div>`).join('');
+                const table = `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;direction:rtl;">${cells}</div>`;
+                await createReportPDF('تقرير أكواد الطلاب', `إجمالي الطلاب: ${students.length}`, table, `student-codes-report-${reportSafeDate()}.pdf`);
+                alert('✅ تم تحميل تقرير أكواد الطلاب بنجاح');
+            } catch (error) {
+                console.error('exportStudentCodesPDF:', error);
+                alert('❌ تعذر تحميل تقرير الأكواد: ' + (error?.message || error));
+            }
+        };
+
+        // دعم أزرار Excel الموجودة بالفعل في قسم التقارير.
+        window.exportAllStudents = async function() {
+            try {
+                const students = await fetchAllStudentsForReport();
+                if (!students.length) return alert('لا يوجد طلاب لتصديرهم');
+                await loadXLSX();
+                const rows = students.map((s,i) => ({'#':i+1,'الاسم':s.name,'الكود':s.code,'الصف':s.grade,'تليفون الطالب':s.phone,'ولي الأمر':s.parentPhone,'الحالة':s.status,'آخر دخول':s.lastLogin ? s.lastLogin.toLocaleString('ar-EG') : '—','عدد الأجهزة':s.devices}));
+                const wb = XLSX.utils.book_new(), ws = XLSX.utils.json_to_sheet(rows);
+                XLSX.utils.book_append_sheet(wb, ws, 'جميع الطلاب');
+                XLSX.writeFile(wb, `students-report-${reportSafeDate()}.xlsx`);
+                alert('✅ تم تحميل تقرير Excel بنجاح');
+            } catch(e) { console.error(e); alert('❌ تعذر تصدير التقرير: '+(e?.message||e)); }
+        };
+
+        window.exportStudentProgress = async function() {
+            try {
+                await getGrades();
+                const [studentsSnap, videosSnap, progressSnap] = await Promise.all([getDocs(collection(db,'students')), getDocs(collection(db,'videos')), getDocs(collection(db,'progress'))]);
+                const videos = {}; videosSnap.forEach(d => videos[d.id] = {id:d.id,...d.data()});
+                const pm = {}; progressSnap.forEach(d => { const x=d.data(); if(!pm[x.studentCode]) pm[x.studentCode]={}; pm[x.studentCode][x.videoId]=x; });
+                const rows=[];
+                studentsSnap.forEach(d=>{const s=d.data(), code=s.code||'—', p=pm[code]||{}; Object.values(videos).forEach(v=>{const x=p[v.id]||{}, w=Number(x.watchedSeconds||0), t=Number(x.totalDuration||0); rows.push({'الطالب':s.name||'—','الكود':code,'الصف':reportGradeText(s.grade),'الفيديو':v.title||'—','المشاهدة':`${Math.floor(w/60)}:${String(Math.floor(w%60)).padStart(2,'0')}`,'المدة':`${Math.floor(t/60)}:${String(Math.floor(t%60)).padStart(2,'0')}`,'النسبة':t?Math.min(100,Math.round(w/t*100))+'%':'0%','الحالة':x.completed?'مكتمل':w>0?'قيد المشاهدة':'لم يشاهد'});});});
+                if(!rows.length) return alert('لا توجد بيانات تقدم');
+                await loadXLSX(); const wb=XLSX.utils.book_new(), ws=XLSX.utils.json_to_sheet(rows); XLSX.utils.book_append_sheet(wb,ws,'تقدم الطلاب'); XLSX.writeFile(wb,`students-progress-report-${reportSafeDate()}.xlsx`); alert('✅ تم تحميل تقرير التقدم بنجاح');
+            } catch(e) { console.error(e); alert('❌ تعذر تصدير تقرير التقدم: '+(e?.message||e)); }
+        };
+
         window.showBadgesManagement = async function() {
             await getGrades();
             const studentsSnap = await getDocs(collection(db, 'students'));

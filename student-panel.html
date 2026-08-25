@@ -12,10 +12,17 @@
     <!-- ============================================ -->
     <script>
         // 1. منع قائمة النقر بزر الماوس الأيمن
-        document.addEventListener('contextmenu', function(e) {
+        // تعطيل قائمة كليك يمين في المنصة بالكامل
+        function blockContextMenu(e) {
             e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
             return false;
-        });
+        }
+        document.addEventListener('contextmenu', blockContextMenu, true);
+        window.addEventListener('contextmenu', blockContextMenu, true);
+        document.oncontextmenu = blockContextMenu;
+        window.oncontextmenu = blockContextMenu;
 
         // 2. منع اختصارات النسخ والتحكم
         document.addEventListener('keydown', function(e) {
@@ -584,6 +591,12 @@
 
         .yt-bottom-right-blocker * {
             pointer-events: none !important;
+        }
+
+        /* حماية إضافية: منع قائمة السياق على كل عناصر المنصة */
+        html, body, button, a, img, .video-player-wrapper, .video-container, .yt-top-blocker,
+        .yt-bottom-left-blocker, .yt-bottom-right-blocker {
+            -webkit-touch-callout: none !important;
         }
 
         .video-container iframe::after {
@@ -2043,8 +2056,19 @@ else if (section === 'videos') {
                 });
 
                 // منع قائمة كليك يمين والنسخ داخل منطقة الفيديو
-                videoContainer.addEventListener('contextmenu', e => e.preventDefault());
-                videoContainer.addEventListener('copy', e => e.preventDefault());
+                const blockVideoContextMenu = function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
+                    return false;
+                };
+                videoContainer.addEventListener('contextmenu', blockVideoContextMenu, true);
+                videoContainer.addEventListener('copy', e => { e.preventDefault(); e.stopPropagation(); }, true);
+                const videoIframe = videoContainer.querySelector('iframe');
+                if (videoIframe) {
+                    videoIframe.addEventListener('contextmenu', blockVideoContextMenu, true);
+                    videoIframe.oncontextmenu = blockVideoContextMenu;
+                }
             }
             
             // تتبع التقدم
