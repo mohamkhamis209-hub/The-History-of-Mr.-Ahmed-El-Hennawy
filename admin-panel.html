@@ -3689,117 +3689,125 @@
         };
 
         window.exportStudentCodesPDF = async function() {
-            try {
-                if (!hasPermission('reports')) {
-                    alert('⛔ ليس لديك صلاحية لهذا القسم');
-                    return;
-                }
+    try {
+        if (!hasPermission('reports')) {
+            alert('⛔ ليس لديك صلاحية لهذا القسم');
+            return;
+        }
 
-                const btn = document.querySelector('button[onclick*="exportStudentCodesPDF"]');
-                if (btn) {
-                    btn.textContent = '⏳ جاري التحميل...';
-                    btn.disabled = true;
-                }
+        const btn = document.querySelector('button[onclick*="exportStudentCodesPDF"]');
+        if (btn) {
+            btn.textContent = '⏳ جاري التحميل...';
+            btn.disabled = true;
+        }
 
-                try {
-                    await loadPDF();
-                } catch (e) {
-                    alert('❌ فشل تحميل مكتبة PDF. تأكد من اتصالك بالإنترنت.');
-                    if (btn) { btn.textContent = '📄 تحميل PDF'; btn.disabled = false; }
-                    return;
-                }
+        try {
+            await loadPDF();
+        } catch (e) {
+            alert('❌ فشل تحميل مكتبة PDF. تأكد من اتصالك بالإنترنت.');
+            if (btn) { btn.textContent = '📄 تحميل PDF'; btn.disabled = false; }
+            return;
+        }
 
-                if (typeof html2pdf === 'undefined' && typeof window.html2pdf === 'undefined') {
-                    alert('❌ مكتبة PDF لم يتم تحميلها. حاول تحديث الصفحة.');
-                    if (btn) { btn.textContent = '📄 تحميل PDF'; btn.disabled = false; }
-                    return;
-                }
+        if (typeof html2pdf === 'undefined' && typeof window.html2pdf === 'undefined') {
+            alert('❌ مكتبة PDF لم يتم تحميلها. حاول تحديث الصفحة.');
+            if (btn) { btn.textContent = '📄 تحميل PDF'; btn.disabled = false; }
+            return;
+        }
 
-                const html2pdfLib = window.html2pdf || html2pdf;
+        const html2pdfLib = window.html2pdf || html2pdf;
 
-                const students = await fetchAllStudentsForReport();
-                if (!students || students.length === 0) {
-                    alert('لا يوجد طلاب لتصديرهم');
-                    if (btn) { btn.textContent = '📄 تحميل PDF'; btn.disabled = false; }
-                    return;
-                }
+        const students = await fetchAllStudentsForReport();
+        if (!students || students.length === 0) {
+            alert('لا يوجد طلاب لتصديرهم');
+            if (btn) { btn.textContent = '📄 تحميل PDF'; btn.disabled = false; }
+            return;
+        }
 
-                // ترتيب الطلاب حسب الصف
-                const gradeOrder = { 'أولى ثانوي': 1, 'ثانية ثانوي': 2, 'ثالثة ثانوي': 3 };
-                students.sort((a, b) => (gradeOrder[a.grade] || 99) - (gradeOrder[b.grade] || 99));
+        // ترتيب الطلاب حسب الصف
+        const gradeOrder = { 'أولى ثانوي': 1, 'ثانية ثانوي': 2, 'ثالثة ثانوي': 3 };
+        students.sort((a, b) => (gradeOrder[a.grade] || 99) - (gradeOrder[b.grade] || 99));
 
-                // تقسيم الطلاب إلى صفوف (3 لكل صف)
-                let cardsHtml = '';
-                for (let i = 0; i < students.length; i += 3) {
-                    const chunk = students.slice(i, i + 3);
-                    let rowHtml = '<div style="display:flex;gap:10px;margin-bottom:10px;direction:rtl;">';
-                    chunk.forEach(s => {
-                        rowHtml += `
-                            <div style="flex:1;border:1px solid #999;border-radius:8px;padding:10px;min-height:65px;text-align:center;background:#fafafa;">
-                                <div style="font-weight:bold;font-size:13px;">${reportEsc(s.name)}</div>
-                                <div style="font-size:14px;margin-top:4px;color:#2c3e50;">الكود: <b>${reportEsc(s.code)}</b></div>
-                                <div style="font-size:11px;color:#666;">${reportEsc(s.grade)}</div>
-                            </div>
-                        `;
-                    });
-                    // ملء الفراغات إذا كان العدد أقل من 3
-                    for (let j = chunk.length; j < 3; j++) {
-                        rowHtml += `<div style="flex:1;border:1px solid #ddd;border-radius:8px;padding:10px;min-height:65px;background:#f5f5f5;"></div>`;
-                    }
-                    rowHtml += '</div>';
-                    cardsHtml += rowHtml;
-                }
-
-                const element = document.createElement('div');
-                element.style.direction = 'rtl';
-                element.style.fontFamily = 'Tahoma, Arial, sans-serif';
-                element.style.padding = '20px';
-                element.style.background = 'white';
-                element.style.maxWidth = '100%';
-
-                element.innerHTML = `
-                    <div style="text-align:center;border-bottom:3px solid #9b59b6;padding-bottom:12px;margin-bottom:18px;">
-                        <h1 style="margin:0 0 5px;font-size:22px;color:#9b59b6;">📋 تقرير أكواد الطلاب</h1>
-                        <div style="font-size:13px;color:#666;">إجمالي الطلاب: ${students.length}</div>
-                        <div style="font-size:12px;color:#888;margin-top:4px;">تاريخ التقرير: ${new Date().toLocaleDateString('ar-EG')}</div>
-                    </div>
-                    ${cardsHtml}
-                    <div style="text-align:center;color:#777;font-size:11px;margin-top:15px;border-top:1px solid #ddd;padding-top:10px;">
-                        منصة مستر أحمد الحناوي © ${new Date().getFullYear()}
+        // ========================================
+        // تقسيم الطلاب إلى صفوف (5 لكل صف) بدلاً من 3
+        // عشان نستغل المساحة الفاضية
+        // ========================================
+        let cardsHtml = '';
+        const cardsPerRow = 5;
+        
+        for (let i = 0; i < students.length; i += cardsPerRow) {
+            const chunk = students.slice(i, i + cardsPerRow);
+            let rowHtml = '<div style="display:flex;gap:6px;margin-bottom:6px;direction:rtl;">';
+            
+            chunk.forEach(s => {
+                rowHtml += `
+                    <div style="flex:1;border:1px solid #999;border-radius:6px;padding:8px 4px;min-height:55px;text-align:center;background:#fafafa;font-size:11px;">
+                        <div style="font-weight:bold;font-size:12px;">${reportEsc(s.name)}</div>
+                        <div style="font-size:13px;margin-top:2px;color:#2c3e50;">الكود: <b>${reportEsc(s.code)}</b></div>
+                        <div style="font-size:10px;color:#666;">${reportEsc(s.grade)}</div>
                     </div>
                 `;
-
-                document.body.appendChild(element);
-
-                try {
-                    await html2pdfLib()
-                        .set({
-                            margin: [10, 10, 10, 10],
-                            filename: `تقرير_أكواد_الطلاب_${reportSafeDate()}.pdf`,
-                            image: { type: 'jpeg', quality: 0.98 },
-                            html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false },
-                            jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape', compress: true },
-                            pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-                        })
-                        .from(element)
-                        .save();
-
-                    alert('✅ تم تحميل التقرير بنجاح');
-                } catch (pdfError) {
-                    console.error('خطأ في إنشاء PDF:', pdfError);
-                    alert('❌ حدث خطأ أثناء إنشاء PDF: ' + pdfError.message);
-                } finally {
-                    if (element.parentNode) element.parentNode.removeChild(element);
-                    if (btn) { btn.textContent = '📄 تحميل PDF'; btn.disabled = false; }
-                }
-
-            } catch (error) {
-                console.error('exportStudentCodesPDF error:', error);
-                alert('❌ حدث خطأ: ' + error.message);
-                const btn = document.querySelector('button[onclick*="exportStudentCodesPDF"]');
-                if (btn) { btn.textContent = '📄 تحميل PDF'; btn.disabled = false; }
+            });
+            
+            // ملء الفراغات إذا كان العدد أقل من cardsPerRow
+            for (let j = chunk.length; j < cardsPerRow; j++) {
+                rowHtml += `<div style="flex:1;border:1px solid #ddd;border-radius:6px;padding:8px 4px;min-height:55px;background:#f5f5f5;"></div>`;
             }
-        };
+            
+            rowHtml += '</div>';
+            cardsHtml += rowHtml;
+        }
+
+        const element = document.createElement('div');
+        element.style.direction = 'rtl';
+        element.style.fontFamily = 'Tahoma, Arial, sans-serif';
+        element.style.padding = '15px';
+        element.style.background = 'white';
+        element.style.maxWidth = '100%';
+
+        element.innerHTML = `
+            <div style="text-align:center;border-bottom:3px solid #9b59b6;padding-bottom:10px;margin-bottom:14px;">
+                <h1 style="margin:0 0 4px;font-size:20px;color:#9b59b6;">📋 تقرير أكواد الطلاب</h1>
+                <div style="font-size:12px;color:#666;">إجمالي الطلاب: ${students.length}</div>
+                <div style="font-size:11px;color:#888;margin-top:3px;">تاريخ التقرير: ${new Date().toLocaleDateString('ar-EG')}</div>
+            </div>
+            ${cardsHtml}
+            <div style="text-align:center;color:#777;font-size:10px;margin-top:12px;border-top:1px solid #ddd;padding-top:8px;">
+                منصة مستر أحمد الحناوي © ${new Date().getFullYear()}
+            </div>
+        `;
+
+        document.body.appendChild(element);
+
+        try {
+            await html2pdfLib()
+                .set({
+                    margin: [6, 6, 6, 6],
+                    filename: `تقرير_أكواد_الطلاب_${reportSafeDate()}.pdf`,
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false },
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape', compress: true },
+                    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+                })
+                .from(element)
+                .save();
+
+            alert('✅ تم تحميل التقرير بنجاح');
+        } catch (pdfError) {
+            console.error('خطأ في إنشاء PDF:', pdfError);
+            alert('❌ حدث خطأ أثناء إنشاء PDF: ' + pdfError.message);
+        } finally {
+            if (element.parentNode) element.parentNode.removeChild(element);
+            if (btn) { btn.textContent = '📄 تحميل PDF'; btn.disabled = false; }
+        }
+
+    } catch (error) {
+        console.error('exportStudentCodesPDF error:', error);
+        alert('❌ حدث خطأ: ' + error.message);
+        const btn = document.querySelector('button[onclick*="exportStudentCodesPDF"]');
+        if (btn) { btn.textContent = '📄 تحميل PDF'; btn.disabled = false; }
+    }
+};
 
         // دعم أزرار Excel الموجودة بالفعل في قسم التقارير.
         window.exportAllStudents = async function() {
